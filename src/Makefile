@@ -44,7 +44,8 @@ INSTALL_TARGETS = $(TARGETS)
 HEADERS_DESTDIR = $(DESTDIR)$(prefix)/include
 HEADERS_INSTALL = include/libpmem.h include/libvmem.h\
 		include/libpmemobj.h include/libpmemblk.h\
-		include/libpmemlog.h include/libvmmalloc.h
+		include/libpmemlog.h include/libvmmalloc.h\
+		include/libpmemobjpp.h
 
 SCOPE_SRC_DIRS = $(TARGETS) include jemalloc/src
 SCOPE_HDR_DIRS = $(TARGETS) include jemalloc/src\
