@@ -33,24 +33,21 @@
 /*
  * cpp.c -- example usage of cpp allocations
  */
-
-#include <stddef.h>
-#include <ncurses.h>
-#include <unistd.h>
-#include <time.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <libpmemobjpp.h>
 
 #define	LAYOUT_NAME "cpp"
 
 using namespace pmem;
+using namespace std;
 
 class foo {
 public:
 	foo(int val) : bar(val)
 	{
+		std::cout << "constructor called" << std::endl;
+	}
+	~foo() {
+		std::cout << "destructor called" << std::endl;
 	}
 	int get_bar() { return bar; }
 	void set_bar(int val) { bar = val; }
@@ -62,34 +59,55 @@ class my_root {
 public:
 	p<int> a; /* transparent wrapper for persistent */
 	p<int> b;
+	mutex lock;
 	persistent_ptr<foo> f; /* smart persistent pointer */
 };
-
-#define BAD
 
 int
 main(int argc, char *argv[])
 {
 	pool<my_root> pop;
-	if (pop.exists(argv[1], "abc"))
-		pop.open(argv[1], "abc");
+	if (pop.exists(argv[1], LAYOUT_NAME))
+		pop.open(argv[1], LAYOUT_NAME);
 	else
-		pop.create(argv[1], "abc");
+		pop.create(argv[1], LAYOUT_NAME);
 
 	persistent_ptr<my_root> r = pop.get_root();
 
-	/* scoped transaction */
 	{
-		transaction tx(&pop);
-		r->a = 5;
-		r->b = 10;
-		if (r->f == nullptr) {
-			delete_persistent(r->f);
+		mutex lock;
+		lock_guard<mutex> guard(pop, lock);
+		/* exclusive lock */
+	}
+
+	{
+		shared_mutex lock;
+		{
+			shared_lock<shared_mutex> guard(pop, lock);
+			/* read lock */
+		}
+
+		{
+			lock_guard<shared_mutex> guard(pop, lock);
+			/* write lock */
 		}
 	}
 
+	/* scoped transaction */
+	try {
+		transaction tx(pop, r->lock);
+		r->a = 5;
+		r->b = 10;
+		if (r->f != nullptr) {
+			delete_persistent(r->f);
+		}
+	} catch (...) {
+		transaction_abort_current(-1);
+	}
+
+	shared_mutex lock;
 	/* lambda transaction */
-	pop.exec_tx([&] () {
+	pop.exec_tx(lock, [&] () {
 		auto f = make_persistent<foo>(15);
 		r->f = f;
 	});
