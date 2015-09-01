@@ -40,32 +40,94 @@
 using namespace pmem;
 using namespace std;
 
-class foo {
+class foo
+{
 public:
+	foo()
+	{
+	}
+
 	foo(int val) : bar(val)
 	{
 		std::cout << "constructor called" << std::endl;
 	}
+
 	~foo() {
 		std::cout << "destructor called" << std::endl;
 	}
-	int get_bar() { return bar; }
+
+	int get_bar() const { return bar; }
+
 	void set_bar(int val) { bar = val; }
 private:
 	p<int> bar;
+	p<int> bar2;
 };
 
-class my_root {
+class A
+{
+public:
+	A() {};
+	virtual void func() = 0;
+	p<int> var4;
+	p<int> var2;
+	p<int> va3;
+};
+
+class D
+{
+public:
+	D() {};
+	virtual void func2() = 0;
+	p<int> var;
+	p<int> var2;
+};
+
+class B : public A, public D
+{
+public:
+	B() {};
+	B(int a) {};
+
+	void func() {
+		printf("class1 B\n");
+	}
+
+	void func2()
+	{
+		printf("class2 B\n");
+	}
+};
+
+class C : public A, public D
+{
+public:
+	void func()
+	{
+		printf("class1 C\n");
+	}
+
+	void func2()
+	{
+		printf("class2 C\n");
+	}
+};
+
+class my_root
+{
 public:
 	p<int> a; /* transparent wrapper for persistent */
 	p<int> b;
-	mutex lock;
+	persistent_ptr<A> va;
+	pmutex lock;
 	persistent_ptr<foo> f; /* smart persistent pointer */
 };
 
 int
 main(int argc, char *argv[])
 {
+	PMEM_REGISTER_TYPE(B);
+
 	pool<my_root> pop;
 	if (pop.exists(argv[1], LAYOUT_NAME))
 		pop.open(argv[1], LAYOUT_NAME);
@@ -75,20 +137,20 @@ main(int argc, char *argv[])
 	persistent_ptr<my_root> r = pop.get_root();
 
 	{
-		mutex lock;
-		lock_guard<mutex> guard(pop, lock);
+		pmutex lock;
+		plock_guard<pmutex> guard(pop, lock);
 		/* exclusive lock */
 	}
 
 	{
-		shared_mutex lock;
+		pshared_mutex lock;
 		{
-			shared_lock<shared_mutex> guard(pop, lock);
+			pshared_lock<pshared_mutex> guard(pop, lock);
 			/* read lock */
 		}
 
 		{
-			lock_guard<shared_mutex> guard(pop, lock);
+			plock_guard<pshared_mutex> guard(pop, lock);
 			/* write lock */
 		}
 	}
@@ -98,23 +160,65 @@ main(int argc, char *argv[])
 		transaction tx(pop, r->lock);
 		r->a = 5;
 		r->b = 10;
-		if (r->f != nullptr) {
+		if (r->f != nullptr)
 			delete_persistent(r->f);
-		}
-	} catch (...) {
+	} catch (exception &e) {
+		cout << e.what() << endl;
 		transaction_abort_current(-1);
 	}
 
-	shared_mutex lock;
+	if (r->va != nullptr) {
+		r->va->func();
+	}
+
+	pshared_mutex lock;
+
 	/* lambda transaction */
 	pop.exec_tx(lock, [&] () {
 		auto f = make_persistent<foo>(15);
+		make_persistent<foo>(1);
+		make_persistent<foo>(2);
 		r->f = f;
+		delete_persistent(r->va);
+		r->va = make_persistent<B>();
 	});
+
+	try {
+		/* aborting lambda transaction */
+		pop.exec_tx(lock, [&] () {
+			p<int> test = 10;
+			int itest = test;
+			r->a = itest;
+			transaction_abort_current(-1);
+			assert(0);
+		});
+	} catch (transaction_error &e) {
+		cout << e.what() << endl;
+	}
+	assert(r->a == 5);
+
+	/* aborting scoped transaction */
+	try {
+		transaction tx(pop);
+		r->a = 10;
+		transaction_abort_current(-1);
+		assert(0);
+	} catch (transaction_error &e) {
+		cout << e.what() << endl;
+	}
+	assert(r->a == 5);
+
+	for (auto itr = cbegin_obj<foo>(pop); itr != cend_obj<foo>(); itr++) {
+		cout << itr->get_bar() << endl;
+	}
+
+	for (auto itr = begin_obj<foo>(pop); itr != end_obj<foo>(); itr++) {
+		itr->set_bar(10);
+	}
 
 	assert(r->a == 5);
 	assert(r->b == 10);
-	assert(r->f->get_bar() == 15);
+	assert(r->f->get_bar() == 10);
 
 	pop.close();
 }

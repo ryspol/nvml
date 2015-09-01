@@ -1,37 +1,5 @@
-/*
- * Copyright (c) 2014-2015, Intel Corporation
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
- #ifndef	LIBPMEMOBJPP_H
- #define	LIBPMEMOBJPP_H 1
+#ifndef	LIBPMEMOBJPP_H
+#define	LIBPMEMOBJPP_H 1
 
 #include <libpmemobj.h>
 #include <unistd.h>
@@ -44,8 +12,14 @@
 #include <assert.h>
 #include <algorithm>
 #include <exception>
+#include <thread>
+#include <mutex>
+#include <map>
+#include <list>
+#include <type_traits>
 
 namespace pmem {
+
 	class transaction_error : public std::runtime_error {
 	public:
 		using std::runtime_error::runtime_error;
@@ -66,6 +40,11 @@ namespace pmem {
 		using std::runtime_error::runtime_error;
 	};
 
+	class type_error : public std::logic_error {
+	public:
+		using std::logic_error::logic_error;
+	};
+
 	class ptr_error : public std::logic_error {
 	public:
 		using std::logic_error::logic_error;
@@ -76,6 +55,33 @@ namespace pmem {
 		using std::logic_error::logic_error;
 	};
 
+	typedef std::pair<size_t, uintptr_t> vtable_entry;
+	typedef std::list<vtable_entry> type_vptrs;
+	static std::map<uint64_t, type_vptrs> pmem_types;
+
+	template<typename T>
+	static uint64_t type_num()
+	{
+		return typeid(T).hash_code() % 1024;
+	}
+
+	template<typename T>
+	static void register_type(T *ptr) {
+		type_vptrs ptrs;
+
+		if (pmem_types.find(type_num<T>()) != pmem_types.end())
+			throw type_error("type already registered");
+
+		uintptr_t *p = (uintptr_t *)(ptr);
+		for (size_t i = 0; i < sizeof (T) / sizeof (uintptr_t); ++i)
+			if (p[i] != 0)
+				ptrs.push_back({i, p[i]});
+
+		pmem_types[type_num<T>()] = ptrs;
+	}
+
+	class base_pool;
+
 	template<typename T>
 	class pool;
 
@@ -85,13 +91,23 @@ namespace pmem {
 		template<typename A>
 		friend void delete_persistent(persistent_ptr<A> ptr);
 
-		template<typename A, typename R>
-		friend void make_persistent_atomic(pool<R> pop,
+		template<typename A>
+		friend void make_persistent_atomic(base_pool &pop,
 			persistent_ptr<A> &ptr);
+
+		template<typename A>
+		friend void delete_persistent_atomic(persistent_ptr<A> &ptr);
+
+		template<typename V>
+		friend class persistent_ptr;
+
+		template<typename I, typename UI>
+		friend class piterator;
 	public:
 		persistent_ptr() : oid(OID_NULL)
 		{
 		}
+
 		persistent_ptr(PMEMoid _oid) : oid(_oid)
 		{
 		}
@@ -100,35 +116,64 @@ namespace pmem {
 		void *operator new(std::size_t size);
 		void operator delete(void *ptr, std::size_t size);
 
-		inline persistent_ptr& operator=(persistent_ptr rhs) {
-			std::swap(oid, rhs.oid);
+		inline persistent_ptr& operator=(persistent_ptr const &rhs)
+		{
 			if (pmemobj_tx_stage() == TX_STAGE_WORK)
 				pmemobj_tx_add_range_direct(this,
 					sizeof (*this));
+
+			oid = rhs.oid;
+
+			return *this;
+		}
+
+		template<typename V>
+		inline persistent_ptr& operator=(persistent_ptr<V> const &rhs)
+		{
+			static_assert(std::is_assignable<T, V>::value,
+				"assigning incompatible persistent types");
+
+			if (pmemobj_tx_stage() == TX_STAGE_WORK)
+				pmemobj_tx_add_range_direct(this,
+					sizeof (*this));
+
+			oid = rhs.oid;
 
 			return *this;
 		}
 
 		inline T* get() const
 		{
-			return (T*)pmemobj_direct(oid);
+			uintptr_t *d = (uintptr_t *)pmemobj_direct(oid);
+			/* do this once per run (add runid) */
+			if (d && std::is_polymorphic<T>::value) {
+				fix_vtables();
+			}
+
+			return (T*)d;
 		}
+
+		/* XXX: operator[] */
 		inline T* operator->()
 		{
 			return get();
 		}
+
 		inline T& operator*()
 		{
 			return *get();
 		}
+
 		inline const T* operator->() const
 		{
 			return get();
 		}
+
 		inline const T& operator*() const
 		{
 			return *get();
 		}
+
 		inline size_t usable_size() const
 		{
 			return pmemobj_alloc_usable_size(oid);
@@ -140,19 +185,117 @@ namespace pmem {
 			return OID_IS_NULL(oid) ? 0 : &persistent_ptr<T>::get;
 		}
 	private:
+		void fix_vtables() const
+		{
+			uintptr_t *d = (uintptr_t *)pmemobj_direct(oid);
+			type_vptrs vptrs = pmem_types[pmemobj_type_num(oid)];
+			for (vtable_entry e : vptrs) {
+				d[e.first] = e.second;
+			}
+		}
 		PMEMoid oid;
+	};
+
+	template<typename T, typename UT = typename std::remove_const<T>::type>
+	class piterator : public std::iterator<std::forward_iterator_tag,
+				UT, std::ptrdiff_t, T*, T&>
+	{
+		template<typename I>
+		friend piterator<I> begin_obj(base_pool &pop);
+		template<typename I>
+		friend piterator<const I> cbegin_obj(base_pool &pop);
+
+		template<typename I>
+		friend piterator<I> end_obj();
+		template<typename I>
+		friend piterator<const I> cend_obj();
+
+		template<typename I, typename UI>
+		friend class piterator;
+	public:
+		piterator() : itr(nullptr)
+		{
+		}
+
+		void swap(piterator& other) noexcept
+		{
+			std::swap(itr, other.itr);
+		}
+
+		piterator& operator++()
+		{
+			if (itr == nullptr)
+				throw std::out_of_range(
+					"iterator out of bounds");
+
+			itr = pmemobj_next(itr.oid);
+			return *this;
+		}
+
+		piterator operator++(int)
+		{
+			if (itr == nullptr)
+				throw std::out_of_range(
+					"iterator out of bounds");
+
+			piterator tmp(*this);
+			itr = pmemobj_next(itr.oid);
+			return tmp;
+		}
+
+		template<typename I>
+		bool operator==(const piterator<I> &rhs) const
+		{
+			return itr == rhs.itr;
+		}
+
+		template<typename I>
+		bool operator!=(const piterator<I> &rhs) const
+		{
+			return itr != rhs.itr;
+		}
+
+		inline T& operator*() const
+		{
+			if (itr == nullptr)
+				throw ptr_error("dereferencing null iterator");
+
+			return *itr.get();
+		}
+
+		inline T* operator->() const
+		{
+			return &(operator*());
+		}
+
+		operator piterator<const T>() const
+		{
+			return piterator<const T>(itr);
+		}
+	private:
+		persistent_ptr<UT> itr;
+
+		piterator(persistent_ptr<UT> p) : itr(p)
+		{
+		}
 	};
 
 	class base_pool
 	{
 		friend class transaction;
-		friend class mutex;
-		friend class shared_mutex;
+		friend class pmutex;
+		friend class pshared_mutex;
+		friend class pconditional_variable;
 
 		template<typename T>
-		friend
-		void make_persistent_atomic(base_pool &p,
+		friend void make_persistent_atomic(base_pool &p,
 			persistent_ptr<T> &ptr);
+
+		template<typename T>
+		friend piterator<T> begin_obj(base_pool &pop);
+
+		template<typename T>
+		friend piterator<const T> cbegin_obj(base_pool &pop);
 	public:
 		void exec_tx(std::function<void ()> tx)
 		{
@@ -189,12 +332,15 @@ namespace pmem {
 				if (pmemobj_tx_stage() == TX_STAGE_WORK) {
 					pmemobj_tx_abort(-1);
 				}
+				pmemobj_tx_end();
 				throw;
 			}
 
-			if (pmemobj_tx_process() != 0)
+			if (pmemobj_tx_process() != 0) {
+				pmemobj_tx_end();
 				throw transaction_error("failed to process"
 					"transaction");
+			}
 
 			pmemobj_tx_end();
 		}
@@ -249,10 +395,11 @@ namespace pmem {
 		}
 	};
 
-	class mutex
+	class pmutex
 	{
 		friend class base_pool;
 		friend class transaction;
+		friend class pconditional_variable;
 	public:
 		void lock(base_pool &pop)
 		{
@@ -279,7 +426,7 @@ namespace pmem {
 		PMEMmutex plock;
 	};
 
-	class shared_mutex
+	class pshared_mutex
 	{
 		friend class base_pool;
 		friend class transaction;
@@ -323,6 +470,27 @@ namespace pmem {
 		PMEMrwlock plock;
 	};
 
+	class pconditional_variable
+	{
+	public:
+		void notify_one(base_pool &pop)
+		{
+			pmemobj_cond_signal(pop.pop, &pcond);
+		}
+
+		void notify_all(base_pool &pop)
+		{
+			pmemobj_cond_broadcast(pop.pop, &pcond);
+		}
+
+		void wait(base_pool &pop, pmutex &lock)
+		{
+			pmemobj_cond_wait(pop.pop, &pcond, &lock.plock);
+		}
+	private:
+		PMEMcond pcond;
+	};
+
 	class transaction
 	{
 	public:
@@ -361,6 +529,36 @@ namespace pmem {
 	void transaction_abort_current(int err)
 	{
 		pmemobj_tx_abort(err);
+		throw transaction_error("explicit abort " +
+					std::to_string(err));
+	}
+
+	template<typename T>
+	piterator<T> begin_obj(base_pool &pop)
+	{
+		persistent_ptr<T> p = pmemobj_first(pop.pop, type_num<T>());
+		return p;
+	}
+
+	template<typename T>
+	piterator<T> end_obj()
+	{
+		persistent_ptr<T> p;
+		return p;
+	}
+
+	template<typename T>
+	piterator<const T> cbegin_obj(base_pool &pop)
+	{
+		persistent_ptr<T> p = pmemobj_first(pop.pop, type_num<T>());
+		return p;
+	}
+
+	template<typename T>
+	piterator<const T> cend_obj()
+	{
+		persistent_ptr<T> p;
+		return p;
 	}
 
 	template<typename T>
@@ -373,13 +571,21 @@ namespace pmem {
 		p(T _val) : val(_val)
 		{
 		}
-		inline p& operator=(p rhs) {
-			std::swap(val, rhs.val);
+
+		p()
+		{
+		}
+
+		inline p& operator=(p rhs)
+		{
 			if (pmemobj_tx_stage() == TX_STAGE_WORK)
 				pmemobj_tx_add_range_direct(this, sizeof(T));
 
+			std::swap(val, rhs.val);
+
 			return *this;
 		}
+
 		inline operator T() const
 		{
 			return val;
@@ -391,7 +597,8 @@ namespace pmem {
 	template<typename T>
 	persistent_ptr<T> make_persistent()
 	{
-		persistent_ptr<T> ptr = pmemobj_tx_alloc(sizeof (T), 0);
+		persistent_ptr<T> ptr = pmemobj_tx_alloc(sizeof (T),
+			type_num<T>());
 
 		new (ptr.get()) T();
 
@@ -405,7 +612,9 @@ namespace pmem {
 			throw transaction_scope_error("refusing to allocate"
 				"memory outside of transaction scope");
 
-		persistent_ptr<T> ptr = pmemobj_tx_alloc(sizeof (T), 0);
+		persistent_ptr<T> ptr = pmemobj_tx_alloc(sizeof (T),
+			type_num<T>());
+
 		if (ptr == nullptr)
 			throw transaction_alloc_error("failed to allocate"
 				"persistent memory object");
@@ -431,7 +640,7 @@ namespace pmem {
 	}
 
 	template<typename T>
-	void obj_constructor(void *ptr, void *arg)
+	void obj_constructor(PMEMobjpool *pop, void *ptr, void *arg)
 	{
 		/* XXX: need to pack parameters for constructor in args */
 		new (ptr) T();
@@ -440,7 +649,7 @@ namespace pmem {
 	template<typename T>
 	void make_persistent_atomic(base_pool &p, persistent_ptr<T> &ptr)
 	{
-		pmemobj_alloc(p.pop, &ptr->oid, sizeof (T), 0,
+		pmemobj_alloc(p.pop, &ptr.oid, sizeof (T), type_num<T>(),
 			&obj_constructor<T>, NULL);
 	}
 
@@ -448,19 +657,19 @@ namespace pmem {
 	void delete_persistent_atomic(persistent_ptr<T> &ptr)
 	{
 		/* we CAN'T call destructor */
-		pmemobj_free(&ptr->oid);
+		pmemobj_free(&ptr.oid);
 	}
 
 	template<typename T>
-	class lock_guard
+	class plock_guard
 	{
 	public:
-		lock_guard(base_pool &_pop, T &_l) : lockable(_l), pop(_pop)
+		plock_guard(base_pool &_pop, T &_l) : lockable(_l), pop(_pop)
 		{
 			lockable.lock(pop);
 		};
 
-		~lock_guard()
+		~plock_guard()
 		{
 			lockable.unlock(pop);
 		};
@@ -470,15 +679,15 @@ namespace pmem {
 	};
 
 	template<typename T>
-	class shared_lock
+	class pshared_lock
 	{
 	public:
-		shared_lock(base_pool &_pop, T &_l) : lockable(_l), pop(_pop)
+		pshared_lock(base_pool &_pop, T &_l) : lockable(_l), pop(_pop)
 		{
 			lockable.lock_shared(pop);
 		};
 
-		~shared_lock()
+		~pshared_lock()
 		{
 			lockable.unlock(pop);
 		};
@@ -487,5 +696,14 @@ namespace pmem {
 		base_pool &pop;
 	};
 }
+
+/* use placement new to create user-provided class instance on zeroed memory */
+#define PMEM_REGISTER_TYPE(_t, ...) ({\
+	void *_type_mem = calloc(1, sizeof (_t));\
+	assert(_type_mem != NULL && "failed to register pmem type");\
+	memset(_type_mem, 0, sizeof (_t));\
+	pmem::register_type<_t>(new (_type_mem) _t(__VA_ARGS__));\
+	free(_type_mem);\
+})
 
 #endif	/* LIBPMEMOBJPP_H */
