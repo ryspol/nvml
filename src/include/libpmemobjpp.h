@@ -108,8 +108,21 @@ namespace pmem {
 		{
 		}
 
+		persistent_ptr(std::nullptr_t n) : oid(OID_NULL)
+		{
+		}
+
 		persistent_ptr(PMEMoid _oid) : oid(_oid)
 		{
+		}
+
+		template <typename V>
+		persistent_ptr(const persistent_ptr<V> &rhs)
+		{
+			static_assert(std::is_assignable<T, V>::value,
+				"assigning incompatible persistent types");
+
+			oid = rhs.oid;
 		}
 
 		/* don't allow volatile allocations */
