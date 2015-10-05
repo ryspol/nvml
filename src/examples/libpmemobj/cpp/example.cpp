@@ -33,7 +33,7 @@
 /*
  * cpp.c -- example usage of cpp allocations
  */
-#include <libpmemobjpp.h>
+#include <libpmemobj.hpp>
 
 #define	LAYOUT_NAME "cpp"
 
@@ -61,7 +61,6 @@ public:
 	void set_bar(int val) { bar = val; }
 private:
 	p<int> bar;
-	p<int> bar2;
 };
 
 class A
