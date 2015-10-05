@@ -34,7 +34,7 @@
 # examples/libpmemobj/cpp/Makefile -- build the cpp example
 #
 
-PROGS = example genetic stl
+PROGS = example stl
 INCDIR ?= ../../../include
 LIBDIR ?= ../../../nondebug
 
@@ -67,7 +67,6 @@ $(PROGS):
 	$(CXX) -o $@ $< $(LIBS)
 
 example: example.o
-genetic: genetic.o
 stl: stl.o
 
 $(DIRS):

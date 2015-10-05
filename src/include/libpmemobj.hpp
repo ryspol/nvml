@@ -396,9 +396,9 @@ namespace pmem {
 
 		inline persistent_ptr<T> operator++(int)
 		{
-			PMEMoid noid;
-			noid.off = oid.off + sizeof(T);
-			noid.pool_uuid_lo = oid.pool_uuid_lo;
+			PMEMoid noid = oid;
+			oid.off += sizeof(T);
+
 			return noid;
 		}
 
@@ -594,7 +594,7 @@ namespace pmem {
 			}
 
 			if (pmemobj_tx_process() != 0)
-				throw transaction_error("failed to process"
+				throw transaction_error("failed to process "
 					"transaction");
 
 			pmemobj_tx_end();
@@ -620,7 +620,7 @@ namespace pmem {
 
 			if (pmemobj_tx_process() != 0) {
 				pmemobj_tx_end();
-				throw transaction_error("failed to process"
+				throw transaction_error("failed to process "
 					"transaction");
 			}
 
@@ -717,14 +717,14 @@ namespace pmem {
 		void lock(base_pool &pop)
 		{
 			if (pmemobj_rwlock_rdlock(pop.pop, &plock) != 0)
-				throw lock_error("failed to read lock a"
+				throw lock_error("failed to read lock a "
 						"shared mutex");
 		}
 
 		void lock_shared(base_pool &pop)
 		{
 			if (pmemobj_rwlock_wrlock(pop.pop, &plock) != 0)
-				throw lock_error("failed to write lock a"
+				throw lock_error("failed to write lock a "
 						"shared mutex");
 		}
 
@@ -741,7 +741,7 @@ namespace pmem {
 		void unlock(base_pool &pop)
 		{
 			if (pmemobj_rwlock_unlock(pop.pop, &plock) != 0)
-				throw lock_error("failed to unlock a"
+				throw lock_error("failed to unlock a "
 						"shared mutex");
 		}
 
@@ -872,7 +872,7 @@ namespace pmem {
 			return val;
 		}
 
-		p operator++()
+		p& operator++()
 		{
 			if (pmemobj_tx_stage() == TX_STAGE_WORK)
 				pmemobj_tx_add_range_direct(this, sizeof(T));
@@ -883,8 +883,14 @@ namespace pmem {
 
 		p operator++(int)
 		{
-			T tmp = val;
-			++tmp;
+			if (pmemobj_tx_stage() == TX_STAGE_WORK) {
+				pmemobj_tx_add_range_direct(this,
+					sizeof (*this));
+			}
+
+			p<T> tmp = *this;
+			++*this;
+
 			return tmp;
 		}
 
@@ -931,7 +937,7 @@ namespace pmem {
 			return;
 
 		if (pmemobj_tx_free(ptr.oid) != 0)
-			throw transaction_alloc_error("failed to delete"
+			throw transaction_alloc_error("failed to delete "
 				"persistent memory object");
 
 		for (int i = 0; i < N; ++i)
@@ -944,14 +950,14 @@ namespace pmem {
 	persistent_ptr<T> make_persistent(Args && ... args)
 	{
 		if (pmemobj_tx_stage() != TX_STAGE_WORK)
-			throw transaction_scope_error("refusing to allocate"
+			throw transaction_scope_error("refusing to allocate "
 				"memory outside of transaction scope");
 
 		persistent_ptr<T> ptr = pmemobj_tx_alloc(sizeof (T),
 			type_num<T>());
 
 		if (ptr == nullptr)
-			throw transaction_alloc_error("failed to allocate"
+			throw transaction_alloc_error("failed to allocate "
 				"persistent memory object");
 
 		new (ptr.get()) T(args...);
@@ -968,7 +974,7 @@ namespace pmem {
 		ptr->T::~T();
 
 		if (pmemobj_tx_free(ptr.oid) != 0)
-			throw transaction_alloc_error("failed to delete"
+			throw transaction_alloc_error("failed to delete "
 				"persistent memory object");
 
 		ptr.oid = OID_NULL;

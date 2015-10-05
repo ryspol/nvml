@@ -45,7 +45,7 @@ public:
 	virtual void func() = 0;
 };
 
-class B : A {
+class B : public A {
 public:
 	B() {};
 	B(int value) : my_value(value) {};
@@ -57,7 +57,7 @@ public:
 	p<int> my_value;
 };
 
-class C : A {
+class C : public A {
 public:
 	C() {};
 	C(int value) : my_value(value) {};
@@ -76,6 +76,8 @@ public:
 		persistent_ptr<A>,
 		pmem_allocator_basic<persistent_ptr<A>>
 	> pvector;
+
+	p<int> counter;
 };
 
 int
@@ -92,12 +94,15 @@ main(int argc, char *argv[])
 
 	persistent_ptr<my_root> r = pop.get_root();
 
-	srand(time(NULL));
-
-	pop.exec_tx([&] () {
-		r->pvector.push_back(make_persistent<B>(rand()));
-		r->pvector.push_back(make_persistent<C>(rand()));
-	});
+	try {
+		pop.exec_tx([&] () {
+			r->pvector.push_back(make_persistent<B>(r->counter++));
+			/* transaction_abort_current(-1); */
+			r->pvector.push_back(make_persistent<C>(r->counter++));
+		});
+	} catch (transaction_error err) {
+		cout << err.what() << endl;
+	}
 
 	for (auto ptr : r->pvector) {
 		ptr->func();
