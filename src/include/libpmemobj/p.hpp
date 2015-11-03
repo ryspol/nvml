@@ -40,24 +40,25 @@
 #include <memory>
 #include "libpmemobj.h"
 
+#include "libpmemobj/detail/specialization.hpp"
+
 template<typename T>
 class p
 {
+	typedef p<T> this_type;
 public:
-	p(T _val) noexcept : val(_val)
+	p(T const & _val) noexcept : val(_val)
 	{
 	}
 
-	p() noexcept
-	{
-	}
+	p() = default;
 
-	p& operator=(p rhs) noexcept
+	p & operator=(p const &rhs) noexcept
 	{
 		if (pmemobj_tx_stage() == TX_STAGE_WORK)
 			pmemobj_tx_add_range_direct(this, sizeof(T));
 
-		std::swap(val, rhs.val);
+		this_type(rhs).swap(*this);
 
 		return *this;
 	}
@@ -65,6 +66,11 @@ public:
 	operator T() const noexcept
 	{
 		return val;
+	}
+
+	void swap(p &other) noexcept
+	{
+		std::swap(val, other.val);
 	}
 private:
 	T val;

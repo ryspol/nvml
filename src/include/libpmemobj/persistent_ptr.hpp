@@ -47,72 +47,65 @@ namespace nvml
 
 namespace pmem
 {
+
+#define NVML_PMEM_TYPE_CHECK(_type)\
+static_assert(!std::is_polymorphic<_type>::value,\
+"Polymorphic types are not supported");\
+static_assert(std::has_trivial_default_constructor<_type>::value,\
+"Persistent memory resident objects must be trivially default constructible");\
+static_assert(std::is_trivially_destructible<_type>::value,\
+"Persistent memory resident objects trivially destructible");
+
 	template<typename T> class persistent_ptr
 	{
+		template<typename Y>
+		friend class persistent_ptr;
+
+		typedef persistent_ptr<T> this_type;
 	public:
 		typedef typename nvml::detail::sp_element<T>::type element_type;
 
-		persistent_ptr() noexcept : oid(OID_NULL)
-		{
-			static_assert(std::is_pod<element_type>::value, "");
-		}
+		persistent_ptr() = default;
 
 		persistent_ptr(std::nullptr_t) noexcept : oid(OID_NULL)
 		{
-			static_assert(std::is_pod<element_type>::value, "");
+			NVML_PMEM_TYPE_CHECK(element_type);
 		}
 
 		persistent_ptr(PMEMoid o) noexcept : oid(o)
 		{
-			static_assert(std::is_pod<element_type>::value, "");
+			NVML_PMEM_TYPE_CHECK(element_type);
 		}
 
 		template <typename Y>
-		persistent_ptr(persistent_ptr<Y> const & r)
+		persistent_ptr(persistent_ptr<Y> const &r)
 			noexcept : oid(r.oid)
 		{
-			static_assert(std::is_pod<element_type>::value, "");
+			NVML_PMEM_TYPE_CHECK(element_type);
 
 			static_assert(std::is_convertible<Y, T>::value,
 				"assignment of inconvertible types");
 		}
 
-		persistent_ptr(persistent_ptr && r) noexcept : oid(r.oid)
+		persistent_ptr(persistent_ptr const &r) noexcept : oid(r.oid)
 		{
-			static_assert(std::is_pod<element_type>::value, "");
-
+			NVML_PMEM_TYPE_CHECK(element_type);
 		}
 
-		template<typename Y>
-		persistent_ptr & operator=(persistent_ptr<Y> && r) noexcept
-		{
-			static_assert(std::is_convertible<Y, T>::value,
-				"assignment of inconvertible types");
-
-			if (pmemobj_tx_stage() == TX_STAGE_WORK) {
-				pmemobj_tx_add_range_direct(this,
-					sizeof (*this));
-			}
-
-			r.swap(*this);
-
-			return *this;
-		}
-
-		persistent_ptr & operator=(persistent_ptr const & r) noexcept
+		persistent_ptr & operator=(persistent_ptr const &r) noexcept
 		{
 			if (pmemobj_tx_stage() == TX_STAGE_WORK) {
 				pmemobj_tx_add_range_direct(this,
 					sizeof (*this));
 			}
 
-			r.swap(*this);
+			this_type(r).swap(*this);
 
 			return *this;
 		}
 
 		template<typename Y>
-		persistent_ptr & operator=(persistent_ptr<Y> const & r) noexcept
+		persistent_ptr & operator=(persistent_ptr<Y> const &r) noexcept
 		{
 			static_assert(std::is_convertible<Y, T>::value,
 				"assignment of inconvertible types");
@@ -122,7 +115,7 @@ namespace pmem
 					sizeof (*this));
 			}
 
-			r.swap(*this);
+			this_type(r).swap(*this);
 
 			return *this;
 		}
@@ -160,17 +153,28 @@ namespace pmem
 			std::swap(oid, other.oid);
 		}
 
-		typedef element_type*
+		/* safe bool idiom */
+		typedef element_type *
 			(persistent_ptr<T>::*unspecified_bool_type)() const;
 
-		operator unspecified_bool_type() const
+		operator unspecified_bool_type() const noexcept
 		{
 			return OID_IS_NULL(oid) ? 0 : &persistent_ptr<T>::get;
 		}
 
-		explicit operator bool() const
+		explicit operator bool() const noexcept
 		{
 			return get() != nullptr;
+		}
+
+		const PMEMoid & raw() const noexcept
+		{
+			return oid;
+		}
+
+		PMEMoid * raw_ptr() noexcept
+		{
+			return &oid;
 		}
 	private:
 		PMEMoid oid;
