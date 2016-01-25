@@ -296,13 +296,13 @@ Board::Board()
 
 Board::~Board()
 {
-//	ElementVector::iterator it = mLayout.begin();
-//
-//	for( ; it != mLayout.end();  ++it)
-//	{
-//		delete_persistent (*it);
-//	}
-//	mLayout.clear();
+	ElementVector::iterator it = mLayout.begin();
+
+	for( ; it != mLayout.end();  ++it)
+	{
+		delete_persistent (*it);
+	}
+	mLayout.clear();
 }
 
 void Board::print( const int aScore )
