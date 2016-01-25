@@ -107,6 +107,15 @@ typedef std::vector<
 //									Classes
 //#############################################################################//
 
+typedef struct ColorPair
+{
+	ColorPair() : colorBg(COLOR_BLACK), colorFg(COLOR_BLACK) {}
+	ColorPair(const int aColFg, const int aColBg) : colorBg(aColBg), colorFg(aColFg) {}
+	int colorBg;
+	int colorFg;
+}ColorPair_t;
+
+
 class Helper
 {
 	public:
@@ -115,6 +124,7 @@ class Helper
 			clock_t currTime = clock();
 			while( clock() < (currTime + aTime) ) {}
 		}
+		static ColorPair_t getColor(const int aShape);
 };
 
 
@@ -141,8 +151,7 @@ bool operator== (Point &aPoint1, Point &aPoint2)
 class Shape
 {
 	public:
-		Shape(int aVal) : mVal( aVal ) {}
-		Shape(int aShape, int aColorFg, int aColorBk);
+		Shape(int aShape);
 		int getVal() { return mVal; }
 
 	private:
@@ -155,7 +164,7 @@ class Element
 {
 	public:
 		Element() : mPoint( pmem::make_persistent<Point>( 0, 0 ) ),
-					mShape( pmem::make_persistent<Shape>( SNAKE_SEGMENT, COLOR_YELLOW, COLOR_BLACK ) ),
+					mShape( pmem::make_persistent<Shape>( SNAKE_SEGMENT) ),
 					mDirection( Direction_t::LEFT ) {}
 		Element( int aX, int aY, pmem::persistent_ptr<Shape> aShape, Direction_t aDir ) :
 					mPoint( pmem::make_persistent<Point>( aX, aY ) ),
@@ -225,7 +234,7 @@ class Board
 		~Board();
 
 		void print( const int aScore );
-		void printGameOver( void );
+		void printGameOver( const int aScore );
 		unsigned getSizeRow( void ) { return mSizeRow; }
 		void setSizeRow(const unsigned aSizeRow) { mSizeRow = aSizeRow; }
 		unsigned getSizeCol( void ) { return mSizeCol; }
@@ -297,10 +306,12 @@ class Game
 		~Game() {}
 
 		void init( void );
+		void initColors( void );
 		void processStep( void );
 		void processKey( const int aLastKey );
 		inline bool isStopped( void );
 		void delay( void );
+		void clear( void );
 		bool isGameOver( void );
 		void gameOver( void );
 		void closePool(void ) { mGameState.close(); }

@@ -60,12 +60,35 @@ using namespace std;
 
 
 //#############################################################################//
+//									Helper
+//#############################################################################//
+ColorPair_t Helper::getColor(const int aShape)
+{
+	ColorPair_t res;
+	switch(aShape)
+	{
+		case SNAKE_SEGMENT:
+			res = ColorPair(COLOR_WHITE, COLOR_BLACK);
+			break;
+		case WALL:
+			res = ColorPair(COLOR_BLUE, COLOR_BLUE);
+			break;
+		case FOOD:
+			res = ColorPair(COLOR_RED, COLOR_BLACK);
+			break;
+		default:
+			res = ColorPair(COLOR_BLACK, COLOR_BLACK);
+			break;
+	}
+	return res;
+}
+
+//#############################################################################//
 //									Shape
 //#############################################################################//
-Shape::Shape(int aShape, int aColorFg, int aColorBk)
+Shape::Shape( int aShape )
 {
-	int nCurvesSymbol = getSymbol( aShape );;
-	init_pair(aShape, aColorFg, aColorBk);
+	int nCurvesSymbol = getSymbol( aShape );
 	mVal = COLOR_PAIR(aShape) | nCurvesSymbol;
 }
 
@@ -155,8 +178,7 @@ void Element::printSingleDoubleCol( void )
 //#############################################################################//
 Snake::Snake()
 {
-	persistent_ptr<Shape> shape
-		= make_persistent<Shape>(SNAKE_SEGMENT, COLOR_RED, COLOR_BLACK);
+	persistent_ptr<Shape> shape = make_persistent<Shape>(SNAKE_SEGMENT);
 	persistent_ptr<Element> element;
 
 	for (unsigned i = 0; i < SNAKE_STAR_SEG_NO; ++i)
@@ -221,8 +243,7 @@ void Snake::print( void )
 
 void Snake::addSegment( void )
 {
-	persistent_ptr<Shape> shape
-			= make_persistent<Shape>(SNAKE_SEGMENT, COLOR_RED, COLOR_BLACK);
+	persistent_ptr<Shape> shape = make_persistent<Shape>(SNAKE_SEGMENT);
 	persistent_ptr<Element> ptr
 		= make_persistent<Element>( mLastSegPosition, shape , mLastSegDir);
 	mSnakeSegments.push_back( ptr );
@@ -265,7 +286,7 @@ Point Snake::getNextPoint( const Direction_t aDir )
 
 Board::Board()
 {
-	persistent_ptr<Shape> shape = make_persistent<Shape>(FOOD, COLOR_GREEN, COLOR_BLACK);
+	persistent_ptr<Shape> shape = make_persistent<Shape>(FOOD);
 	persistent_ptr<Element> mFood
 			= make_persistent<Element>( 0, 0, shape , Direction_t::UNDEFINED);
 	mSnake = pmem::make_persistent<Snake>();
@@ -275,13 +296,13 @@ Board::Board()
 
 Board::~Board()
 {
-	ElementVector::iterator it = mLayout.begin();
-
-	for( ; it != mLayout.end();  ++it)
-	{
-		delete_persistent (*it);
-	}
-	mLayout.clear();
+//	ElementVector::iterator it = mLayout.begin();
+//
+//	for( ; it != mLayout.end();  ++it)
+//	{
+//		delete_persistent (*it);
+//	}
+//	mLayout.clear();
 }
 
 void Board::print( const int aScore )
@@ -309,7 +330,7 @@ void Board::print( const int aScore )
 
 }
 
-void Board::printGameOver( void )
+void Board::printGameOver( const int aScore )
 {
 
 	int x = mSizeCol / 3;
@@ -325,8 +346,10 @@ void Board::printGameOver( void )
 	mvprintw(y + 8, x, "#     #    #   #     ####      #######");
 	mvprintw(y + 9, x, "#     #     # #      #         #   #  ");
 	mvprintw(y + 10, x, "#######      #       #######   #     #");
-	mvprintw(y + 12, x, " q - quit");
-	mvprintw(y + 13, x, " n - new game");
+
+	mvprintw(y + 12, x, " Last score: %d ", aScore );
+	mvprintw(y + 14, x, " q - quit");
+	mvprintw(y + 15, x, " n - new game");
 
 }
 
@@ -334,7 +357,7 @@ void Board::creatDynamicLayout( const unsigned aRowNo, char * const aBuffer )
 {
 	persistent_ptr<Element> element;
 	persistent_ptr<Shape> shape
-			= make_persistent<Shape>(WALL, COLOR_BLUE, COLOR_BLUE);
+			= make_persistent<Shape>(WALL);
 
 	for (int i = 0; i < mSizeCol; ++i )
 	{
@@ -349,8 +372,7 @@ void Board::creatDynamicLayout( const unsigned aRowNo, char * const aBuffer )
 void Board::creatStaticLayout( void )
 {
 	persistent_ptr<Element> element;
-	persistent_ptr<Shape> shape
-			= make_persistent<Shape>(WALL, COLOR_RED, COLOR_RED);
+	persistent_ptr<Shape> shape = make_persistent<Shape>(WALL);
 
 	mSizeRow = BOARD_STATIC_SIZE_ROW;
 	mSizeCol = BOARD_STATIC_SIZE_COL;
@@ -414,7 +436,7 @@ bool Board::isSnakeHeadFoodHit( void )
 
 void Board::setNewFood( const Point aPoint)
 {
-	persistent_ptr<Shape> shape = make_persistent<Shape>(FOOD, COLOR_GREEN, COLOR_BLACK);
+	persistent_ptr<Shape> shape = make_persistent<Shape>(FOOD);
 	delete_persistent( mFood );
 	mFood = make_persistent<Element>( aPoint, shape , Direction_t::UNDEFINED);
 
@@ -495,6 +517,12 @@ Game::Game( const string aName )
 {
 	pool<GameState> pop;
 
+	initscr();
+	start_color();
+	nodelay(stdscr, true);
+	curs_set(0);
+	keypad(stdscr, true);
+
 	if (pop.exists(aName, LAYOUT_NAME))
 	{
 		pop.open(aName, LAYOUT_NAME);
@@ -508,8 +536,24 @@ Game::Game( const string aName )
 	mLastKey = KEY_CLEAR;
 	mDelay = DEFAULT_DELAY;
 
+	initColors();
+
 	srand( time(0) );
 }
+
+
+void Game::initColors( void )
+{
+	ColorPair_t colorPair = Helper::getColor(SNAKE_SEGMENT);
+	init_pair(SNAKE_SEGMENT, colorPair.colorFg, colorPair.colorBg);
+
+	colorPair = Helper::getColor(WALL);
+	init_pair(WALL, colorPair.colorFg, colorPair.colorBg);
+
+	colorPair = Helper::getColor(FOOD);
+	init_pair(FOOD, colorPair.colorFg, colorPair.colorBg);
+}
+
 
 void Game::init( void )
 {
@@ -630,10 +674,15 @@ void Game::delay( void )
 	Helper::sleep( mDelay );
 }
 
+void Game::clear( void )
+{
+	erase();
+}
+
 void Game::gameOver( void )
 {
 	auto r = mGameState.get_root();
-	r->getBoard()->printGameOver();
+	r->getBoard()->printGameOver( r->getPlayer()->getScore() );
 }
 
 
@@ -716,12 +765,6 @@ int main(int argc, char *argv[])
 	if ( argc != 2 )
 		return 0;
 
-	initscr();
-	start_color();
-	nodelay(stdscr, true);
-	curs_set(0);
-	keypad(stdscr, true);
-
 	string name = argv[1];
 	game = new Game(name);
 	game->init();
@@ -737,7 +780,7 @@ int main(int argc, char *argv[])
 		else
 		{
 			game->delay();
-			erase();
+			game->clear();
 			game->processStep();
 		}
 	}
