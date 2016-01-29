@@ -103,6 +103,93 @@ struct pmempool_stat {
 int pmempool_stat(const char *path, struct pmempool_stat *buf);
 
 
+struct pmempool_replica_remote {
+	const char *target;
+	const char *poolset_name;
+};
+
+struct pmempool_part {
+	const char *path;
+	unsigned char uuid[16];
+	size_t filesize;
+	size_t hdrsize;
+};
+
+struct pmempool_replica_local {
+	size_t nparts;
+	size_t size;
+	struct pmempool_part parts[];
+};
+
+struct pmempool_replica {
+	int is_remote;
+	struct pmempool_replica_remote remote;
+	struct pmempool_replica_local local;
+};
+
+struct pmempool_set {
+	unsigned char uuid[16];
+	size_t nreplicas;
+	struct pmempool_replica *replicas;
+};
+
+/*
+ * This function just parses the pool set file and returns
+ * a structures which describe the configuration. It can be
+ * used to traverse for each replica and for each part.
+ *
+ * This can be used by some utility applications for example:
+ * - to remove all replicas and parts,
+ * - to list all replicas and parts,
+ * - to checks if all replicas and parts exist
+ * etc.
+ */
+int pmempool_set_parse(const char *path, struct pmempool_set **set);
+void pmempool_set_free(struct pmempool_set *set);
+
+#define	FOREACH_REPLICA(rep, set) /* XXX*/
+#define	FOREACH_PART(part, rep) /* XXX*/
+
+struct pmempool_stats {
+	enum pmempool_type type;
+	size_t size;
+	unsigned char data[];
+};
+
+struct pmempool_stats_blk {
+	struct pmempool_stats hdr;
+	size_t nblocks;
+	size_t nzero;
+	size_t nerror;
+};
+
+struct pmempool_stats_log {
+	struct pmempool_stats hdr;
+	size_t size;
+	size_t used;
+};
+
+struct pmempool_stats_obj {
+	struct pmempool_stats hdr;
+	size_t root_size;
+	size_t nobjects;
+	size_t nallocated;
+	size_t nfree;
+	/* 
+	 * ..and much more for example:
+	 * - allocation classes statistics
+	 * - type number statistics
+	 * - external fragmentation
+	 * etc.
+	 */
+};
+
+/*
+ * Gets statistics of pool, depending on pool type.
+ */
+int pmempool_stats(const char *path, struct pmempool_stats **stats);
+void pmempool_stats_free(struct pmempool_stats *stats);
+
 /*
  * PMEMPOOL_MAJOR_VERSION and PMEMPOOL_MINOR_VERSION provide the current version
  * of the libpmempool API as provided by this header file.  Applications can
