@@ -190,6 +190,17 @@ struct pmempool_stats_obj {
 int pmempool_stats(const char *path, struct pmempool_stats **stats);
 void pmempool_stats_free(struct pmempool_stats *stats);
 
+struct pmempool_check_args {
+	bool repair;
+	bool dry_run;
+	const char *backup_path;
+	char (*question_cb)(const char *question, void *arg);
+	int (*print_cb)(const char *msg);
+	void *arg;
+};
+
+int pmempool_check(const char *path, struct pmempool_check_args *args);
+
 /*
  * PMEMPOOL_MAJOR_VERSION and PMEMPOOL_MINOR_VERSION provide the current version
  * of the libpmempool API as provided by this header file.  Applications can
