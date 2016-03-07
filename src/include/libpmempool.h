@@ -190,16 +190,64 @@ struct pmempool_stats_obj {
 int pmempool_stats(const char *path, struct pmempool_stats **stats);
 void pmempool_stats_free(struct pmempool_stats *stats);
 
+
+#define	PMEMPOOL_CHECK_FORMAT_STR	0x0
+
 struct pmempool_check_args {
 	bool repair;
 	bool dry_run;
+	bool always_yes;
+	uint32_t flags;
 	const char *backup_path;
-	char (*question_cb)(const char *question, void *arg);
-	int (*print_cb)(const char *msg);
-	void *arg;
 };
 
-int pmempool_check(const char *path, struct pmempool_check_args *args);
+enum pmempool_check_status_type {
+	STATUS_TYPE_ERROR,
+	STATUS_TYPE_QUESTION,
+};
+
+struct pmempool_check_status {
+	enum pmempool_check_status_type type;
+	const char *question;
+	const char *error;
+	const char *answer;
+};
+
+PMEMpoolcheck *pmempool_check_init(const char *path,
+		struct pmempool_check_args *args);
+
+struct pmempool_check_status *
+pmempool_check(PMEMpoolcheck *ppc, struct pmempool_check_status *stat);
+
+void pmempool_check_end(PMEMpoolcheck *ppc, struct pmmempool_check_status *stat);
+
+static void 
+pmempool_check_example(void)
+{
+	struct pmempool_check_args args = {
+		.repair = true,
+		.dry_run = false,
+		.always_yes = false,
+		.flags = PMEMPOOL_CHECK_FORMAT_STR,
+	};
+
+	PMEMpoolcheck *ppc = pmempool_check_init("/dev/btt0", &args);
+
+	struct pmempool_check_status *status = NULL;
+	while ((status = pmempool_check(ppc, status)) != NULL) {
+		if (status->type == STATUS_TYPE_ERROR)
+			fprintf(stderr, "%s\n", status->error);
+		else if (status->type == STATUS_TYPE_QUESTION) {
+			fprintf(stderr, "%s\n", status->question);
+			status->answer = strdup("yes");
+		} else {
+			pmempool_check_end(ppc, status);
+			exit (EXIT_FAILURE);
+		}
+	}
+
+	pmempool_check_end(ppc, status);
+}
 
 /*
  * PMEMPOOL_MAJOR_VERSION and PMEMPOOL_MINOR_VERSION provide the current version
