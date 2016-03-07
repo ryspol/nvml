@@ -191,9 +191,12 @@ int pmempool_stats(const char *path, struct pmempool_stats **stats);
 void pmempool_stats_free(struct pmempool_stats *stats);
 
 
-#define	PMEMPOOL_CHECK_FORMAT_STR	0x0
+#define	PMEMPOOL_CHECK_FORMAT_STR	0x1
+#define	PMEMPOOL_CHECK_FORMAT_DATA	0x2
 
 struct pmempool_check_args {
+	const char *path;
+	enum pmempool_type pool_type;
 	bool repair;
 	bool dry_run;
 	bool always_yes;
@@ -201,16 +204,33 @@ struct pmempool_check_args {
 	const char *backup_path;
 };
 
-enum pmempool_check_status_type {
-	STATUS_TYPE_ERROR,
-	STATUS_TYPE_QUESTION,
+enum pmempool_check_msg_type {
+	MSG_TYPE_INFO,
+	MSG_TYPE_ERROR,
+	MSG_TYPE_QUESTION,
+};
+
+enum pmempool_check_status {
+	STATUS_CONSISTENT,
+	STATUS_NOT_CONSISTENT,
+	STATUS_REPAIRED,
+	STATUS_CANNOT_REPAIR,
+	STATUS_FATAL,
 };
 
 struct pmempool_check_status {
-	enum pmempool_check_status_type type;
-	const char *question;
-	const char *error;
-	const char *answer;
+	struct {
+		enum pmempool_check_msg_type type;
+		const char *msg;
+		const char *answer;
+	} str;
+	struct {
+		/*
+		 * We would like to implement structure based
+		 * communication with user. But this may be implemented
+		 * in the future;
+		 */
+	} data;
 };
 
 PMEMpoolcheck *pmempool_check_init(const char *path,
@@ -219,34 +239,54 @@ PMEMpoolcheck *pmempool_check_init(const char *path,
 struct pmempool_check_status *
 pmempool_check(PMEMpoolcheck *ppc, struct pmempool_check_status *stat);
 
-void pmempool_check_end(PMEMpoolcheck *ppc, struct pmmempool_check_status *stat);
+enum pmempool_check_status
+pmempool_check_end(PMEMpoolcheck *ppc, struct pmmempool_check_status *stat);
 
 static void 
 pmempool_check_example(void)
 {
 	struct pmempool_check_args args = {
-		.repair = true,
-		.dry_run = false,
-		.always_yes = false,
-		.flags = PMEMPOOL_CHECK_FORMAT_STR,
+		.path		= "/dev/btt0",
+		.pool_type	= PMEMPOOL_TYPE_BTT,
+		.repair 	= true,
+		.dry_run 	= false,
+		.always_yes 	= false,
+		.flags 		= PMEMPOOL_CHECK_FORMAT_STR
+				/*| PMEMPOOL_CHECK_FORMAT_DATA*/,
 	};
 
-	PMEMpoolcheck *ppc = pmempool_check_init("/dev/btt0", &args);
+	PMEMpoolcheck *ppc = pmempool_check_init(&args);
 
 	struct pmempool_check_status *status = NULL;
 	while ((status = pmempool_check(ppc, status)) != NULL) {
-		if (status->type == STATUS_TYPE_ERROR)
-			fprintf(stderr, "%s\n", status->error);
-		else if (status->type == STATUS_TYPE_QUESTION) {
-			fprintf(stderr, "%s\n", status->question);
-			status->answer = strdup("yes");
-		} else {
+		switch (status->str.type) {
+		case STATUS_TYPE_ERROR:
+			fprintf(stderr, "%s\n", status->str.msg);
+			break;
+		case STATUS_TYPE_INFO:
+			printf("%s\n", status->str.msg);
+			break;
+		case STATUS_TYPE_QUESTION:
+			printf("%s\n", status->str.msg);
+
+			status->str.answer = "yes";
+			break;
+		default:
 			pmempool_check_end(ppc, status);
 			exit (EXIT_FAILURE);
 		}
 	}
 
-	pmempool_check_end(ppc, status);
+	const char *status2str[] = {
+		[STATUS_CONSISTENT] 	= "consistent",
+		[STATUS_NOT_CONSISTENT] = "not consistent",
+		[STATUS_REPAIRED] 	= "repaired",
+		[STATUS_CANNOT_REPAIR] 	= "cannot repair",
+		[STATUS_FATAL] 		= "fatal",
+	};
+
+	enum pmmempool_check_status ret = pmempool_check_end(ppc, status);
+	printf("status = %s\n", status2str[ret]);
 }
 
 /*
