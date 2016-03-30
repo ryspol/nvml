@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Intel Corporation
+ * Copyright 2016, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,7 +13,7 @@
  *       the documentation and/or other materials provided with the
  *       distribution.
  *
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of the copyright holder nor the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -33,8 +33,6 @@
 /*
  * libpmempool.h -- definitions of libpmempool entry points
  *
- * XXX
- *
  * See libpmempool(3) for details.
  */
 
@@ -44,6 +42,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdbool.h>
+
+#include "libpmemobj.h"
 
 /*
  * Return values:
@@ -72,11 +74,14 @@ int pmempool_is_pmem(const char *path);
  */
 int pmempool_set_remove(const char *path);
 
-enum pmempool_type {
-	PMEMPOOL_TYPE_LOG,
-	PMEMPOOL_TYPE_BLK,
-	PMEMPOOL_TYPE_OBJ,
-	PMEMPOOL_TYPE_UNKNOWN,
+/*
+ * pmem_pool_type_t -- pool types
+ */
+enum pmempool_pool_type {
+	PMEMPOOL_POOL_TYPE_LOG,
+	PMEMPOOL_POOL_TYPE_BLK,
+	PMEMPOOL_POOL_TYPE_OBJ,
+	PMEMPOOL_POOL_TYPE_BTT_DEV
 };
 
 /*
@@ -93,7 +98,7 @@ enum pmempool_type {
  * etc.
  */
 struct pmempool_stat {
-	enum pmempool_type type;
+	enum pmempool_pool_type type;
 	size_t size;
 	size_t nreplicas;
 	int is_poolset;
@@ -147,35 +152,35 @@ struct pmempool_set {
 int pmempool_set_parse(const char *path, struct pmempool_set **set);
 void pmempool_set_free(struct pmempool_set *set);
 
-#define	FOREACH_REPLICA(rep, set) /* XXX*/
-#define	FOREACH_PART(part, rep) /* XXX*/
+#define	FOREACH_REPLICA(rep, set) /* XXX */
+#define	FOREACH_PART(part, rep) /* XXX */
 
 struct pmempool_stats {
-	enum pmempool_type type;
+	enum pmempool_pool_type type;
 	size_t size;
 	unsigned char data[];
 };
 
 struct pmempool_stats_blk {
-	struct pmempool_stats hdr;
 	size_t nblocks;
 	size_t nzero;
 	size_t nerror;
+	struct pmempool_stats hdr;
 };
 
 struct pmempool_stats_log {
-	struct pmempool_stats hdr;
 	size_t size;
 	size_t used;
+	struct pmempool_stats hdr;
 };
 
 struct pmempool_stats_obj {
-	struct pmempool_stats hdr;
 	size_t root_size;
 	size_t nobjects;
 	size_t nallocated;
 	size_t nfree;
-	/* 
+	struct pmempool_stats hdr;
+	/*
 	 * ..and much more for example:
 	 * - allocation classes statistics
 	 * - type number statistics
@@ -191,13 +196,14 @@ int pmempool_stats(const char *path, struct pmempool_stats **stats);
 void pmempool_stats_free(struct pmempool_stats *stats);
 
 
-#define	PMEMPOOL_CHECK_FORMAT_STR	0x1
-#define	PMEMPOOL_CHECK_FORMAT_DATA	0x2
+#define	PMEMPOOL_CHECK_FORMAT_STR	(1 << 0)
+#define	PMEMPOOL_CHECK_FORMAT_DATA	(1 << 1)
 
 struct pmempool_check_args {
 	const char *path;
-	enum pmempool_type pool_type;
+	enum pmempool_pool_type pool_type;
 	bool repair;
+	bool backup;
 	bool dry_run;
 	bool always_yes;
 	uint32_t flags;
@@ -205,23 +211,37 @@ struct pmempool_check_args {
 };
 
 enum pmempool_check_msg_type {
-	MSG_TYPE_INFO,
-	MSG_TYPE_ERROR,
-	MSG_TYPE_QUESTION,
+	PMEMPOOL_CHECK_MSG_TYPE_INFO,
+	PMEMPOOL_CHECK_MSG_TYPE_ERROR,
+	PMEMPOOL_CHECK_MSG_TYPE_QUESTION,
 };
 
-enum pmempool_check_status {
-	STATUS_CONSISTENT,
-	STATUS_NOT_CONSISTENT,
-	STATUS_REPAIRED,
-	STATUS_CANNOT_REPAIR,
-	STATUS_FATAL,
+enum pmempool_check_answer {
+	PMEMPOOL_CHECK_ANSWER_EMPTY,
+	PMEMPOOL_CHECK_ANSWER_YES,
+	PMEMPOOL_CHECK_ANSWER_NO,
+	PMEMPOOL_CHECK_ANSWER_DEFAULT,
 };
+
+enum pmempool_check_result {
+	PMEMPOOL_CHECK_RESULT_CONSISTENT,
+	PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT,
+	PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS,
+	PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS,
+	PMEMPOOL_CHECK_RESULT_REPAIRED,
+	PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR,
+	PMEMPOOL_CHECK_RESULT_ERROR
+};
+
+#define	PMEMPOOL_MAX_MSG_STR_SIZE 8192
+#define	PMEMPOOL_MAX_ANSWER_STR_SIZE 4
 
 struct pmempool_check_status {
+	enum pmempool_check_msg_type type;
+	uint32_t question;
+	enum pmempool_check_answer answer;
 	struct {
-		enum pmempool_check_msg_type type;
-		const char *msg;
+		char msg[PMEMPOOL_MAX_MSG_STR_SIZE];
 		const char *answer;
 	} str;
 	struct {
@@ -230,64 +250,20 @@ struct pmempool_check_status {
 		 * communication with user. But this may be implemented
 		 * in the future;
 		 */
+		uint32_t placeholder;
 	} data;
 };
 
-PMEMpoolcheck *pmempool_check_init(const char *path,
-		struct pmempool_check_args *args);
+#define	PMEMPOOL_CHECK_END UINT32_MAX
 
-struct pmempool_check_status *
-pmempool_check(PMEMpoolcheck *ppc, struct pmempool_check_status *stat);
+typedef struct pmempool_check PMEMpoolcheck;
 
-enum pmempool_check_status
-pmempool_check_end(PMEMpoolcheck *ppc, struct pmmempool_check_status *stat);
+PMEMpoolcheck *pmempool_check_init(struct pmempool_check_args *args);
 
-static void 
-pmempool_check_example(void)
-{
-	struct pmempool_check_args args = {
-		.path		= "/dev/btt0",
-		.pool_type	= PMEMPOOL_TYPE_BTT,
-		.repair 	= true,
-		.dry_run 	= false,
-		.always_yes 	= false,
-		.flags 		= PMEMPOOL_CHECK_FORMAT_STR
-				/*| PMEMPOOL_CHECK_FORMAT_DATA*/,
-	};
+struct pmempool_check_status *pmempool_check(PMEMpoolcheck *ppc);
 
-	PMEMpoolcheck *ppc = pmempool_check_init(&args);
-
-	struct pmempool_check_status *status = NULL;
-	while ((status = pmempool_check(ppc, status)) != NULL) {
-		switch (status->str.type) {
-		case STATUS_TYPE_ERROR:
-			fprintf(stderr, "%s\n", status->str.msg);
-			break;
-		case STATUS_TYPE_INFO:
-			printf("%s\n", status->str.msg);
-			break;
-		case STATUS_TYPE_QUESTION:
-			printf("%s\n", status->str.msg);
-
-			status->str.answer = "yes";
-			break;
-		default:
-			pmempool_check_end(ppc, status);
-			exit (EXIT_FAILURE);
-		}
-	}
-
-	const char *status2str[] = {
-		[STATUS_CONSISTENT] 	= "consistent",
-		[STATUS_NOT_CONSISTENT] = "not consistent",
-		[STATUS_REPAIRED] 	= "repaired",
-		[STATUS_CANNOT_REPAIR] 	= "cannot repair",
-		[STATUS_FATAL] 		= "fatal",
-	};
-
-	enum pmmempool_check_status ret = pmempool_check_end(ppc, status);
-	printf("status = %s\n", status2str[ret]);
-}
+enum pmempool_check_result pmempool_check_end(PMEMpoolcheck *ppc,
+	struct pmempool_check_status *stat);
 
 /*
  * PMEMPOOL_MAJOR_VERSION and PMEMPOOL_MINOR_VERSION provide the current version
