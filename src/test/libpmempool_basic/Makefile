@@ -1,5 +1,5 @@
 #
-# Copyright 2016, Intel Corporation
+# Copyright 2015-2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,14 +29,16 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
 #
-# src/libpmempool.map -- linker map file for libpmempool
+# src/test/obj_basic_integration/Makefile -- build obj_basic_integration test
 #
-libpmempool.so {
-	global:
-		pmempool_check_init;
-		pmempool_check;
-		pmempool_check_end;
-	local:
-		*;
-};
+TARGET = libpmempool_basic
+OBJS = libpmempool_basic.o
+
+LIBPMEM=y
+LIBPMEMBLK=y
+LIBPMEMOBJ=y
+LIBPMEMPOOL=y
+
+include ../Makefile.inc

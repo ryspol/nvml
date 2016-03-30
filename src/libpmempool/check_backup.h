@@ -31,29 +31,7 @@
  */
 
 /*
- * pmempool.h -- internal definitions for libpmempool
+ * check_backup.h -- internal definitions for pre-check backup
  */
 
-#define	PMEMPOOL_LOG_PREFIX "libpmempool"
-#define	PMEMPOOL_LOG_LEVEL_VAR "PMEMPOOL_LOG_LEVEL"
-#define	PMEMPOOL_LOG_FILE_VAR "PMEMPOOL_LOG_FILE"
-
-extern unsigned long Pagesize;
-
-/*
- * pmempool_check -- context and arguments for check command
- */
-struct pmempool_check {
-	char *path;
-	enum pmempool_pool_type pool_type;
-	bool repair;
-	bool backup;
-	bool dry_run;
-	bool always_yes;
-	uint32_t flags;
-	char *backup_path;
-
-	struct check_data *data;
-	struct pool_data *pool;
-	enum pmempool_check_result result;
-};
+struct check_status *check_backup(PMEMpoolcheck *ppc);

@@ -35,7 +35,8 @@
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))..
 include $(TOP)/src/common.inc
 
-TARGETS = libpmem libvmem libpmemblk libpmemlog libpmemobj libvmmalloc tools
+TARGETS = libpmem libvmem libpmemblk libpmemlog libpmemobj libpmempool\
+	libvmmalloc tools
 ALL_TARGETS = $(TARGETS) librpmem examples benchmarks
 CLEAN_TARGETS = $(ALL_TARGETS) test jemalloc
 CLOBBER_TARGETS = $(ALL_TARGETS) test jemalloc
@@ -44,8 +45,9 @@ INSTALL_TARGETS = $(TARGETS)
 
 HEADERS_DESTDIR = $(DESTDIR)$(includedir)
 HEADERS_INSTALL = include/libpmem.h include/libvmem.h\
-		include/libpmemobj.h include/libpmemblk.h\
-		include/libpmemlog.h include/libvmmalloc.h
+		include/libpmemobj.h include/libpmempool.h\
+		include/libpmemblk.h include/libpmemlog.h\
+		include/libvmmalloc.h
 
 MAKE_PKG_CONFIG = $(TOP)/utils/make-pkg-config.sh
 PKG_CONFIG_DESTDIR = $(DESTDIR)$(pkgconfigdir)

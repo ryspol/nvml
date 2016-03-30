@@ -31,29 +31,57 @@
  */
 
 /*
- * pmempool.h -- internal definitions for libpmempool
+ * check.h -- internal definitions for logic performing check
  */
 
-#define	PMEMPOOL_LOG_PREFIX "libpmempool"
-#define	PMEMPOOL_LOG_LEVEL_VAR "PMEMPOOL_LOG_LEVEL"
-#define	PMEMPOOL_LOG_FILE_VAR "PMEMPOOL_LOG_FILE"
-
-extern unsigned long Pagesize;
-
-/*
- * pmempool_check -- context and arguments for check command
- */
-struct pmempool_check {
-	char *path;
-	enum pmempool_pool_type pool_type;
-	bool repair;
-	bool backup;
-	bool dry_run;
-	bool always_yes;
-	uint32_t flags;
-	char *backup_path;
-
-	struct check_data *data;
-	struct pool_data *pool;
-	enum pmempool_check_result result;
+/* queue of check statuses */
+struct check_status {
+	TAILQ_ENTRY(check_status) next;
+	struct pmempool_check_status status;
 };
+
+TAILQ_HEAD(check_status_head, check_status);
+
+/* container for storing instep location */
+#define	CHECK_INSTEP_LOCATION_NUM	2
+
+struct check_instep_location {
+	uint64_t instep_location[CHECK_INSTEP_LOCATION_NUM];
+};
+
+/* check control context */
+struct check_data {
+	uint32_t step;
+	struct check_instep_location instep_location;
+
+	struct check_status *error;
+	struct check_status_head infos;
+	struct check_status_head questions;
+	struct check_status_head answers;
+
+	struct check_status *check_status_cache;
+};
+
+bool check_start(PMEMpoolcheck *ppc);
+struct check_status *check_step(PMEMpoolcheck *ppc);
+void check_stop(PMEMpoolcheck *ppc);
+
+struct check_status *
+check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
+	uint32_t question, const char *fmt, ...);
+void check_status_push(PMEMpoolcheck *ppc, struct check_status *);
+struct check_status *check_pop_answer(struct check_data *data);
+void check_status_release(struct check_status *);
+
+/* create error status */
+#define	CHECK_STATUS_ERR(ppc, ...)\
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, __VA_ARGS__)
+
+/* create question status */
+#define	CHECK_STATUS_ASK(ppc, question, ...)\
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_QUESTION, question,\
+		__VA_ARGS__)
+
+int check_memory(const uint8_t *buff, size_t len, uint8_t val);
+
+const char *check_get_time_str(time_t time);

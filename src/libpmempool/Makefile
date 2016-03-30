@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2015, Intel Corporation
+# Copyright 2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -12,7 +12,7 @@
 #       the documentation and/or other materials provided with the
 #       distribution.
 #
-#     * Neither the name of Intel Corporation nor the names of its
+#     * Neither the name of the copyright holder nor the names of its
 #       contributors may be used to endorse or promote products derived
 #       from this software without specific prior written permission.
 #
@@ -35,6 +35,14 @@
 LIBRARY_NAME = pmempool
 LIBRARY_SO_VERSION = 1
 LIBRARY_VERSION = 0.0
-SOURCE = libpmempool.c
+
+INCS += -I$(TOP)/src/libpmemlog
+INCS += -I$(TOP)/src/libpmemblk
+INCS += -I$(TOP)/src/libpmemobj
+
+SOURCE = libpmempool.c check.c check_backup.c check_pool_hdr.c pool.c\
+	$(COMMON)/util.c $(COMMON)/set.c $(COMMON)/out.c
 
 include ../Makefile.inc
+
+LIBS += -lpmem

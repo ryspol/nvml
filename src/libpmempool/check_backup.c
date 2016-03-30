@@ -31,29 +31,76 @@
  */
 
 /*
- * pmempool.h -- internal definitions for libpmempool
+ * check_backup.c -- pre-check backup
  */
 
-#define	PMEMPOOL_LOG_PREFIX "libpmempool"
-#define	PMEMPOOL_LOG_LEVEL_VAR "PMEMPOOL_LOG_LEVEL"
-#define	PMEMPOOL_LOG_FILE_VAR "PMEMPOOL_LOG_FILE"
+#include <stdio.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/queue.h>
+#include <errno.h>
+#include <unistd.h>
 
-extern unsigned long Pagesize;
+#include "out.h"
+#include "util.h"
+#include "libpmempool.h"
+#include "pmempool.h"
+#include "pool.h"
+#include "check.h"
+#include "check_backup.h"
 
 /*
- * pmempool_check -- context and arguments for check command
+ * check_backup_cp -- copy file to its backup location
  */
-struct pmempool_check {
-	char *path;
-	enum pmempool_pool_type pool_type;
-	bool repair;
-	bool backup;
-	bool dry_run;
-	bool always_yes;
-	uint32_t flags;
-	char *backup_path;
+static bool
+check_backup_cp(PMEMpoolcheck *ppc)
+{
+	struct pool_set_file *file = ppc->pool->set_file;
+	int dfd = util_file_create(ppc->backup_path, file->size, 0);
+	if (dfd < 0)
+		return false;
 
-	struct check_data *data;
-	struct pool_data *pool;
-	enum pmempool_check_result result;
-};
+	void *daddr = mmap(NULL, file->size, PROT_READ | PROT_WRITE,
+			MAP_SHARED, dfd, 0);
+	if (daddr == MAP_FAILED) {
+		close(dfd);
+		return false;
+	}
+
+	void *saddr = pool_set_file_map(file, 0);
+
+	memcpy(daddr, saddr, file->size);
+	munmap(daddr, file->size);
+	close(dfd);
+
+	return true;
+}
+
+/*
+ * check_backup_create -- create backup file
+ */
+static bool
+check_backup_create(PMEMpoolcheck *ppc)
+{
+	LOG(1, "creating backup file: %s\n", ppc->backup_path);
+	return check_backup_cp(ppc);
+}
+
+/*
+ * check_backup -- perform backup if requested and needed
+ */
+struct check_status *
+check_backup(PMEMpoolcheck *ppc)
+{
+	if (ppc->repair && ppc->backup && !ppc->dry_run) {
+		if (!check_backup_create(ppc)) {
+			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+			return CHECK_STATUS_ERR(ppc,
+				"unable to create backup file");
+		}
+	}
+	return NULL;
+}

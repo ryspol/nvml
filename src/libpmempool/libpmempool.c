@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Intel Corporation
+ * Copyright 2016, Intel Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,7 +13,7 @@
  *       the documentation and/or other materials provided with the
  *       distribution.
  *
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of the copyright holder nor the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -31,18 +31,29 @@
  */
 
 /*
- * libpmempool.c -- pmem entry points for libpmempool
+ * libpmempool.c -- entry points for libpmempool
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <stdint.h>
+#include <errno.h>
 #include <sys/types.h>
+#include <sys/queue.h>
 
-#include "libpmempool.h"
-
-#include "pmempool.h"
 #include "util.h"
 #include "out.h"
+#include "libpmempool.h"
+#include "pmempool.h"
+#include "pool.h"
+#include "check.h"
+
+/*
+ * pmempool_check_default -- default values of check context
+ */
+static const PMEMpoolcheck pmempool_check_default = {
+	.result	= PMEMPOOL_CHECK_RESULT_CONSISTENT,
+};
 
 /*
  * libpmempool_init -- load-time initialization for libpmempool
@@ -53,8 +64,9 @@ __attribute__((constructor))
 static void
 libpmempool_init(void)
 {
-	out_init(PMEMPOOL_LOG_PREFIX, PMEMPOOL_LOG_LEVEL_VAR, PMEMPOOL_LOG_FILE_VAR,
-			PMEMPOOL_MAJOR_VERSION, PMEMPOOL_MINOR_VERSION);
+	out_init(PMEMPOOL_LOG_PREFIX, PMEMPOOL_LOG_LEVEL_VAR,
+		PMEMPOOL_LOG_FILE_VAR, PMEMPOOL_MAJOR_VERSION,
+		PMEMPOOL_MINOR_VERSION);
 	LOG(3, NULL);
 	util_init();
 }
@@ -73,7 +85,8 @@ libpmempool_fini(void)
 }
 
 /*
- * pmempool_check_version -- see if library meets application version requirements
+ * pmempool_check_version -- see if library meets application version
+ *	requirements
  */
 const char *
 pmempool_check_version(unsigned major_required, unsigned minor_required)
@@ -103,4 +116,94 @@ const char *
 pmempool_errormsg(void)
 {
 	return out_get_errormsg();
+}
+
+/*
+ * pmempool_check_init -- initialize check context according to passed
+ *	arguments and prepare to perform a check
+ */
+PMEMpoolcheck *
+pmempool_check_init(struct pmempool_check_args *args)
+{
+	if (args->path == NULL) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (!args->repair && !args->dry_run) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (!args->repair && args->backup) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (args->repair && args->backup && !args->dry_run &&
+		args->backup_path == NULL) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	if (!(args->flags & PMEMPOOL_CHECK_FORMAT_STR) &&
+		!(args->flags & PMEMPOOL_CHECK_FORMAT_DATA)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	PMEMpoolcheck *ppc = malloc(sizeof (*ppc));
+	*ppc = pmempool_check_default;
+	ppc->path = strdup(args->path);
+	ppc->pool_type = args->pool_type;
+	ppc->repair = args->repair;
+	ppc->backup = args->backup;
+	ppc->dry_run = args->dry_run;
+	ppc->always_yes = args->always_yes;
+	ppc->flags = args->flags;
+	if (args->backup_path != NULL)
+		ppc->backup_path = strdup(args->backup_path);
+
+	if (!check_start(ppc)) {
+		free(ppc->backup_path);
+		free(ppc->path);
+		free(ppc);
+		return NULL;
+	}
+
+	return ppc;
+}
+
+/*
+ * pmempool_check -- continue check till produce status to consume for caller
+ */
+struct pmempool_check_status *
+pmempool_check(PMEMpoolcheck *ppc)
+{
+	struct check_status *result = NULL;
+	do {
+		result = check_step(ppc);
+
+		if (ppc->data->step == PMEMPOOL_CHECK_END &&
+			result == NULL)
+			return NULL;
+	} while (result == NULL);
+
+	return &result->status;
+}
+
+/*
+ * pmempool_check_end -- end check and release check context
+ */
+enum pmempool_check_result
+pmempool_check_end(PMEMpoolcheck *ppc, struct pmempool_check_status *stat)
+{
+	enum pmempool_check_result result = ppc->result;
+
+	check_stop(ppc);
+	free(ppc->path);
+	free(ppc->backup_path);
+	free(ppc);
+
+	return result;
 }
