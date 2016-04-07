@@ -35,7 +35,8 @@
  */
 
 #include <stdio.h>
-#include <stddef.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/stat.h>
@@ -50,6 +51,7 @@
 #include "check.h"
 #include "check_backup.h"
 #include "check_pool_hdr.h"
+#include "check_pmemx.h"
 
 struct check_step {
 	struct check_status *(*func)(PMEMpoolcheck *);
@@ -69,6 +71,12 @@ static const struct check_step check_steps[] = {
 				| POOL_TYPE_UNKNOWN,
 		.func	= check_pool_hdr,
 		.part	= true,
+	},
+	{
+		.type	= POOL_TYPE_BLK
+				| POOL_TYPE_LOG,
+		.func	= check_pmemx,
+		.part	= false,
 	},
 	{
 		.func	= NULL,
@@ -162,6 +170,15 @@ check_push_answer(PMEMpoolcheck *ppc)
 	}
 
 	return NULL;
+}
+
+/*
+ * check_has_answer -- check if any answer exists
+ */
+bool
+check_has_answer(struct check_data *data)
+{
+	return !TAILQ_EMPTY(&data->answers);
 }
 
 /*
@@ -413,4 +430,16 @@ check_get_time_str(time_t time)
 		snprintf(str_buff, STR_MAX, "unknown");
 
 	return str_buff;
+}
+
+struct check_status *
+check_questions_sequence_validate(PMEMpoolcheck *ppc)
+{
+	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS);
+	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
+		return ppc->data->questions.tqh_first;
+	else
+		return NULL;
 }

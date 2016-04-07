@@ -34,15 +34,9 @@
  * check_pool_hdr.c -- pool header check
  */
 
-#include <stdio.h>
-#include <stddef.h>
+#include <assert.h>
 #include <stdint.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/queue.h>
-#include <inttypes.h>
-#include <errno.h>
-#include <unistd.h>
 
 #include "out.h"
 #include "util.h"
@@ -79,8 +73,6 @@ enum check_pool_hdr_questions {
 	CHECK_POOL_HDR_Q_SET_NEXT_REPL_UUID,
 	CHECK_POOL_HDR_Q_SET_PREV_REPL_UUID
 };
-
-#define	CHECK_POOL_HDR_STEPS_COMPLETE	UINT32_MAX
 
 /*
  * check_pool_hdr_possible_type -- return possible type of pool
@@ -173,7 +165,7 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 				}
 			} else {
 				// valid check sum
-				loc->step = CHECK_POOL_HDR_STEPS_COMPLETE;
+				loc->step = CHECK_STEPS_COMPLETE;
 				return NULL;
 			}
 		} else {
@@ -264,13 +256,7 @@ check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 			"fill it up?");
 	}
 
-	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS);
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
-		return ppc->data->questions.tqh_first;
-	else
-		return NULL;
+	return check_questions_sequence_validate(ppc);
 }
 
 /*
@@ -280,6 +266,9 @@ static struct check_status *
 check_pool_hdr_default_fix(PMEMpoolcheck *ppc,
 	union check_pool_hdr_location *loc)
 {
+	if (!check_has_answer(ppc->data))
+		return NULL;
+
 	struct pool_hdr hdr;
 	struct pool_hdr *hdrp;
 	check_pool_hdr_get(ppc, &hdr, &hdrp, loc);
@@ -419,7 +408,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 			check_pool_hdr_get_uuid_str(valid_hdrp->poolset_uuid));
 	}
 
-	return NULL;
+	return check_questions_sequence_validate(ppc);
 }
 
 /*
@@ -429,6 +418,9 @@ static struct check_status *
 check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 	union check_pool_hdr_location *loc)
 {
+	if (!check_has_answer(ppc->data))
+		return NULL;
+
 	struct pool_hdr hdr;
 	struct pool_hdr *hdrp;
 	check_pool_hdr_get(ppc, &hdr, &hdrp, loc);
@@ -499,7 +491,7 @@ check_pool_hdr_checksum_retry(PMEMpoolcheck *ppc,
 	check_pool_hdr_get(ppc, &hdr, NULL, loc);
 
 	if (check_pool_hdr_valid(&hdr)) {
-		loc->step = CHECK_POOL_HDR_STEPS_COMPLETE;
+		loc->step = CHECK_STEPS_COMPLETE;
 	}
 
 	return NULL;
@@ -526,7 +518,7 @@ check_pool_hdr_gen(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 	CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_CHECKSUM,
 		"Do you want to regenerate checksum?");
 
-	return ppc->data->questions.tqh_first;
+	return check_questions_sequence_validate(ppc);
 }
 
 /*
@@ -536,6 +528,9 @@ check_pool_hdr_gen(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 static struct check_status *
 check_pool_hdr_gen_fix(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 {
+	if (!check_has_answer(ppc->data))
+		return NULL;
+
 	struct pool_hdr hdr;
 	struct pool_hdr *hdrp;
 	check_pool_hdr_get(ppc, &hdr, &hdrp, loc);
@@ -646,10 +641,7 @@ check_pool_hdr_uuids_single(PMEMpoolcheck *ppc,
 		}
 	}
 
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
-		return ppc->data->questions.tqh_first;
-	else
-		return NULL;
+	return check_questions_sequence_validate(ppc);
 }
 
 /*
@@ -673,6 +665,9 @@ static struct check_status *
 check_pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 	union check_pool_hdr_location *loc)
 {
+	if (!check_has_answer(ppc->data))
+		return NULL;
+
 	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
 	unsigned nparts =
 		ppc->pool->set_file->poolset->replica[loc->replica]->nparts;
@@ -807,10 +802,7 @@ check_pool_hdr_uuids(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 			"it to valid value?");
 	}
 
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
-		return ppc->data->questions.tqh_first;
-	else
-		return NULL;
+	return check_questions_sequence_validate(ppc);
 }
 
 /*
@@ -820,6 +812,9 @@ static struct check_status *
 check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 	union check_pool_hdr_location *loc)
 {
+	if (!check_has_answer(ppc->data))
+		return NULL;
+
 	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
 	unsigned nparts =
 		ppc->pool->set_file->poolset->replica[loc->replica]->nparts;
@@ -975,7 +970,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 				PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS)
 				loc->step = 0;
 
-			while (loc->step != CHECK_POOL_HDR_STEPS_COMPLETE &&
+			while (loc->step != CHECK_STEPS_COMPLETE &&
 				check_pool_hdr_steps[loc->step].func != NULL) {
 				const struct check_pool_hdr_step *step =
 					&check_pool_hdr_steps[loc->step++];

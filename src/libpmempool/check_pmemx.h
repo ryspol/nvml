@@ -31,70 +31,7 @@
  */
 
 /*
- * check_backup.c -- pre-check backup
+ * check_pmemx.h -- internal definitions for pmemlog and pmemblk checks
  */
 
-#include <unistd.h>
-#include <stdint.h>
-#include <sys/mman.h>
-
-#include "out.h"
-#include "util.h"
-#include "libpmempool.h"
-#include "pmempool.h"
-#include "pool.h"
-#include "check.h"
-#include "check_backup.h"
-
-/*
- * check_backup_cp -- copy file to its backup location
- */
-static int
-check_backup_cp(PMEMpoolcheck *ppc)
-{
-	struct pool_set_file *file = ppc->pool->set_file;
-	int dfd = util_file_create(ppc->backup_path, file->size, 0);
-	if (dfd < 0)
-		return -1;
-
-	void *daddr = mmap(NULL, file->size, PROT_READ | PROT_WRITE,
-			MAP_SHARED, dfd, 0);
-	if (daddr == MAP_FAILED) {
-		close(dfd);
-		return -1;
-	}
-
-	void *saddr = pool_set_file_map(file, 0);
-
-	memcpy(daddr, saddr, file->size);
-	munmap(daddr, file->size);
-	close(dfd);
-
-	return 0;
-}
-
-/*
- * check_backup_create -- create backup file
- */
-static int
-check_backup_create(PMEMpoolcheck *ppc)
-{
-	LOG(1, "creating backup file: %s\n", ppc->backup_path);
-	return check_backup_cp(ppc);
-}
-
-/*
- * check_backup -- perform backup if requested and needed
- */
-struct check_status *
-check_backup(PMEMpoolcheck *ppc)
-{
-	if (ppc->repair && ppc->backup && !ppc->dry_run) {
-		if (!check_backup_create(ppc)) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-			return CHECK_STATUS_ERR(ppc,
-				"unable to create backup file");
-		}
-	}
-	return NULL;
-}
+struct check_status *check_pmemx(PMEMpoolcheck *ppc);
