@@ -40,8 +40,8 @@ INCS += -I$(TOP)/src/libpmemlog
 INCS += -I$(TOP)/src/libpmemblk
 INCS += -I$(TOP)/src/libpmemobj
 
-SOURCE = libpmempool.c check.c check_backup.c check_pool_hdr.c pool.c\
-	$(COMMON)/util.c $(COMMON)/set.c $(COMMON)/out.c
+SOURCE = libpmempool.c check.c check_backup.c check_pool_hdr.c check_pmemx.c\
+	pool.c $(COMMON)/util.c $(COMMON)/set.c $(COMMON)/out.c
 
 include ../Makefile.inc
 

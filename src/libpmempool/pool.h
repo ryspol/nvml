@@ -34,6 +34,8 @@
  * pool.h -- internal definitions for pool processing functions
  */
 
+#include <sys/queue.h>
+
 #include "log.h"
 #include "blk.h"
 #include "btt_layout.h"
