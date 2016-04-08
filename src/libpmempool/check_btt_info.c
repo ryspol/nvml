@@ -1,0 +1,623 @@
+/*
+ * Copyright 2016, Intel Corporation
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in
+ *       the documentation and/or other materials provided with the
+ *       distribution.
+ *
+ *     * Neither the name of the copyright holder nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * check_btt_info.c -- check btt info
+ */
+
+#include <unistd.h>
+#include <stdint.h>
+#include <sys/mman.h>
+#include <assert.h>
+
+#include "out.h"
+#include "util.h"
+#include "btt.h"
+#include "libpmempool.h"
+#include "pmempool.h"
+#include "pool.h"
+#include "check.h"
+#include "check_btt_info.h"
+
+union check_btt_info_location {
+	struct {
+		uint64_t offset;
+		uint64_t offset2;
+		uint64_t nextoff;
+		struct arena *arena;
+		bool advanced_repair;
+		uint32_t step;
+	};
+	struct check_instep_location instep;
+};
+
+enum check_btt_info_questions {
+	CHECK_BTT_INFO_Q_RESTORE_BACKUP,
+	CHECK_BTT_INFO_Q_REGENERATE,
+};
+
+struct btt_context {
+	PMEMpoolcheck *ppc;
+	void *addr;
+	uint64_t len;
+};
+
+void check_btt_info_loc_release(union check_btt_info_location *loc)
+{
+	free(loc->arena);
+	loc->arena = NULL;
+}
+
+/*
+ * pmempool_check_check_btt -- check consistency of BTT Info header
+ */
+static int
+check_btt_info_consistency(struct btt_info *infop)
+{
+	if (!memcmp(infop->sig, BTT_INFO_SIG, BTTINFO_SIG_LEN))
+		return util_checksum(infop, sizeof (*infop), &infop->checksum,
+			0);
+	else
+		return -1;
+}
+
+/*
+ * check_btt_info_get_first_valid_btt -- return offset to first valid BTT Info
+ *
+ * - Return offset to first valid BTT Info header in pool file.
+ * - Start at specific offset.
+ * - Convert BTT Info header to host endianness.
+ * - Return the BTT Info header by pointer.
+ */
+static uint64_t
+check_btt_info_get_first_valid_btt(struct pmempool_check *ppc, struct btt_info
+	*infop, uint64_t offset)
+{
+	/*
+	 * Starting at offset, read every page and check for
+	 * valid BTT Info Header. Check signature and checksum.
+	 */
+	while (!pool_read(ppc->pool->set_file, infop, sizeof (*infop), offset)) {
+		if (memcmp(infop->sig, BTT_INFO_SIG, BTTINFO_SIG_LEN) == 0 &&
+			util_checksum(infop, sizeof (*infop), &infop->checksum,
+				0)) {
+
+			pool_btt_info_convert2h(infop);
+			return offset;
+		}
+
+		offset += BTT_ALIGNMENT;
+	}
+
+	return 0;
+}
+
+/*
+ * check_btt_info_checksum -- check BTT Info checksum
+ */
+static struct check_status *
+check_btt_info_checksum(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
+{
+	struct check_status *status = NULL;
+	loc->arena = calloc(1, sizeof (struct arena));
+	if (!loc->arena) {
+		ppc->result = PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR;
+		status = CHECK_STATUS_ERR(ppc, "cannot allocate memory for "
+			"arena");
+		goto cleanup;
+	}
+
+	/* read the BTT Info header at well known offset */
+	if (pool_read(ppc->pool->set_file, &loc->arena->btt_info,
+		sizeof (loc->arena->btt_info), loc->offset) != 0) {
+		status = CHECK_STATUS_ERR(ppc, "arena %u: cannot read BTT "
+			"Info header", loc->arena->id);
+		goto error;
+	}
+
+	loc->arena->id = ppc->pool->narenas;
+
+	if (check_memory((const uint8_t *)&loc->arena->btt_info,
+			sizeof (loc->arena->btt_info), 0) == 0) {
+		LOG(2, "BTT Layout not written");
+		ppc->pool->blk_no_layout = 1;
+		loc->step = CHECK_STEPS_COMPLETE;
+		goto cleanup;
+	}
+
+	/* check consistency of BTT Info */
+	int ret = check_btt_info_consistency(&loc->arena->btt_info);
+
+	if (ret == 1) {
+		LOG(2, "arena %u: BTT Info header checksum correct\n",
+			loc->arena->id);
+		loc->step = CHECK_STEPS_COMPLETE;
+	} else {
+		if (!ppc->repair) {
+			status = CHECK_STATUS_ERR(ppc, "arena %u: BTT Info "
+				"header checksum incorrect", loc->arena->id);
+			goto error;
+		}
+		/*
+		 * if BTT Info is not consistent and we are allowed to fix it
+		 * we do not return error status here and go to the next step
+		 * which may fix this issue
+		 */
+	}
+
+	return NULL;
+
+error:
+	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+cleanup:
+	check_btt_info_loc_release(loc);
+	return status;
+}
+
+/*
+ * check_btt_info_backup -- check BTT Info backup
+ */
+static struct check_status *
+check_btt_info_backup(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
+{
+	assert(ppc->repair);
+
+	/*
+	 * BTT Info header is not consistent, so try to find
+	 * backup first.
+	 *
+	 * BTT Info header backup is in the last page of arena,
+	 * we know the BTT Info size and arena minimum size so
+	 * we can start searching at some higher offset.
+	 */
+	uint64_t search_off = loc->offset + BTT_MIN_SIZE -
+		sizeof (struct btt_info);
+
+	/*
+	 * Read first valid BTT Info to bttc buffer
+	 * check whether this BTT Info header is the
+	 * backup by checking offset value.
+	 */
+	if ((loc->offset2 = check_btt_info_get_first_valid_btt(ppc,
+		&ppc->pool->bttc.btt_info, search_off)) && loc->offset +
+		ppc->pool->bttc.btt_info.infooff == loc->offset2) {
+		/*
+		 * Here we have valid BTT Info backup
+		 * so we can restore it.
+		 */
+		CHECK_STATUS_ASK(ppc, CHECK_BTT_INFO_Q_RESTORE_BACKUP,
+			"arena %u: BTT Info header checksum incorrect. "
+			"Restore BTT Info from backup?", loc->arena->id);
+	} else {
+		loc->advanced_repair = true;
+	}
+
+	return check_questions_sequence_validate(ppc);
+}
+
+/*
+ * check_btt_info_backup_fix -- fix BTT Info using its backup
+ */
+static struct check_status *
+check_btt_info_backup_fix(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
+{
+	if (loc->advanced_repair || !check_has_answer(ppc->data))
+		return NULL;
+
+	struct check_status *answer;
+
+	while ((answer = check_pop_answer(ppc->data)) != NULL) {
+		if (answer->status.answer == PMEMPOOL_CHECK_ANSWER_YES) {
+			switch (answer->status.question) {
+			case CHECK_BTT_INFO_Q_RESTORE_BACKUP:
+				LOG(1, "arena %u: restoring BTT Info"
+					" header from backup\n", loc->arena->id);
+
+				memcpy(&loc->arena->btt_info,
+					&ppc->pool->bttc.btt_info,
+					sizeof (loc->arena->btt_info));
+				loc->advanced_repair = false;
+				break;
+			}
+			check_status_release(answer);
+			ppc->result = PMEMPOOL_CHECK_RESULT_REPAIRED;
+		} else {
+			check_status_release(answer);
+			check_btt_info_loc_release(loc);
+			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			return CHECK_STATUS_ERR(ppc, "");
+		}
+	}
+
+	return NULL;
+}
+
+/*
+ * check_btt_info_gen -- ask whether try to regenerate BTT Info
+ */
+static struct check_status *
+check_btt_info_gen(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
+{
+	assert(loc->advanced_repair);
+
+	CHECK_STATUS_ASK(ppc, CHECK_BTT_INFO_Q_REGENERATE,
+		"arena %u: BTT Info header checksum incorrect. "
+		"Do you want to restore BTT layout?", loc->arena->id);
+
+	return check_questions_sequence_validate(ppc);
+}
+
+/*
+ * check_btt_info_ns_read -- btt callback for reading
+ */
+static int
+check_btt_info_ns_read(void *ns, unsigned lane, void *buf, size_t count,
+		uint64_t off)
+{
+	struct btt_context *nsc = (struct btt_context *)ns;
+
+	if (off + count > nsc->len) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	memcpy(buf, (char *)nsc->addr + off, count);
+
+	return 0;
+}
+
+/*
+ * check_btt_info_ns_write -- btt callback for writing
+ */
+static int
+check_btt_info_ns_write(void *ns, unsigned lane, const void *buf,
+		size_t count, uint64_t off)
+{
+	struct btt_context *nsc = (struct btt_context *)ns;
+
+	if (off + count > nsc->len) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	memcpy((char *)nsc->addr + off, buf, count);
+
+	return 0;
+}
+
+/*
+ * check_btt_info_ns_map -- btt callback for memory mapping
+ */
+static ssize_t
+check_btt_info_ns_map(void *ns, unsigned lane, void **addrp, size_t len,
+		uint64_t off)
+{
+	struct btt_context *nsc = (struct btt_context *)ns;
+
+	assert((ssize_t)len >= 0);
+
+	if (off + len >= nsc->len) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	/*
+	 * Since the entire file is memory-mapped, this callback
+	 * can always provide the entire length requested.
+	 */
+	*addrp = (char *)nsc->addr + off;
+
+	return (ssize_t)len;
+}
+
+/*
+ * check_btt_info_ns_sync -- btt callback for memory synchronization
+ */
+static void
+check_btt_info_ns_sync(void *ns, unsigned lane, void *addr, size_t len)
+{
+	/* do nothing */
+}
+
+/*
+ * check_btt_info_ns_zero -- btt callback for zeroing memory
+ */
+static int
+check_btt_info_ns_zero(void *ns, unsigned lane, size_t len, uint64_t off)
+{
+	struct btt_context *nsc = (struct btt_context *)ns;
+
+	if (off + len >= nsc->len) {
+		errno = EINVAL;
+		return -1;
+	}
+	memset((char *)nsc->addr + off, 0, len);
+
+	return 0;
+}
+
+/*
+ * check_btt_info_ns_callbacks -- callbacks for btt API
+ */
+static struct ns_callback check_btt_info_ns_callbacks = {
+	.nsread		= check_btt_info_ns_read,
+	.nswrite	= check_btt_info_ns_write,
+	.nsmap		= check_btt_info_ns_map,
+	.nssync		= check_btt_info_ns_sync,
+	.nszero		= check_btt_info_ns_zero,
+};
+
+/*
+ * check_btt_info_advanced -- BTT Info regeneration
+ */
+static struct check_status *
+check_btt_info_gen_fix_exe(PMEMpoolcheck *ppc,
+	union check_btt_info_location *loc)
+{
+	bool eof = false;
+	uint64_t startoff = loc->offset;
+	uint64_t endoff = loc->offset2;
+	struct check_status *status = NULL;
+	if (!endoff) {
+		endoff = ppc->pool->set_file->size;
+		eof = true;
+	}
+
+	LOG(1, "generating BTT Info headers at 0x%lx-0x%lx\n", startoff,
+		endoff);
+	uint64_t rawsize = endoff - startoff;
+
+	/*
+	 * Map the whole requested area in private mode as we want to write
+	 * only BTT Info headers to file.
+	 */
+	void *addr = pool_set_file_map(ppc->pool->set_file, startoff);
+	if (addr == MAP_FAILED) {
+		status = CHECK_STATUS_ERR(ppc, "Can not map file: %s", strerror(errno));
+		goto error;
+	}
+
+	/* setup btt context */
+	struct btt_context btt_context = {
+		.ppc = ppc,
+		.addr = addr,
+		.len = rawsize
+	};
+
+	uint32_t lbasize = ppc->pool->hdr.blk.bsize;
+
+	/* init btt in requested area */
+	struct btt *bttp = btt_init(rawsize,
+				lbasize, ppc->pool->hdr.pool.poolset_uuid,
+				BTT_DEFAULT_NFREE,
+				(void *)&btt_context,
+				&check_btt_info_ns_callbacks);
+
+	if (!bttp) {
+		status = CHECK_STATUS_ERR(ppc, "cannot initialize BTT layer");
+		goto error_unmap;
+	}
+
+	/* lazy layout writing */
+	if (btt_write(bttp, 0, 0, addr)) {
+		status = CHECK_STATUS_ERR(ppc, "writing layout failed");
+		goto error_btt;
+	}
+
+	/* add all arenas to list */
+	struct arena *arenap = NULL;
+	uint64_t offset = 0;
+	uint64_t nextoff = 0;
+	do {
+		offset += nextoff;
+		struct btt_info *infop =
+			(struct btt_info *)((uintptr_t)addr + offset);
+
+		if (check_btt_info_consistency(infop) != 1) {
+			status = CHECK_STATUS_ERR(ppc, "writing layout "
+				"failed");
+			goto error_btt;
+		}
+		arenap = malloc(sizeof (struct arena));
+		if (!arenap) {
+			status = CHECK_STATUS_ERR(ppc, "cannot allocate "
+				"memory for arena");
+			goto error_btt;
+		}
+		memset(arenap, 0, sizeof (*arenap));
+		arenap->offset = offset + startoff;
+		arenap->valid = true;
+		arenap->id = ppc->pool->narenas;
+		memcpy(&arenap->btt_info, infop, sizeof (arenap->btt_info));
+
+		check_insert_arena(ppc, arenap);
+
+		nextoff = le64toh(infop->nextoff);
+	} while (nextoff > 0);
+
+	if (!eof) {
+		/*
+		 * It means that requested area is between two valid arenas
+		 * so make sure the offsets are correct.
+		 */
+		nextoff = endoff - (startoff + offset);
+		if (nextoff != le64toh(arenap->btt_info.infooff) +
+				sizeof (arenap->btt_info)) {
+			goto error_btt;
+		} else {
+			arenap->btt_info.nextoff = htole64(nextoff);
+			util_checksum(&arenap->btt_info,
+					sizeof (arenap->btt_info),
+					&arenap->btt_info.checksum, 1);
+		}
+
+	}
+
+error_btt:
+	btt_fini(bttp);
+error_unmap:
+	munmap(addr, rawsize);
+error:
+	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+	free(loc->arena);
+	return status;
+}
+
+/*
+ * check_btt_info_gen_fix -- fix by regenerating BTT Info
+ */
+static struct check_status *
+check_btt_info_gen_fix(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
+{
+	if (!check_has_answer(ppc->data))
+		return NULL;
+
+	struct check_status *answer;
+	struct check_status *result = NULL;
+
+	while ((answer = check_pop_answer(ppc->data)) != NULL) {
+		if (answer->status.answer == PMEMPOOL_CHECK_ANSWER_YES) {
+			switch (answer->status.question) {
+			case CHECK_BTT_INFO_Q_REGENERATE:
+				/*
+				 * If recovering by BTT Info backup failed try
+				 * to regenerate btt layout.
+				 */
+				assert(result == NULL);
+				result = check_btt_info_gen_fix_exe(ppc, loc);
+				if (result != NULL)
+					return result;
+				break;
+			}
+			check_status_release(answer);
+			ppc->result = PMEMPOOL_CHECK_RESULT_REPAIRED;
+		} else {
+			check_status_release(answer);
+			check_btt_info_loc_release(loc);
+			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			return CHECK_STATUS_ERR(ppc, "arena %u: cannot repair "
+				"BTT Info header\n", loc->arena->id);
+		}
+	}
+
+	return NULL;
+}
+
+static void
+check_btt_info_final(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
+{
+	if (ppc->repair && loc->advanced_repair) {
+		if (loc->offset2)
+			loc->nextoff = loc->offset2 - loc->offset;
+		else
+			loc->nextoff = 0;
+		check_btt_info_loc_release(loc);
+	} else {
+		/* save offset and insert BTT to cache for next steps */
+		loc->arena->offset = loc->offset;
+		loc->arena->valid = true;
+		check_insert_arena(ppc, loc->arena);
+		loc->nextoff = le64toh(loc->arena->btt_info.nextoff);
+	}
+}
+
+struct check_btt_info_step {
+	struct check_status *(*func)(PMEMpoolcheck *,
+		union check_btt_info_location *loc);
+};
+
+static const struct check_btt_info_step check_btt_info_steps[] = {
+	{
+		.func	= check_btt_info_checksum,
+	},
+	{
+		.func	= check_btt_info_backup,
+	},
+	{
+		.func	= check_btt_info_backup_fix,
+	},
+	{
+		.func	= check_btt_info_gen,
+	},
+	{
+		.func	= check_btt_info_gen_fix,
+	},
+	{
+		.func	= NULL,
+	},
+};
+
+/*
+ * check_btt_info -- entry point for btt info check
+ */
+struct check_status *
+check_btt_info(PMEMpoolcheck *ppc)
+{
+	COMPILE_ERROR_ON(sizeof (union check_btt_info_location) !=
+		sizeof (struct check_instep_location));
+
+	union check_btt_info_location *loc =
+		(union check_btt_info_location *)&ppc->data->instep_location;
+	struct check_status *status = NULL;
+
+	if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+		loc->offset = 2 * BTT_ALIGNMENT;
+		loc->nextoff = 0;
+	}
+
+	do {
+		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+			loc->offset += loc->nextoff;
+			loc->offset2 = 0;
+			loc->nextoff = 0;
+			loc->advanced_repair = false;
+			loc->step = 0;
+		}
+
+		while (loc->step != CHECK_STEPS_COMPLETE &&
+			check_btt_info_steps[loc->step].func != NULL) {
+			const struct check_btt_info_step *step =
+				&check_btt_info_steps[loc->step++];
+			status = step->func(ppc, loc);
+
+			if (status != NULL)
+				goto cleanup_return;
+			else if (ppc->pool->blk_no_layout == 1)
+				return NULL;
+		}
+
+		check_btt_info_final(ppc, loc);
+	} while (loc->nextoff > 0);
+
+cleanup_return:
+	return status;
+}

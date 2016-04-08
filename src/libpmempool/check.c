@@ -52,6 +52,7 @@
 #include "check_backup.h"
 #include "check_pool_hdr.h"
 #include "check_pmemx.h"
+#include "check_btt_info.h"
 
 struct check_step {
 	struct check_status *(*func)(PMEMpoolcheck *);
@@ -79,6 +80,11 @@ static const struct check_step check_steps[] = {
 		.part	= false,
 	},
 	{
+		.type	= PMEMPOOL_POOL_TYPE_BLK,
+		.func	= check_btt_info,
+		.part	= false,
+	},
+	{
 		.func	= NULL,
 	},
 };
@@ -94,6 +100,7 @@ check_start(PMEMpoolcheck *ppc)
 	ppc->data->check_status_cache = NULL;
 	ppc->data->error = NULL;
 	ppc->data->step = 0;
+	ppc->pool->narenas = 0;
 
 	if (pool_parse_params(ppc, &ppc->pool->params, 0)) {
 		if (errno)
@@ -442,4 +449,14 @@ check_questions_sequence_validate(PMEMpoolcheck *ppc)
 		return ppc->data->questions.tqh_first;
 	else
 		return NULL;
+}
+
+/*
+ * pmempool_check_insert_arena -- insert arena to list
+ */
+void
+check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap)
+{
+	TAILQ_INSERT_TAIL(&ppc->pool->arenas, arenap, next);
+	ppc->pool->narenas++;
 }

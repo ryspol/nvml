@@ -41,6 +41,8 @@
 #include "btt_layout.h"
 #include "libpmemobj.h"
 
+#define	BTT_INFO_SIG	"BTT_ARENA_INFO\0"
+
 enum pool_type {
 	POOL_TYPE_LOG		= 0x01,
 	POOL_TYPE_BLK		= 0x02,
@@ -93,6 +95,7 @@ struct arena {
 struct pool_data {
 	struct pool_params params;
 	struct pool_set_file *set_file;
+	int blk_no_layout;
 	union {
 		struct pool_hdr pool;
 		struct pmemlog log;
@@ -105,6 +108,7 @@ struct pool_data {
 	} uuid_op;
 	struct arena bttc;
 	TAILQ_HEAD(arenashead, arena) arenas;
+	uint32_t narenas;
 };
 
 int pool_parse_params(const PMEMpoolcheck *ppc, struct pool_params *params,
