@@ -41,8 +41,14 @@ INCS += -I$(TOP)/src/libpmemblk
 INCS += -I$(TOP)/src/libpmemobj
 
 SOURCE = libpmempool.c check.c check_backup.c check_pool_hdr.c check_pmemx.c\
-	pool.c $(COMMON)/util.c $(COMMON)/set.c $(COMMON)/out.c
+	check_btt_info.c pool.c $(COMMON)/util.c $(COMMON)/set.c\
+	$(COMMON)/out.c
+
+LIBPMEMBLK_PRIV=btt_init btt_write btt_fini
 
 include ../Makefile.inc
 
-LIBS += -lpmem
+pmemblk_priv.o: $(PMEMBLK_PRIV_OBJ)
+	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV)) $< $@
+
+LIBS += -lpmemblk -lpmem

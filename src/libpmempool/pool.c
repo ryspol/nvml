@@ -59,8 +59,6 @@
 #include "pmempool.h"
 #include "check.h"
 
-#define	BTT_INFO_SIG	"BTT_ARENA_INFO\0"
-
 /*
  * pool_hdr_convert2h -- convert pool header to host byte order
  */
