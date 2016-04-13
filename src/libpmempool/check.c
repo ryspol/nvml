@@ -90,13 +90,26 @@ static const struct check_step check_steps[] = {
 };
 
 /*
- * check_start -- initialize check process
+ * check_init -- initialize check process
  */
 int
-check_start(PMEMpoolcheck *ppc)
+check_init(PMEMpoolcheck *ppc)
 {
+	ppc->msg = malloc(sizeof (char) * CHECK_MAX_MSG_STR_SIZE);
+	if (ppc->msg == NULL) {
+		ERR("!malloc");
+		goto error_msg_malloc;
+	}
 	ppc->data = malloc(sizeof (*ppc->data));
+	if (ppc->data == NULL) {
+		ERR("!malloc");
+		goto error_data_malloc;
+	}
 	ppc->pool = malloc(sizeof (*ppc->pool));
+	if (ppc->pool == NULL) {
+		ERR("!malloc");
+		goto error_pool_malloc;
+	}
 	ppc->data->check_status_cache = NULL;
 	ppc->data->error = NULL;
 	ppc->data->step = 0;
@@ -108,14 +121,14 @@ check_start(PMEMpoolcheck *ppc)
 		else
 			ERR("%s: cannot determine type of pool\n",
 				ppc->path);
-		goto end_error;
+		goto error;
 	}
 
-	int rdonly = !(ppc->repair && !ppc->dry_run);
+	int rdonly = !ppc->repair || ppc->dry_run;
 	ppc->pool->set_file = pool_set_file_open(ppc->path, rdonly, 0);
 	if (ppc->pool->set_file == NULL) {
 		perror(ppc->path);
-		goto end_error;
+		goto error;
 	}
 
 	TAILQ_INIT(&ppc->pool->arenas);
@@ -123,9 +136,14 @@ check_start(PMEMpoolcheck *ppc)
 	TAILQ_INIT(&ppc->data->questions);
 	TAILQ_INIT(&ppc->data->answers);
 	return 0;
-end_error:
+
+error:
 	free(ppc->pool);
+error_pool_malloc:
 	free(ppc->data);
+error_data_malloc:
+	free(ppc->msg);
+error_msg_malloc:
 	return -1;
 }
 
@@ -329,16 +347,17 @@ check_clear_statuses(struct check_data *data)
 }
 
 /*
- * check_stop -- stop check process
+ * check_fini -- stop check process
  */
 void
-check_stop(PMEMpoolcheck *ppc)
+check_fini(PMEMpoolcheck *ppc)
 {
 	pool_set_file_close(ppc->pool->set_file);
 	check_clear_arenas(ppc->pool);
 	check_clear_statuses(ppc->data);
 	free(ppc->pool);
 	free(ppc->data);
+	free(ppc->msg);
 }
 
 /*
@@ -353,10 +372,10 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	if (ppc->flags & PMEMPOOL_CHECK_FORMAT_STR) {
 		va_list ap;
 		va_start(ap, fmt);
-		vsnprintf(st->status.str.msg, PMEMPOOL_MAX_MSG_STR_SIZE, fmt,
-			ap);
+		vsnprintf(ppc->msg, CHECK_MAX_MSG_STR_SIZE, fmt, ap);
 		va_end(ap);
 
+		st->status.str.msg = ppc->msg;
 		st->status.type = type;
 	}
 

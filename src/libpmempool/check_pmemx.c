@@ -34,7 +34,6 @@
  * check_pmemx.c -- check pmemlog and pmemblk
  */
 
-#include <assert.h>
 #include <inttypes.h>
 #include <sys/param.h>
 
@@ -269,7 +268,7 @@ check_pmemx_blk_get_max_bsize(uint64_t fsize)
 	/* compute maximum internal LBA size */
 	uint64_t internal_lbasize = (arena_size - BTT_ALIGNMENT) /
 			internal_nlba - BTT_MAP_ENTRY_SIZE;
-	assert(internal_lbasize <= UINT32_MAX);
+	ASSERT(internal_lbasize <= UINT32_MAX);
 
 	if (internal_lbasize < BTT_MIN_LBA_SIZE)
 		internal_lbasize = BTT_MIN_LBA_SIZE;

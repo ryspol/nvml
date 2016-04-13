@@ -31,29 +31,9 @@
  */
 
 /*
- * pmempool.h -- internal definitions for libpmempool
+ * check_utils.h -- internal definitions check utils
  */
 
-#define	PMEMPOOL_LOG_PREFIX "libpmempool"
-#define	PMEMPOOL_LOG_LEVEL_VAR "PMEMPOOL_LOG_LEVEL"
-#define	PMEMPOOL_LOG_FILE_VAR "PMEMPOOL_LOG_FILE"
+#define	UUID_STR_MAX 37
 
-extern unsigned long Pagesize;
-
-/*
- * pmempool_check -- context and arguments for check command
- */
-struct pmempool_check {
-	char *path;
-	enum pmempool_pool_type pool_type;
-	bool repair;
-	bool dry_run;
-	bool always_yes;
-	uint32_t flags;
-	char *backup_path;
-
-	char *msg;
-	struct check_data *data;
-	struct pool_data *pool;
-	enum pmempool_check_result result;
-};
+const char *check_utils_get_uuid_str(uuid_t uuid);

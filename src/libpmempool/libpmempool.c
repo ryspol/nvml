@@ -49,13 +49,6 @@
 #include "check.h"
 
 /*
- * pmempool_check_default -- default values of check context
- */
-static const PMEMpoolcheck pmempool_check_default = {
-	.result	= PMEMPOOL_CHECK_RESULT_CONSISTENT,
-};
-
-/*
  * libpmempool_init -- load-time initialization for libpmempool
  *
  * Called automatically by the run-time loader.
@@ -119,6 +112,18 @@ pmempool_errormsg(void)
 }
 
 /*
+ * pmempool_ppc_set_default -- set default values of check context
+ */
+static void
+pmempool_ppc_set_default(PMEMpoolcheck *ppc)
+{
+	const PMEMpoolcheck ppc_default = {
+		.result	= PMEMPOOL_CHECK_RESULT_CONSISTENT,
+	};
+	*ppc = ppc_default;
+}
+
+/*
  * pmempool_check_init -- initialize check context according to passed
  *	arguments and prepare to perform a check
  */
@@ -126,45 +131,57 @@ PMEMpoolcheck *
 pmempool_check_init(struct pmempool_check_args *args)
 {
 	if (args->path == NULL) {
+		ERR("path can not be NULL");
 		errno = EINVAL;
 		return NULL;
 	}
 
-	if (!args->repair && !args->dry_run) {
+	/*
+	 * dry run does not allow to made changes possibly performed during
+	 * repair. aggresive allow to perform more complex repairs.
+	 * so dry run and aggresive can be set only if repair is set
+	 */
+	if (!args->repair && (args->dry_run || args->aggresive)) {
+		ERR("dry run and aggresive is applicable only if repair is "
+			"set");
 		errno = EINVAL;
 		return NULL;
 	}
 
-	if (!args->repair && args->backup) {
+	/*
+	 * dry run does not modify anything so performing backup is redundant
+	 */
+	if (args->dry_run && args->backup_path != NULL) {
+		ERR("dry run does not allow to perform backup");
 		errno = EINVAL;
 		return NULL;
 	}
 
-	if (args->repair && args->backup && !args->dry_run &&
-		args->backup_path == NULL) {
-		errno = EINVAL;
-		return NULL;
-	}
-
-	if (!(args->flags & PMEMPOOL_CHECK_FORMAT_STR) &&
-		!(args->flags & PMEMPOOL_CHECK_FORMAT_DATA)) {
+	/*
+	 * libpmempool uses str format of communication so it must be set
+	 */
+	if (!(args->flags & PMEMPOOL_CHECK_FORMAT_STR)) {
+		ERR("PMEMPOOL_CHECK_FORMAT_STR flag must be set");
 		errno = EINVAL;
 		return NULL;
 	}
 
 	PMEMpoolcheck *ppc = malloc(sizeof (*ppc));
-	*ppc = pmempool_check_default;
+	if (ppc == NULL) {
+		ERR("!malloc");
+		return NULL;
+	}
+	pmempool_ppc_set_default(ppc);
 	ppc->path = strdup(args->path);
 	ppc->pool_type = args->pool_type;
 	ppc->repair = args->repair;
-	ppc->backup = args->backup;
 	ppc->dry_run = args->dry_run;
 	ppc->always_yes = args->always_yes;
 	ppc->flags = args->flags;
 	if (args->backup_path != NULL)
 		ppc->backup_path = strdup(args->backup_path);
 
-	if (check_start(ppc) != 0) {
+	if (check_init(ppc) != 0) {
 		free(ppc->backup_path);
 		free(ppc->path);
 		free(ppc);
@@ -200,7 +217,7 @@ pmempool_check_end(PMEMpoolcheck *ppc, struct pmempool_check_status *stat)
 {
 	enum pmempool_check_result result = ppc->result;
 
-	check_stop(ppc);
+	check_fini(ppc);
 	free(ppc->path);
 	free(ppc->backup_path);
 	free(ppc);

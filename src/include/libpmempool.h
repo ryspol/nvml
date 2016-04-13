@@ -56,14 +56,13 @@ enum pmempool_pool_type {
 };
 
 #define	PMEMPOOL_CHECK_FORMAT_STR	(1 << 0)
-#define	PMEMPOOL_CHECK_FORMAT_DATA	(1 << 1)
 
 struct pmempool_check_args {
 	const char *path;
 	enum pmempool_pool_type pool_type;
 	bool repair;
-	bool backup;
 	bool dry_run;
+	bool aggresive;
 	bool always_yes;
 	uint32_t flags;
 	const char *backup_path;
@@ -93,7 +92,6 @@ enum pmempool_check_result {
 	PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR
 };
 
-#define	PMEMPOOL_MAX_MSG_STR_SIZE 8192
 #define	PMEMPOOL_MAX_ANSWER_STR_SIZE 4
 
 struct pmempool_check_status {
@@ -101,7 +99,7 @@ struct pmempool_check_status {
 	uint32_t question;
 	enum pmempool_check_answer answer;
 	struct {
-		char msg[PMEMPOOL_MAX_MSG_STR_SIZE];
+		const char *msg;
 		const char *answer;
 	} str;
 	struct {
