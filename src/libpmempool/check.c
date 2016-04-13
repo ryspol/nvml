@@ -41,7 +41,6 @@
 #include <sys/stat.h>
 #include <sys/queue.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "out.h"
 #include "util.h"
@@ -79,7 +78,7 @@ static const struct check_step check_steps[] = {
 /*
  * check_start -- initialize check process
  */
-bool
+int
 check_start(PMEMpoolcheck *ppc)
 {
 	ppc->data = malloc(sizeof (*ppc->data));
@@ -108,11 +107,11 @@ check_start(PMEMpoolcheck *ppc)
 	TAILQ_INIT(&ppc->data->infos);
 	TAILQ_INIT(&ppc->data->questions);
 	TAILQ_INIT(&ppc->data->answers);
-	return true;
+	return 0;
 end_error:
 	free(ppc->pool);
 	free(ppc->data);
-	return false;
+	return -1;
 }
 
 /*
@@ -339,7 +338,7 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 
 	switch (type) {
 	case PMEMPOOL_CHECK_MSG_TYPE_ERROR:
-		assert(ppc->data->error == NULL);
+		ASSERTeq(ppc->data->error, NULL);
 		ppc->data->error = st;
 		break;
 	case PMEMPOOL_CHECK_MSG_TYPE_INFO:
@@ -377,7 +376,7 @@ check_status_release(struct check_status *status)
 void
 check_status_push(PMEMpoolcheck *ppc, struct check_status *st)
 {
-	assert(st->status.type == PMEMPOOL_CHECK_MSG_TYPE_QUESTION);
+	ASSERTeq(st->status.type, PMEMPOOL_CHECK_MSG_TYPE_QUESTION);
 	TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
 }
 

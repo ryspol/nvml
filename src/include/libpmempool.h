@@ -45,37 +45,8 @@ extern "C" {
 
 #include <stdbool.h>
 
-#include "libpmemobj.h"
-
 /*
- * Return values:
- *  0 - not pool set file
- *  1 - is pool set file
- * -1 - error while processing, sets errno appropriately
- */
-int pmempool_is_poolset(const char *path);
-
-/*
- *  0 - not on pmem-aware fs
- *  1 - on a pmem-aware fs
- * -1 - error while processing, sets errno appropriately
- */
-int pmempool_is_pmem(const char *path);
-
-/*
- * Removes all part files and replicas from the pool set file.
- * If specified path is not a pool set file, returns an error.
- *
- * I imagine we could add more functions like that:
- * - pmempool_set_chmod
- * - pmempool_set_chown
- * - pmempool_set_access
- * etc.
- */
-int pmempool_set_remove(const char *path);
-
-/*
- * pmem_pool_type_t -- pool types
+ * pmempool_pool_type -- pool types
  */
 enum pmempool_pool_type {
 	PMEMPOOL_POOL_TYPE_LOG,
@@ -83,118 +54,6 @@ enum pmempool_pool_type {
 	PMEMPOOL_POOL_TYPE_OBJ,
 	PMEMPOOL_POOL_TYPE_BTT_DEV
 };
-
-/*
- * pmempool status:
- * - type of pool
- * - size of pool
- * - number of replicas
- * - is pool set file
- *
- * .. and maybe more like:
- * - major,
- * - compatibility features,
- * - crtime
- * etc.
- */
-struct pmempool_stat {
-	enum pmempool_pool_type type;
-	size_t size;
-	size_t nreplicas;
-	int is_poolset;
-	int is_pmem;
-};
-
-int pmempool_stat(const char *path, struct pmempool_stat *buf);
-
-
-struct pmempool_replica_remote {
-	const char *target;
-	const char *poolset_name;
-};
-
-struct pmempool_part {
-	const char *path;
-	unsigned char uuid[16];
-	size_t filesize;
-	size_t hdrsize;
-};
-
-struct pmempool_replica_local {
-	size_t nparts;
-	size_t size;
-	struct pmempool_part parts[];
-};
-
-struct pmempool_replica {
-	int is_remote;
-	struct pmempool_replica_remote remote;
-	struct pmempool_replica_local local;
-};
-
-struct pmempool_set {
-	unsigned char uuid[16];
-	size_t nreplicas;
-	struct pmempool_replica *replicas;
-};
-
-/*
- * This function just parses the pool set file and returns
- * a structures which describe the configuration. It can be
- * used to traverse for each replica and for each part.
- *
- * This can be used by some utility applications for example:
- * - to remove all replicas and parts,
- * - to list all replicas and parts,
- * - to checks if all replicas and parts exist
- * etc.
- */
-int pmempool_set_parse(const char *path, struct pmempool_set **set);
-void pmempool_set_free(struct pmempool_set *set);
-
-#define	FOREACH_REPLICA(rep, set) /* XXX */
-#define	FOREACH_PART(part, rep) /* XXX */
-
-struct pmempool_stats {
-	enum pmempool_pool_type type;
-	size_t size;
-	unsigned char data[];
-};
-
-struct pmempool_stats_blk {
-	size_t nblocks;
-	size_t nzero;
-	size_t nerror;
-	struct pmempool_stats hdr;
-};
-
-struct pmempool_stats_log {
-	size_t size;
-	size_t used;
-	struct pmempool_stats hdr;
-};
-
-struct pmempool_stats_obj {
-	size_t root_size;
-	size_t nobjects;
-	size_t nallocated;
-	size_t nfree;
-	struct pmempool_stats hdr;
-	/*
-	 * ..and much more for example:
-	 * - allocation classes statistics
-	 * - type number statistics
-	 * - external fragmentation
-	 * etc.
-	 */
-};
-
-/*
- * Gets statistics of pool, depending on pool type.
- */
-int pmempool_stats(const char *path, struct pmempool_stats **stats);
-void pmempool_stats_free(struct pmempool_stats *stats);
-
 
 #define	PMEMPOOL_CHECK_FORMAT_STR	(1 << 0)
 #define	PMEMPOOL_CHECK_FORMAT_DATA	(1 << 1)

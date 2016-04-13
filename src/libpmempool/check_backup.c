@@ -37,7 +37,6 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
@@ -55,19 +54,19 @@
 /*
  * check_backup_cp -- copy file to its backup location
  */
-static bool
+static int
 check_backup_cp(PMEMpoolcheck *ppc)
 {
 	struct pool_set_file *file = ppc->pool->set_file;
 	int dfd = util_file_create(ppc->backup_path, file->size, 0);
 	if (dfd < 0)
-		return false;
+		return -1;
 
 	void *daddr = mmap(NULL, file->size, PROT_READ | PROT_WRITE,
 			MAP_SHARED, dfd, 0);
 	if (daddr == MAP_FAILED) {
 		close(dfd);
-		return false;
+		return -1;
 	}
 
 	void *saddr = pool_set_file_map(file, 0);
@@ -76,13 +75,13 @@ check_backup_cp(PMEMpoolcheck *ppc)
 	munmap(daddr, file->size);
 	close(dfd);
 
-	return true;
+	return 0;
 }
 
 /*
  * check_backup_create -- create backup file
  */
-static bool
+static int
 check_backup_create(PMEMpoolcheck *ppc)
 {
 	LOG(1, "creating backup file: %s\n", ppc->backup_path);
