@@ -34,14 +34,14 @@
 
 LIBRARY_NAME = pmempool
 LIBRARY_SO_VERSION = 1
-LIBRARY_VERSION = 0.0
+LIBRARY_VERSION = 0.1
 
 INCS += -I$(TOP)/src/libpmemlog
 INCS += -I$(TOP)/src/libpmemblk
 INCS += -I$(TOP)/src/libpmemobj
 
-SOURCE = libpmempool.c check.c check_backup.c check_pool_hdr.c check_pmemx.c\
-	check_btt_info.c pool.c $(COMMON)/util.c $(COMMON)/set.c\
+SOURCE = libpmempool.c check.c check_utils.c check_backup.c check_pool_hdr.c\
+	check_pmemx.c check_btt_info.c pool.c $(COMMON)/util.c $(COMMON)/set.c\
 	$(COMMON)/out.c
 
 LIBPMEMBLK_PRIV=btt_init btt_write btt_fini

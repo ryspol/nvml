@@ -89,7 +89,7 @@ check_backup_create(PMEMpoolcheck *ppc)
 struct check_status *
 check_backup(PMEMpoolcheck *ppc)
 {
-	if (ppc->repair && ppc->backup && !ppc->dry_run) {
+	if (ppc->repair && ppc->backup_path != NULL && !ppc->dry_run) {
 		if (!check_backup_create(ppc)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 			return CHECK_STATUS_ERR(ppc,

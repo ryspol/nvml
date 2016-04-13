@@ -31,29 +31,29 @@
  */
 
 /*
- * pmempool.h -- internal definitions for libpmempool
+ * check_utils.c -- check utility functions
  */
 
-#define	PMEMPOOL_LOG_PREFIX "libpmempool"
-#define	PMEMPOOL_LOG_LEVEL_VAR "PMEMPOOL_LOG_LEVEL"
-#define	PMEMPOOL_LOG_FILE_VAR "PMEMPOOL_LOG_FILE"
+#include <stdint.h>
+#include <stddef.h>
+#include <sys/types.h>
 
-extern unsigned long Pagesize;
+#include "out.h"
+#include "util.h"
+#include "check_utils.h"
 
 /*
- * pmempool_check -- context and arguments for check command
+ * check_utils_get_uuid_str -- returns uuid in human readable format
  */
-struct pmempool_check {
-	char *path;
-	enum pmempool_pool_type pool_type;
-	bool repair;
-	bool dry_run;
-	bool always_yes;
-	uint32_t flags;
-	char *backup_path;
+const char *
+check_utils_get_uuid_str(uuid_t uuid)
+{
+	static char uuid_str[UUID_STR_MAX] = {0, };
 
-	char *msg;
-	struct check_data *data;
-	struct pool_data *pool;
-	enum pmempool_check_result result;
-};
+	int ret = util_uuid_to_string(uuid, uuid_str);
+	if (ret != 0) {
+		ERR("failed to covert uuid to string");
+		return NULL;
+	}
+	return uuid_str;
+}

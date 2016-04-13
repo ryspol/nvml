@@ -34,6 +34,8 @@
  * check.h -- internal definitions for logic performing check
  */
 
+#define	CHECK_MAX_MSG_STR_SIZE 8192
+
 /* queue of check statuses */
 struct check_status {
 	TAILQ_ENTRY(check_status) next;
@@ -64,9 +66,9 @@ struct check_data {
 	struct check_status *check_status_cache;
 };
 
-int check_start(PMEMpoolcheck *ppc);
+int check_init(PMEMpoolcheck *ppc);
 struct check_status *check_step(PMEMpoolcheck *ppc);
-void check_stop(PMEMpoolcheck *ppc);
+void check_fini(PMEMpoolcheck *ppc);
 
 struct check_status *
 check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,

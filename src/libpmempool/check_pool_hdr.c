@@ -34,7 +34,6 @@
  * check_pool_hdr.c -- pool header check
  */
 
-#include <assert.h>
 #include <stdint.h>
 #include <sys/mman.h>
 
@@ -44,6 +43,7 @@
 #include "pmempool.h"
 #include "pool.h"
 #include "check.h"
+#include "check_utils.h"
 #include "check_pool_hdr.h"
 
 union check_pool_hdr_location {
@@ -344,24 +344,6 @@ check_pool_hdr_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
 	return -1;
 }
 
-#define	UUID_STR_MAX 37
-
-/*
- * check_pool_hdr_get_uuid_str -- returns uuid in human readable format
- */
-static const char *
-check_pool_hdr_get_uuid_str(uuid_t uuid)
-{
-	static char uuid_str[UUID_STR_MAX] = {0, };
-
-	int ret = util_uuid_to_string(uuid, uuid_str);
-	if (ret != 0) {
-		ERR("failed to covert uuid to string");
-		return NULL;
-	}
-	return uuid_str;
-}
-
 /*
  * check_pool_hdr_poolset_uuid -- check poolset_uuid field
  */
@@ -385,7 +367,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from BTT Info?",
-			check_pool_hdr_get_uuid_str(
+			check_utils_get_uuid_str(
 				ppc->pool->bttc.btt_info.parent_uuid));
 	} else if (ppc->pool->params.is_poolset) {
 		unsigned rid = 0;
@@ -405,7 +387,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_UUID_FROM_VALID_PART,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from valid pool file part ?",
-			check_pool_hdr_get_uuid_str(valid_hdrp->poolset_uuid));
+			check_utils_get_uuid_str(valid_hdrp->poolset_uuid));
 	}
 
 	return check_questions_sequence_validate(ppc);
@@ -435,7 +417,7 @@ check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 			switch (answer->status.question) {
 			case CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO:
 				LOG(1, "setting pool_hdr.poolset_uuid to %s\n",
-					check_pool_hdr_get_uuid_str(
+					check_utils_get_uuid_str(
 					ppc->pool->bttc.btt_info.parent_uuid));
 				memcpy(hdr.poolset_uuid,
 					ppc->pool->bttc.btt_info.parent_uuid,
@@ -456,7 +438,7 @@ check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 					ppc->pool->set_file->poolset->
 					replica[rid]->part[pid].hdr;
 				LOG(1, "setting pool_hdr.poolset_uuid to %s\n",
-					check_pool_hdr_get_uuid_str(
+					check_utils_get_uuid_str(
 						valid_hdrp->poolset_uuid));
 				memcpy(hdr.poolset_uuid,
 					valid_hdrp->poolset_uuid,
@@ -695,7 +677,7 @@ check_pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 						"generation failed");
 				}
 				LOG(1, "setting UUIDs to: %s\n",
-					check_pool_hdr_get_uuid_str(
+					check_utils_get_uuid_str(
 					hdrp->uuid));
 				check_pool_hdr_set_all_uuids(&hdr.uuid, 5, 0);
 				break;
@@ -705,7 +687,7 @@ check_pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 				unsigned char (*uuid_i)[POOL_HDR_UUID_LEN] =
 					&hdr.uuid;
 				LOG(2, "setting UUIDs to %s\n",
-					check_pool_hdr_get_uuid_str(
+					check_utils_get_uuid_str(
 					uuid_i[index]));
 				check_pool_hdr_set_all_uuids(&hdrp->uuid, 5,
 					index);
@@ -850,7 +832,7 @@ check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 			switch (answer->status.question) {
 			case CHECK_POOL_HDR_Q_SET_NEXT_PART_UUID:
 				LOG(2, "setting pool_hdr.next_part_uuid to "
-					"%s\n", check_pool_hdr_get_uuid_str(
+					"%s\n", check_utils_get_uuid_str(
 					next_part_hdrp->uuid));
 				memcpy(hdr.next_part_uuid,
 					next_part_hdrp->uuid,
@@ -858,7 +840,7 @@ check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 				break;
 			case CHECK_POOL_HDR_Q_SET_PREV_PART_UUID:
 				LOG(2, "setting pool_hdr.prev_part_uuid to "
-					"%s\n", check_pool_hdr_get_uuid_str(
+					"%s\n", check_utils_get_uuid_str(
 					prev_part_hdrp->uuid));
 				memcpy(hdr.prev_part_uuid,
 					prev_part_hdrp->uuid,
@@ -866,14 +848,14 @@ check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 				break;
 			case CHECK_POOL_HDR_Q_SET_NEXT_REPL_UUID:
 				LOG(2, "setting pool_hdr.next_repl_uuid to "
-					"%s\n", check_pool_hdr_get_uuid_str(
+					"%s\n", check_utils_get_uuid_str(
 					next_repl_hdrp->uuid));
 				memcpy(hdr.next_repl_uuid, next_repl_hdrp->uuid,
 					POOL_HDR_UUID_LEN);
 				break;
 			case CHECK_POOL_HDR_Q_SET_PREV_REPL_UUID:
 				LOG(2, "setting pool_hdr.prev_repl_uuid to "
-					"%s\n", check_pool_hdr_get_uuid_str(
+					"%s\n", check_utils_get_uuid_str(
 					prev_repl_hdrp->uuid));
 				memcpy(hdr.prev_repl_uuid, prev_repl_hdrp->uuid,
 					POOL_HDR_UUID_LEN);

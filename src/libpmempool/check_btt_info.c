@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/mman.h>
-#include <assert.h>
 
 #include "out.h"
 #include "util.h"
@@ -71,7 +70,8 @@ struct btt_context {
 	uint64_t len;
 };
 
-void check_btt_info_loc_release(union check_btt_info_location *loc)
+static void
+check_btt_info_loc_release(union check_btt_info_location *loc)
 {
 	free(loc->arena);
 	loc->arena = NULL;
@@ -189,7 +189,7 @@ cleanup:
 static struct check_status *
 check_btt_info_backup(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
 {
-	assert(ppc->repair);
+	ASSERT(ppc->repair);
 
 	/*
 	 * BTT Info header is not consistent, so try to find
@@ -267,7 +267,7 @@ check_btt_info_backup_fix(PMEMpoolcheck *ppc, union check_btt_info_location *loc
 static struct check_status *
 check_btt_info_gen(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
 {
-	assert(loc->advanced_repair);
+	ASSERT(loc->advanced_repair);
 
 	CHECK_STATUS_ASK(ppc, CHECK_BTT_INFO_Q_REGENERATE,
 		"arena %u: BTT Info header checksum incorrect. "
@@ -323,7 +323,7 @@ check_btt_info_ns_map(void *ns, unsigned lane, void **addrp, size_t len,
 {
 	struct btt_context *nsc = (struct btt_context *)ns;
 
-	assert((ssize_t)len >= 0);
+	ASSERT((ssize_t)len >= 0);
 
 	if (off + len >= nsc->len) {
 		errno = EINVAL;
@@ -512,7 +512,7 @@ check_btt_info_gen_fix(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
 				 * If recovering by BTT Info backup failed try
 				 * to regenerate btt layout.
 				 */
-				assert(result == NULL);
+				ASSERT(result == NULL);
 				result = check_btt_info_gen_fix_exe(ppc, loc);
 				if (result != NULL)
 					return result;
