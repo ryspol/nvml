@@ -62,7 +62,7 @@ struct check_data {
 	struct check_status *check_status_cache;
 };
 
-bool check_start(PMEMpoolcheck *ppc);
+int check_start(PMEMpoolcheck *ppc);
 struct check_status *check_step(PMEMpoolcheck *ppc);
 void check_stop(PMEMpoolcheck *ppc);
 

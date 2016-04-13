@@ -37,6 +37,7 @@
 #include "log.h"
 #include "blk.h"
 #include "btt_layout.h"
+#include "libpmemobj.h"
 
 enum pool_type {
 	POOL_TYPE_LOG		= 0x01,

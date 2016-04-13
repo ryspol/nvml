@@ -37,12 +37,10 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
 #include <inttypes.h>
-#include <assert.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -104,7 +102,7 @@ check_pool_hdr_possible_type(PMEMpoolcheck *ppc)
 /*
  * check_pool_hdr_valid -- return true if pool header is valid
  */
-static bool
+static int
 check_pool_hdr_valid(struct pool_hdr *hdrp)
 {
 	return check_memory((void *)hdrp, sizeof (*hdrp), 0) &&
@@ -114,17 +112,17 @@ check_pool_hdr_valid(struct pool_hdr *hdrp)
 /*
  * check_pool_hdr_supported -- check if pool type is supported
  */
-static bool
+static int
 check_pool_hdr_supported(enum pool_type type)
 {
 	switch (type) {
 	case POOL_TYPE_LOG:
-		return true;
+		return 1;
 	case POOL_TYPE_BLK:
-		return true;
+		return 1;
 	case POOL_TYPE_OBJ:
 	default:
-		return false;
+		return 0;
 	}
 }
 
@@ -154,7 +152,7 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 	struct pool_hdr hdr;
 	check_pool_hdr_get(ppc, &hdr, NULL, loc);
 
-	bool cs_valid = check_pool_hdr_valid(&hdr);
+	int cs_valid = check_pool_hdr_valid(&hdr);
 
 	if (check_memory((void *)&hdr, sizeof (hdr), 0) == 0) {
 		if (!ppc->repair) {
@@ -190,7 +188,7 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 		}
 	}
 
-	assert(ppc->repair);
+	ASSERTeq(ppc->repair, true);
 
 	if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
 		ppc->pool->params.type = check_pool_hdr_possible_type(ppc);
@@ -216,6 +214,8 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 static struct check_status *
 check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 {
+	ASSERTeq(ppc->repair, true);
+
 	struct pool_hdr hdr;
 	check_pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
@@ -264,7 +264,7 @@ check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 			"fill it up?");
 	}
 
-	assert(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
+	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
 		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
 		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS);
 	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
@@ -764,10 +764,10 @@ check_pool_hdr_uuids(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 	struct pool_hdr *next_repl_hdrp = next_rep->part[0].hdr;
 	struct pool_hdr *prev_repl_hdrp = prev_rep->part[0].hdr;
 
-	bool next_part_cs_valid = check_pool_hdr_valid(next_part_hdrp);
-	bool prev_part_cs_valid = check_pool_hdr_valid(prev_part_hdrp);
-	bool next_repl_cs_valid = check_pool_hdr_valid(next_repl_hdrp);
-	bool prev_repl_cs_valid = check_pool_hdr_valid(prev_repl_hdrp);
+	int next_part_cs_valid = check_pool_hdr_valid(next_part_hdrp);
+	int prev_part_cs_valid = check_pool_hdr_valid(prev_part_hdrp);
+	int next_repl_cs_valid = check_pool_hdr_valid(next_repl_hdrp);
+	int prev_repl_cs_valid = check_pool_hdr_valid(prev_repl_hdrp);
 
 	struct pool_hdr hdr;
 	check_pool_hdr_get(ppc, &hdr, NULL, loc);

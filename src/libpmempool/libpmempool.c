@@ -164,7 +164,7 @@ pmempool_check_init(struct pmempool_check_args *args)
 	if (args->backup_path != NULL)
 		ppc->backup_path = strdup(args->backup_path);
 
-	if (!check_start(ppc)) {
+	if (check_start(ppc) != 0) {
 		free(ppc->backup_path);
 		free(ppc->path);
 		free(ppc);

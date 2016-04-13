@@ -41,7 +41,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
-#include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <err.h>
@@ -236,7 +235,7 @@ pool_parse_params(const PMEMpoolcheck *ppc, struct pool_params *params,
 		goto out_close;
 	}
 
-	assert(stat_buf.st_size >= 0);
+	ASSERT(stat_buf.st_size >= 0);
 	params->size = (uint64_t)stat_buf.st_size;
 	params->mode = stat_buf.st_mode;
 
@@ -411,7 +410,7 @@ pool_set_file_unmap_headers(struct pool_set_file *file)
 		for (unsigned p = 0; p < rep->nparts; p++) {
 			struct pool_set_part *part = &rep->part[p];
 			if (part->hdr != NULL) {
-				assert(part->hdrsize > 0);
+				ASSERT(part->hdrsize > 0);
 				munmap(part->hdr, part->hdrsize);
 				part->hdr = NULL;
 				part->hdrsize = 0;
@@ -503,7 +502,7 @@ pool_hdr_default(enum pool_type type, struct pool_hdr *hdrp)
 {
 	memset(hdrp, 0, sizeof (*hdrp));
 	const char *sig = pool_get_signature(type);
-	assert(sig);
+	ASSERTne(sig, NULL);
 
 	memcpy(hdrp->signature, sig, POOL_HDR_SIG_LEN);
 
