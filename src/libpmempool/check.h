@@ -75,9 +75,8 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	uint32_t question, const char *fmt, ...);
 void check_status_push(PMEMpoolcheck *ppc, struct check_status *);
 bool check_has_answer(struct check_data *data);
-struct check_status *check_pop_answer(struct check_data *data);
 struct check_status *check_questions_sequence_validate(PMEMpoolcheck *ppc);
-void check_status_release(struct check_status *);
+void check_status_release(PMEMpoolcheck *ppc, struct check_status *status);
 
 void check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap);
 

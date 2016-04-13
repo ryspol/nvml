@@ -58,6 +58,7 @@
 #include "pool.h"
 #include "pmempool.h"
 #include "check.h"
+#include "check_utils.h"
 
 /*
  * pool_hdr_convert2h -- convert pool header to host byte order
@@ -550,11 +551,7 @@ pool_get_first_valid_arena(struct pool_set_file *file, struct arena *arenap)
 				sizeof (*infop), 0);
 		arenap->zeroed = arenap->zeroed && zeroed;
 
-		if (memcmp(infop->sig, BTT_INFO_SIG,
-					BTTINFO_SIG_LEN) == 0 &&
-			util_checksum(infop, sizeof (*infop),
-				&infop->checksum, 0)) {
-
+		if (check_utils_btt_info_valid(infop)) {
 			pool_btt_info_convert2h(infop);
 			arenap->valid = true;
 			arenap->offset = offset;

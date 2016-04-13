@@ -140,7 +140,6 @@ main(int argc, char *argv[])
 		.path		= POOL_FILE,
 		.pool_type	= PMEMPOOL_POOL_TYPE_BLK,
 		.repair		= true,
-		.backup		= false,
 		.dry_run	= false,
 		.always_yes	= false,
 		.flags		= PMEMPOOL_CHECK_FORMAT_STR
