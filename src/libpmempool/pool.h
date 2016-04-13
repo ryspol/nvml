@@ -41,8 +41,6 @@
 #include "btt_layout.h"
 #include "libpmemobj.h"
 
-#define	BTT_INFO_SIG	"BTT_ARENA_INFO\0"
-
 enum pool_type {
 	POOL_TYPE_LOG		= 0x01,
 	POOL_TYPE_BLK		= 0x02,

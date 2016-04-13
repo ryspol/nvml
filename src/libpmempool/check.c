@@ -80,7 +80,7 @@ static const struct check_step check_steps[] = {
 		.part	= false,
 	},
 	{
-		.type	= PMEMPOOL_POOL_TYPE_BLK,
+		.type	= POOL_TYPE_BLK,
 		.func	= check_btt_info,
 		.part	= false,
 	},
@@ -204,20 +204,6 @@ bool
 check_has_answer(struct check_data *data)
 {
 	return !TAILQ_EMPTY(&data->answers);
-}
-
-/*
- * check_pop_answer -- pop single answer from answers queue
- */
-struct check_status *
-check_pop_answer(struct check_data *data)
-{
-	struct check_status *ret = NULL;
-	if (!TAILQ_EMPTY(&data->answers)) {
-		ret = TAILQ_FIRST(&data->answers);
-		TAILQ_REMOVE(&data->answers, ret, next);
-	}
-	return ret;
 }
 
 /*
@@ -408,8 +394,10 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
  * check_status_release -- release single status object
  */
 void
-check_status_release(struct check_status *status)
+check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
 {
+	if (status->status.type == PMEMPOOL_CHECK_MSG_TYPE_ERROR)
+		ppc->data->error = NULL;
 	free(status);
 }
 
