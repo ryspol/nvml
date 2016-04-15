@@ -38,38 +38,77 @@
 #include <sys/param.h>
 
 #include "out.h"
-#include "util.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
-#include "check.h"
 #include "check_util.h"
 #include "check_pmemx.h"
 
-union check_pmemx_location {
+union location {
 	struct {
 		uint32_t step;
 	};
 	struct check_instep_location instep;
 };
 
-enum check_pmemx_questions {
-	CHECK_PMEMX_Q_LOG_START_OFFSET,
-	CHECK_PMEMX_Q_LOG_END_OFFSET,
-	CHECK_PMEMX_Q_LOG_WRITE_OFFSET,
-	CHECK_PMEMX_Q_BLK_BSIZE,
+enum question {
+	Q_LOG_START_OFFSET,
+	Q_LOG_END_OFFSET,
+	Q_LOG_WRITE_OFFSET,
+	Q_BLK_BSIZE,
 };
 
 /*
- * check_pmemx_log -- check pmemlog header
+ * log_convert2h -- convert pmemlog structure to host byte order
+ */
+static void
+log_convert2h(struct pmemlog *plp)
+{
+	plp->start_offset = le64toh(plp->start_offset);
+	plp->end_offset = le64toh(plp->end_offset);
+	plp->write_offset = le64toh(plp->write_offset);
+}
+
+/*
+ * log_read -- read pmemlog header
  */
 static struct check_status *
-check_pmemx_log(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
+log_read(PMEMpoolcheck *ppc)
+{
+	/*
+	 * Here we want to read the pmemlog header
+	 * without the pool_hdr as we've already done it
+	 * before.
+	 *
+	 * Take the pointer to fields right after pool_hdr,
+	 * compute the size and offset of remaining fields.
+	 */
+	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.log;
+	ptr += sizeof (ppc->pool->hdr.log.hdr);
+
+	size_t size = sizeof (ppc->pool->hdr.log) -
+		sizeof (ppc->pool->hdr.log.hdr);
+	uint64_t offset = sizeof (ppc->pool->hdr.log.hdr);
+
+	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
+		return CHECK_STATUS_ERR(ppc, "cannot read pmemlog structure");
+	}
+
+	/* endianness conversion */
+	log_convert2h(&ppc->pool->hdr.log);
+	return NULL;
+}
+
+/*
+ * log_check -- check pmemlog header
+ */
+static struct check_status *
+log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 {
 	LOG(2, "checking pmemlog header\n");
 
 	static struct check_status *status = NULL;
-	if ((status = check_log_read(ppc)) != NULL) {
+	if ((status = log_read(ppc)) != NULL) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 		return status;
 	}
@@ -79,14 +118,14 @@ check_pmemx_log(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 		roundup(sizeof (ppc->pool->hdr.log), LOG_FORMAT_DATA_ALIGN);
 
 	if (ppc->pool->hdr.log.start_offset != d_start_offset) {
-		CHECK_STATUS_ASK(ppc, CHECK_PMEMX_Q_LOG_START_OFFSET,
+		CHECK_STATUS_ASK(ppc, Q_LOG_START_OFFSET,
 			"invalid pmemlog.start_offset: 0x%" PRIx64 ". Do you "
 			" want to set pmemlog.start_offset to default 0x%x?",
 			ppc->pool->hdr.log.start_offset, d_start_offset);
 	}
 
 	if (ppc->pool->hdr.log.end_offset != ppc->pool->set_file->size) {
-		CHECK_STATUS_ASK(ppc, CHECK_PMEMX_Q_LOG_END_OFFSET,
+		CHECK_STATUS_ASK(ppc, Q_LOG_END_OFFSET,
 			"invalid pmemlog.end_offset: 0x%" PRIx64 ". Do you "
 			"want to set pmemlog.end_offset to 0x%x?",
 			ppc->pool->hdr.log.end_offset,
@@ -95,7 +134,7 @@ check_pmemx_log(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 
 	if (ppc->pool->hdr.log.write_offset < d_start_offset ||
 		ppc->pool->hdr.log.write_offset > ppc->pool->set_file->size) {
-		CHECK_STATUS_ASK(ppc, CHECK_PMEMX_Q_LOG_WRITE_OFFSET,
+		CHECK_STATUS_ASK(ppc, Q_LOG_WRITE_OFFSET,
 			"invalid pmemlog.write_offset: 0x%" PRIx64 ". Do you "
 			"want to set pmemlog.write_offset to "
 			"pmemlog.end_offset?",
@@ -106,17 +145,17 @@ check_pmemx_log(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 }
 
 /*
- * check_pmemx_log_fix -- fix pmemlog header
+ * log_hdr_fix -- fix pmemlog header
  */
 static struct check_status *
-check_pmemx_log_fix(PMEMpoolcheck *ppc,
+log_hdr_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question, void *ctx)
 {
 	struct check_status *result = NULL;
 	uint64_t d_start_offset;
 
 	switch (question) {
-	case CHECK_PMEMX_Q_LOG_START_OFFSET:
+	case Q_LOG_START_OFFSET:
 		/* determine constant values for pmemlog */
 		d_start_offset = roundup(sizeof (ppc->pool->hdr.log),
 			LOG_FORMAT_DATA_ALIGN);
@@ -124,13 +163,13 @@ check_pmemx_log_fix(PMEMpoolcheck *ppc,
 			d_start_offset);
 		ppc->pool->hdr.log.start_offset = d_start_offset;
 		break;
-	case CHECK_PMEMX_Q_LOG_END_OFFSET:
+	case Q_LOG_END_OFFSET:
 		LOG(1, "setting pmemlog.end_offset to 0x%"
 			PRIx64, ppc->pool->set_file->size);
 		ppc->pool->hdr.log.end_offset =
 			ppc->pool->set_file->size;
 			break;
-	case CHECK_PMEMX_Q_LOG_WRITE_OFFSET:
+	case Q_LOG_WRITE_OFFSET:
 		LOG(1, "setting pmemlog.write_offset to "
 			"pmemlog.end_offset");
 		ppc->pool->hdr.log.write_offset =
@@ -144,11 +183,10 @@ check_pmemx_log_fix(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pmemx_blk_get_max_bsize -- return maximum size of block for given file
- *	size
+ * blk_get_max_bsize -- return maximum size of block for given file size
  */
 static uint32_t
-check_pmemx_blk_get_max_bsize(uint64_t fsize)
+blk_get_max_bsize(uint64_t fsize)
 {
 	if (fsize == 0)
 		return 0;
@@ -193,25 +231,56 @@ check_pmemx_blk_get_max_bsize(uint64_t fsize)
 }
 
 /*
+ * blk_read -- read pmemblk header
+ */
+static struct check_status *
+blk_read(PMEMpoolcheck *ppc)
+{
+	/*
+	 * Here we want to read the pmemlog header
+	 * without the pool_hdr as we've already done it
+	 * before.
+	 *
+	 * Take the pointer to fields right after pool_hdr,
+	 * compute the size and offset of remaining fields.
+	 */
+	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.blk;
+	ptr += sizeof (ppc->pool->hdr.blk.hdr);
+
+	size_t size = sizeof (ppc->pool->hdr.blk) -
+		sizeof (ppc->pool->hdr.blk.hdr);
+	uint64_t offset = sizeof (ppc->pool->hdr.blk.hdr);
+
+	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
+		return CHECK_STATUS_ERR(ppc, "cannot read pmemblk structure");
+	}
+
+	/* endianness conversion */
+	ppc->pool->hdr.blk.bsize = le32toh(ppc->pool->hdr.blk.bsize);
+
+	return NULL;
+}
+
+/*
  * check_pmemx_blk_bsize -- check if block size is valid for given file size
  */
 static int
-check_pmemx_blk_bsize(uint32_t bsize, uint64_t fsize)
+blk_bsize(uint32_t bsize, uint64_t fsize)
 {
-	uint32_t max_bsize = check_pmemx_blk_get_max_bsize(fsize);
+	uint32_t max_bsize = blk_get_max_bsize(fsize);
 	return !(bsize < max_bsize);
 }
 
 /*
- * check_pmemx_blk -- check pmemblk header
+ * blk_hdr_check -- check pmemblk header
  */
 static struct check_status *
-check_pmemx_blk(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
+blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 {
 	LOG(2, "checking pmemblk header\n");
 
 	static struct check_status *status = NULL;
-	if ((status = check_blk_read(ppc)) != NULL) {
+	if ((status = blk_read(ppc)) != NULL) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 		return status;
 	}
@@ -226,7 +295,7 @@ check_pmemx_blk(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 			ppc->pool->bttc.btt_info.external_lbasize;
 
 		if (ppc->pool->hdr.blk.bsize != btt_bsize) {
-			CHECK_STATUS_ASK(ppc, CHECK_PMEMX_Q_BLK_BSIZE,
+			CHECK_STATUS_ASK(ppc, Q_BLK_BSIZE,
 				"invalid pmemblk.bsize. Do you want to set "
 				"pmemblk.bsize to %lu from BTT Info?",
 				btt_bsize);
@@ -235,7 +304,7 @@ check_pmemx_blk(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 		LOG(2, "no BTT layout\n");
 	} else {
 		if (ppc->pool->hdr.blk.bsize < BTT_MIN_LBA_SIZE ||
-			check_pmemx_blk_bsize(ppc->pool->hdr.blk.bsize,
+			blk_bsize(ppc->pool->hdr.blk.bsize,
 				ppc->pool->set_file->size)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_STATUS_ERR(ppc, "invalid pmemblk.bsize");
@@ -246,17 +315,17 @@ check_pmemx_blk(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 }
 
 /*
- * check_pmemx_blk_fix -- fix pmemblk header
+ * blk_hdr_fix -- fix pmemblk header
  */
 static struct check_status *
-check_pmemx_blk_fix(PMEMpoolcheck *ppc,
+blk_hdr_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question, void *ctx)
 {
 	struct check_status *result = NULL;
 	uint32_t btt_bsize;
 
 	switch (question) {
-	case CHECK_PMEMX_Q_BLK_BSIZE:
+	case Q_BLK_BSIZE:
 		/*
 		 * check for valid BTT Info arena as we can take bsize from
 		 * it
@@ -277,30 +346,30 @@ check_pmemx_blk_fix(PMEMpoolcheck *ppc,
 	return result;
 }
 
-struct check_pmemx_step {
+struct step {
 	struct check_status *(*check)(PMEMpoolcheck *,
-		union check_pmemx_location *loc);
+		union location *loc);
 	struct check_status *(*fix)(PMEMpoolcheck *ppc,
 		struct check_instep_location *location, uint32_t question,
 		void *ctx);
 	enum pool_type type;
 };
 
-static const struct check_pmemx_step check_pmemx_steps[] = {
+static const struct step steps[] = {
 	{
-		.check	= check_pmemx_log,
+		.check	= log_hdr_check,
 		.type	= POOL_TYPE_LOG
 	},
 	{
-		.fix	= check_pmemx_log_fix,
+		.fix	= log_hdr_fix,
 		.type	= POOL_TYPE_LOG
 	},
 	{
-		.check	= check_pmemx_blk,
+		.check	= blk_hdr_check,
 		.type	= POOL_TYPE_BLK
 	},
 	{
-		.fix	= check_pmemx_blk_fix,
+		.fix	= blk_hdr_fix,
 		.type	= POOL_TYPE_BLK
 	},
 	{
@@ -312,10 +381,9 @@ static const struct check_pmemx_step check_pmemx_steps[] = {
  * check_pmemx_step -- perform single step according to its parameters
  */
 static inline struct check_status *
-check_pmemx_step(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
+check_pmemx_step(PMEMpoolcheck *ppc, union location *loc)
 {
-	const struct check_pmemx_step *step =
-		&check_pmemx_steps[loc->step++];
+	const struct step *step = &steps[loc->step++];
 
 	if (!(step->type & ppc->pool->params.type))
 		return NULL;
@@ -326,7 +394,7 @@ check_pmemx_step(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 				return NULL;
 
 		if (step->type == POOL_TYPE_LOG) {
-			if ((status = check_log_read(ppc)) != NULL) {
+			if ((status = log_read(ppc)) != NULL) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return status;
 			}
@@ -334,7 +402,7 @@ check_pmemx_step(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 			/*
 			 * blk related questions require blk preparation
 			 */
-			if ((status = check_blk_read(ppc)) != NULL) {
+			if ((status = blk_read(ppc)) != NULL) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return status;
 			}
@@ -355,16 +423,16 @@ check_pmemx_step(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 struct check_status *
 check_pmemx(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union check_pmemx_location) !=
+	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
-	union check_pmemx_location *loc =
-		(union check_pmemx_location *)&ppc->data->instep_location;
+	union location *loc =
+		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
-	while (loc->step != CHECK_STEPS_COMPLETE &&
-		(check_pmemx_steps[loc->step].check != NULL ||
-		check_pmemx_steps[loc->step].fix != NULL)) {
+	while (loc->step != CHECK_STEP_COMPLETE &&
+		(steps[loc->step].check != NULL ||
+		steps[loc->step].fix != NULL)) {
 
 		status = check_pmemx_step(ppc, loc);
 		if (status != NULL)

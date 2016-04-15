@@ -34,21 +34,263 @@
  * check_utils.c -- check utility functions
  */
 
-#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
-#include <stddef.h>
 #include <string.h>
-#include <sys/types.h>
 
 #include "out.h"
-#include "util.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
-#include "check.h"
 #include "check_util.h"
 
-#define	BTT_INFO_SIG	"BTT_ARENA_INFO\0"
+/* queue of check statuses */
+struct check_status {
+	TAILQ_ENTRY(check_status) next;
+	struct pmempool_check_status status;
+};
+
+TAILQ_HEAD(check_status_head, check_status);
+
+/* check control context */
+struct check_data {
+	uint32_t step;
+	struct check_instep_location instep_location;
+
+	struct check_status *error;
+	struct check_status_head infos;
+	struct check_status_head questions;
+	struct check_status_head answers;
+
+	struct check_status *check_status_cache;
+};
+
+struct check_data *
+check_data_alloc()
+{
+	struct check_data *data = (struct check_data *)malloc(sizeof (*data));
+	if (data == NULL) {
+		ERR("!malloc");
+		return NULL;
+	}
+
+	data->check_status_cache = NULL;
+	data->error = NULL;
+	data->step = 0;
+
+	TAILQ_INIT(&data->infos);
+	TAILQ_INIT(&data->questions);
+	TAILQ_INIT(&data->answers);
+
+	return data;
+}
+
+void
+check_data_free(struct check_data *data)
+{
+	if (data->error != NULL) {
+		free(data->error);
+		data->error = NULL;
+	}
+
+	if (data->check_status_cache != NULL) {
+		free(data->check_status_cache);
+		data->check_status_cache = NULL;
+	}
+
+	while (!TAILQ_EMPTY(&data->infos)) {
+		struct check_status *statp = TAILQ_FIRST(&data->infos);
+		TAILQ_REMOVE(&data->infos, statp, next);
+		free(statp);
+	}
+
+	while (!TAILQ_EMPTY(&data->questions)) {
+		struct check_status *statp = TAILQ_FIRST(&data->questions);
+		TAILQ_REMOVE(&data->questions, statp, next);
+		free(statp);
+	}
+
+	while (!TAILQ_EMPTY(&data->answers)) {
+		struct check_status *statp = TAILQ_FIRST(&data->answers);
+		TAILQ_REMOVE(&data->answers, statp, next);
+		free(statp);
+	}
+
+	free(data);
+}
+
+#define	CHECK_MAX_MSG_STR_SIZE 8192
+
+char *
+check_msg_alloc()
+{
+	char *msg =  malloc(sizeof (char) * CHECK_MAX_MSG_STR_SIZE);
+	if (!msg) {
+		ERR("!malloc");
+	}
+	return msg;
+}
+
+uint32_t
+check_step_get(struct check_data *data)
+{
+	return data->step;
+}
+
+void
+check_step_inc(struct check_data *data)
+{
+	++data->step;
+	memset(&data->instep_location, 0,
+		sizeof (struct check_instep_location));
+}
+
+struct check_instep_location *
+check_step_location_get(struct check_data *data)
+{
+	return &data->instep_location;
+}
+
+#define	CHECK_END UINT32_MAX
+
+void
+check_end(struct check_data *data)
+{
+	data->step = CHECK_END;
+}
+
+int
+check_ended(struct check_data *data)
+{
+	ASSERT(data->step != CHECK_END);
+	return data->step == CHECK_END;
+}
+
+/*
+ * check_status_create -- create single status, push it to proper queue
+ */
+struct check_status *
+check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
+	uint32_t question, const char *fmt, ...)
+{
+	struct check_status *st = malloc(sizeof (*st));
+
+	if (ppc->flags & PMEMPOOL_CHECK_FORMAT_STR) {
+		va_list ap;
+		va_start(ap, fmt);
+		vsnprintf(ppc->msg, CHECK_MAX_MSG_STR_SIZE, fmt, ap);
+		va_end(ap);
+
+		st->status.str.msg = ppc->msg;
+		st->status.type = type;
+	}
+
+	switch (type) {
+	case PMEMPOOL_CHECK_MSG_TYPE_ERROR:
+		ASSERTeq(ppc->data->error, NULL);
+		ppc->data->error = st;
+		break;
+	case PMEMPOOL_CHECK_MSG_TYPE_INFO:
+		TAILQ_INSERT_TAIL(&ppc->data->infos, st, next);
+		break;
+	case PMEMPOOL_CHECK_MSG_TYPE_QUESTION:
+		st->status.question = question;
+		if (ppc->always_yes) {
+			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
+			st->status.answer = PMEMPOOL_CHECK_ANSWER_YES;
+			TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
+		} else {
+			ppc->result = PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS;
+			st->status.answer = PMEMPOOL_CHECK_ANSWER_EMPTY;
+			TAILQ_INSERT_TAIL(&ppc->data->questions, st, next);
+		}
+		break;
+	}
+
+	return st;
+}
+
+/*
+ * check_status_release -- release single status object
+ */
+void
+check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
+{
+	if (status->status.type == PMEMPOOL_CHECK_MSG_TYPE_ERROR)
+		ppc->data->error = NULL;
+	free(status);
+}
+
+/*
+ * check_pop_question -- pop single question from questions queue
+ */
+struct check_status *
+check_pop_question(struct check_data *data)
+{
+	data->check_status_cache = NULL;
+	if (!TAILQ_EMPTY(&data->questions)) {
+		data->check_status_cache = TAILQ_FIRST(&data->questions);
+		TAILQ_REMOVE(&data->questions, data->check_status_cache, next);
+	}
+
+	return data->check_status_cache;
+}
+
+/*
+ * check_status_push -- push single answer to answers queue
+ */
+static void
+status_push(struct check_data *data, struct check_status *st)
+{
+	ASSERTeq(st->status.type, PMEMPOOL_CHECK_MSG_TYPE_QUESTION);
+	TAILQ_INSERT_TAIL(&data->answers, st, next);
+}
+
+#define	CHECK_ANSWER_YES	"yes"
+#define	CHECK_ANSWER_NO		"no"
+
+/*
+ * check_push_answer -- process answer and push it to answers queue
+ */
+struct check_status *
+check_push_answer(PMEMpoolcheck *ppc)
+{
+	if (ppc->data->check_status_cache == NULL)
+		return NULL;
+
+	struct pmempool_check_status *status =
+		&ppc->data->check_status_cache->status;
+	if (status->str.answer != NULL) {
+		if (strcmp(status->str.answer, CHECK_ANSWER_YES) == 0) {
+			status->answer = PMEMPOOL_CHECK_ANSWER_YES;
+		} else if (strcmp(status->str.answer, CHECK_ANSWER_NO) == 0) {
+			status->answer = PMEMPOOL_CHECK_ANSWER_NO;
+		}
+	}
+
+	if (status->answer == PMEMPOOL_CHECK_ANSWER_EMPTY) {
+		status_push(ppc->data, ppc->data->check_status_cache);
+		ppc->data->check_status_cache = NULL;
+		return CHECK_STATUS_ERR(ppc, "Answer must be either %s or %s",
+			CHECK_ANSWER_YES, CHECK_ANSWER_NO);
+	} else {
+		TAILQ_INSERT_TAIL(&ppc->data->answers,
+			ppc->data->check_status_cache, next);
+		ppc->data->check_status_cache = NULL;
+	}
+
+	return NULL;
+}
+
+/*
+ * check_has_answer -- check if any answer exists
+ */
+bool
+check_has_answer(struct check_data *data)
+{
+	return !TAILQ_EMPTY(&data->answers);
+}
 
 /*
  * pop_answer -- pop single answer from answers queue
@@ -62,6 +304,18 @@ pop_answer(struct check_data *data)
 		TAILQ_REMOVE(&data->answers, ret, next);
 	}
 	return ret;
+}
+
+struct pmempool_check_status *
+check_status_get(struct check_status *status)
+{
+	return &status->status;
+}
+
+int
+check_status_is(struct check_status *status, enum pmempool_check_msg_type type)
+{
+	return status != NULL && status->status.type == type;
 }
 
 /*
@@ -103,6 +357,55 @@ cannot_repair:
 	return result;
 }
 
+struct check_status *
+check_questions_sequence_validate(PMEMpoolcheck *ppc)
+{
+	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS);
+	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
+		return ppc->data->questions.tqh_first;
+	else
+		return NULL;
+}
+
+/*
+ * check_memory -- check if memory contains single value
+ */
+int
+check_memory(const uint8_t *buff, size_t len, uint8_t val)
+{
+	size_t i;
+	for (i = 0; i < len; i++) {
+		if (buff[i] != val)
+			return -1;
+	}
+
+	return 0;
+}
+
+#define	STR_MAX 256
+#define	TIME_STR_FMT "%a %b %d %Y %H:%M:%S"
+
+/*
+ * check_get_time_str -- returns time in human-readable format
+ */
+const char *
+check_get_time_str(time_t time)
+{
+	static char str_buff[STR_MAX] = {0, };
+	struct tm *tm = localtime(&time);
+
+	if (tm)
+		strftime(str_buff, STR_MAX, TIME_STR_FMT, tm);
+	else
+		snprintf(str_buff, STR_MAX, "unknown");
+
+	return str_buff;
+}
+
+#define	UUID_STR_MAX 37
+
 /*
  * check_get_uuid_str -- returns uuid in human readable format
  */
@@ -118,134 +421,14 @@ check_get_uuid_str(uuid_t uuid)
 	}
 	return uuid_str;
 }
-/*
- * check_btt_info_valid -- check consistency of BTT Info header
- */
-int
-check_btt_info_valid(struct btt_info *infop)
-{
-	if (!memcmp(infop->sig, BTT_INFO_SIG, BTTINFO_SIG_LEN))
-		return util_checksum(infop, sizeof (*infop), &infop->checksum,
-			0);
-	else
-		return -1;
-}
 
 /*
- * check_log_convert2h -- convert pmemlog structure to host byte order
- */
-static void
-check_log_convert2h(struct pmemlog *plp)
-{
-	plp->start_offset = le64toh(plp->start_offset);
-	plp->end_offset = le64toh(plp->end_offset);
-	plp->write_offset = le64toh(plp->write_offset);
-}
-
-/*
- * check_log_read -- read pmemlog header
- */
-struct check_status *
-check_log_read(PMEMpoolcheck *ppc)
-{
-	/*
-	 * Here we want to read the pmemlog header
-	 * without the pool_hdr as we've already done it
-	 * before.
-	 *
-	 * Take the pointer to fields right after pool_hdr,
-	 * compute the size and offset of remaining fields.
-	 */
-	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.log;
-	ptr += sizeof (ppc->pool->hdr.log.hdr);
-
-	size_t size = sizeof (ppc->pool->hdr.log) -
-		sizeof (ppc->pool->hdr.log.hdr);
-	uint64_t offset = sizeof (ppc->pool->hdr.log.hdr);
-
-	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
-		return CHECK_STATUS_ERR(ppc, "cannot read pmemlog structure");
-	}
-
-	/* endianness conversion */
-	check_log_convert2h(&ppc->pool->hdr.log);
-
-	return NULL;
-}
-
-/*
- * check_blk_read -- read pmemblk header
- */
-struct check_status *
-check_blk_read(PMEMpoolcheck *ppc)
-{
-	/*
-	 * Here we want to read the pmemlog header
-	 * without the pool_hdr as we've already done it
-	 * before.
-	 *
-	 * Take the pointer to fields right after pool_hdr,
-	 * compute the size and offset of remaining fields.
-	 */
-	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.blk;
-	ptr += sizeof (ppc->pool->hdr.blk.hdr);
-
-	size_t size = sizeof (ppc->pool->hdr.blk) -
-		sizeof (ppc->pool->hdr.blk.hdr);
-	uint64_t offset = sizeof (ppc->pool->hdr.blk.hdr);
-
-	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
-		return CHECK_STATUS_ERR(ppc, "cannot read pmemblk structure");
-	}
-
-	/* endianness conversion */
-	ppc->pool->hdr.blk.bsize = le32toh(ppc->pool->hdr.blk.bsize);
-
-	return NULL;
-}
-
-/*
- * check_btt_flog_convert2h -- convert btt_flog to host byte order
+ * pmempool_check_insert_arena -- insert arena to list
  */
 void
-check_btt_flog_convert2h(struct btt_flog *flogp)
+check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap)
 {
-	flogp->lba = le32toh(flogp->lba);
-	flogp->old_map = le32toh(flogp->old_map);
-	flogp->new_map = le32toh(flogp->new_map);
-	flogp->seq = le32toh(flogp->seq);
+	TAILQ_INSERT_TAIL(&ppc->pool->arenas, arenap, next);
+	ppc->pool->narenas++;
 }
 
-/*
- * check_btt_flog_convert2le -- convert btt_flog to LE byte order
- */
-void
-check_btt_flog_convert2le(struct btt_flog *flogp)
-{
-	flogp->lba = htole32(flogp->lba);
-	flogp->old_map = htole32(flogp->old_map);
-	flogp->new_map = htole32(flogp->new_map);
-	flogp->seq = htole32(flogp->seq);
-}
-
-/*
- * check_btt_info_convert2le -- convert btt_info header to LE byte order
- */
-void
-check_btt_info_convert2le(struct btt_info *infop)
-{
-	infop->flags = htole64(infop->flags);
-	infop->minor = htole16(infop->minor);
-	infop->external_lbasize = htole32(infop->external_lbasize);
-	infop->external_nlba = htole32(infop->external_nlba);
-	infop->internal_lbasize = htole32(infop->internal_lbasize);
-	infop->internal_nlba = htole32(infop->internal_nlba);
-	infop->nfree = htole32(infop->nfree);
-	infop->infosize = htole32(infop->infosize);
-	infop->nextoff = htole64(infop->nextoff);
-	infop->dataoff = htole64(infop->dataoff);
-	infop->mapoff = htole64(infop->mapoff);
-	infop->flogoff = htole64(infop->flogoff);
-	infop->infooff = htole64(infop->infooff);
-	infop->checksum = htole64(infop->checksum);
-}

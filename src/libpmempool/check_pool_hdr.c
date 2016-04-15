@@ -38,15 +38,13 @@
 #include <sys/mman.h>
 
 #include "out.h"
-#include "util.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
-#include "check.h"
 #include "check_util.h"
 #include "check_pool_hdr.h"
 
-union check_pool_hdr_location {
+union location {
 	struct {
 		unsigned replica;
 		unsigned part;
@@ -55,7 +53,7 @@ union check_pool_hdr_location {
 	struct check_instep_location instep;
 };
 
-struct check_pool_hdr_default_ctx {
+struct context {
 	struct pool_hdr hdr;
 	struct pool_hdr *hdrp;
 	struct pool_hdr def_hdr;
@@ -65,30 +63,30 @@ struct check_pool_hdr_default_ctx {
 	struct pool_hdr *prev_repl_hdrp;
 };
 
-enum check_pool_hdr_questions {
-	CHECK_POOL_HDR_Q_DEFAULT_SIGNATURE,
-	CHECK_POOL_HDR_Q_DEFAULT_MAJOR,
-	CHECK_POOL_HDR_Q_DEFAULT_COMPAT_FEATURES,
-	CHECK_POOL_HDR_Q_DEFAULT_INCOMPAT_FEATURES,
-	CHECK_POOL_HDR_Q_DEFAULT_RO_COMPAT_FEATURES,
-	CHECK_POOL_HDR_Q_ZERO_UNUSED_AREA,
-	CHECK_POOL_HDR_Q_CRTIME,
-	CHECK_POOL_HDR_Q_CHECKSUM,
-	CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO,
-	CHECK_POOL_HDR_Q_UUID_FROM_VALID_PART,
-	CHECK_POOL_HDR_Q_REGENERATE_UUIDS,
-	CHECK_POOL_HDR_Q_SET_VALID_UUID,
-	CHECK_POOL_HDR_Q_SET_NEXT_PART_UUID,
-	CHECK_POOL_HDR_Q_SET_PREV_PART_UUID,
-	CHECK_POOL_HDR_Q_SET_NEXT_REPL_UUID,
-	CHECK_POOL_HDR_Q_SET_PREV_REPL_UUID
+enum question {
+	Q_DEFAULT_SIGNATURE,
+	Q_DEFAULT_MAJOR,
+	Q_DEFAULT_COMPAT_FEATURES,
+	Q_DEFAULT_INCOMPAT_FEATURES,
+	Q_DEFAULT_RO_COMPAT_FEATURES,
+	Q_ZERO_UNUSED_AREA,
+	Q_CRTIME,
+	Q_CHECKSUM,
+	Q_BLK_UUID_FROM_BTT_INFO,
+	Q_UUID_FROM_VALID_PART,
+	Q_REGENERATE_UUIDS,
+	Q_SET_VALID_UUID,
+	Q_SET_NEXT_PART_UUID,
+	Q_SET_PREV_PART_UUID,
+	Q_SET_NEXT_REPL_UUID,
+	Q_SET_PREV_REPL_UUID
 };
 
 /*
- * check_pool_hdr_possible_type -- return possible type of pool
+ * pool_hdr_possible_type -- return possible type of pool
  */
 static enum pool_type
-check_pool_hdr_possible_type(PMEMpoolcheck *ppc)
+pool_hdr_possible_type(PMEMpoolcheck *ppc)
 {
 	/*
 	 * We can scan pool file for valid BTT Info header
@@ -102,20 +100,20 @@ check_pool_hdr_possible_type(PMEMpoolcheck *ppc)
 }
 
 /*
- * check_pool_hdr_valid -- return true if pool header is valid
+ * pool_hdr_valid -- return true if pool header is valid
  */
 static int
-check_pool_hdr_valid(struct pool_hdr *hdrp)
+pool_hdr_valid(struct pool_hdr *hdrp)
 {
 	return check_memory((void *)hdrp, sizeof (*hdrp), 0) &&
 		util_checksum(hdrp, sizeof (*hdrp), &hdrp->checksum, 0);
 }
 
 /*
- * check_pool_hdr_supported -- check if pool type is supported
+ * pool_supported -- check if pool type is supported
  */
 static int
-check_pool_hdr_supported(enum pool_type type)
+pool_supported(enum pool_type type)
 {
 	switch (type) {
 	case POOL_TYPE_LOG:
@@ -129,11 +127,11 @@ check_pool_hdr_supported(enum pool_type type)
 }
 
 /*
- * check_pool_hdr_get -- get pool header from given location
+ * pool_hdr_get -- get pool header from given location
  */
 static void
-check_pool_hdr_get(PMEMpoolcheck *ppc, struct pool_hdr *hdr,
-	struct pool_hdr **shdr, union check_pool_hdr_location *loc)
+pool_hdr_get(PMEMpoolcheck *ppc, struct pool_hdr *hdr,
+	struct pool_hdr **shdr, union location *loc)
 {
 	struct pool_replica *rep =
 		ppc->pool->set_file->poolset->replica[loc->replica];
@@ -145,16 +143,34 @@ check_pool_hdr_get(PMEMpoolcheck *ppc, struct pool_hdr *hdr,
 }
 
 /*
- * check_pool_hdr_checksum -- check pool header by checksum
+ * pool_get_type_str -- return human-readable pool type string
+ */
+static const char *
+pool_type_get_str(enum pool_type type)
+{
+	switch (type) {
+	case POOL_TYPE_LOG:
+		return "log";
+	case POOL_TYPE_BLK:
+		return "blk";
+	case POOL_TYPE_OBJ:
+		return "obj";
+	default:
+		return "unknown";
+	}
+}
+
+/*
+ * pool_hdr_checksum -- check pool header by checksum
  */
 static struct check_status *
-check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
+pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 {
 	LOG(2, "checking pool header\n");
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 
-	int cs_valid = check_pool_hdr_valid(&hdr);
+	int cs_valid = pool_hdr_valid(&hdr);
 
 	if (check_memory((void *)&hdr, sizeof (hdr), 0) == 0) {
 		if (!ppc->repair) {
@@ -175,7 +191,7 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 				}
 			} else {
 				// valid check sum
-				loc->step = CHECK_STEPS_COMPLETE;
+				loc->step = CHECK_STEP_COMPLETE;
 				return NULL;
 			}
 		} else {
@@ -193,7 +209,7 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 	ASSERTeq(ppc->repair, true);
 
 	if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
-		ppc->pool->params.type = check_pool_hdr_possible_type(ppc);
+		ppc->pool->params.type = pool_hdr_possible_type(ppc);
 		if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_STATUS_ERR(ppc, "cannot determine pool "
@@ -201,44 +217,44 @@ check_pool_hdr_checksum(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 		}
 	}
 
-	if (!check_pool_hdr_supported(ppc->pool->params.type)) {
+	if (!pool_supported(ppc->pool->params.type)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_STATUS_ERR(ppc, "Unsupported pool type '%s'",
-			pool_get_type_str(ppc->pool->params.type));
+			pool_type_get_str(ppc->pool->params.type));
 	}
 
 	return NULL;
 }
 
 /*
- * check_pool_hdr_default -- check some default values in pool header
+ * pool_hdr_default -- check some default values in pool header
  */
 static struct check_status *
-check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
+pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 {
 	ASSERTeq(ppc->repair, true);
 
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
 
 	struct pool_hdr def_hdr;
 	pool_hdr_default(ppc->pool->params.type, &def_hdr);
 
 	if (memcmp(hdr.signature, def_hdr.signature, POOL_HDR_SIG_LEN)) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_DEFAULT_SIGNATURE,
+		CHECK_STATUS_ASK(ppc, Q_DEFAULT_SIGNATURE,
 			"pool_hdr.signature is not valid. Do you want to set "
 			"it to %.8s?", def_hdr.signature);
 	}
 
 	if (hdr.major != def_hdr.major) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_DEFAULT_MAJOR,
+		CHECK_STATUS_ASK(ppc, Q_DEFAULT_MAJOR,
 			"pool_hdr.major is not valid. Do you want to set it "
 			"to default value 0x%x?", def_hdr.major);
 	}
 
 	if (hdr.compat_features != def_hdr.compat_features) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_DEFAULT_COMPAT_FEATURES,
+		CHECK_STATUS_ASK(ppc, Q_DEFAULT_COMPAT_FEATURES,
 			"pool_hdr.compat_features is not valid. Do you want "
 			"to set it to default value 0x%x?",
 			def_hdr.compat_features);
@@ -246,7 +262,7 @@ check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 
 	if (hdr.incompat_features != def_hdr.incompat_features) {
 		CHECK_STATUS_ASK(ppc,
-			CHECK_POOL_HDR_Q_DEFAULT_INCOMPAT_FEATURES,
+			Q_DEFAULT_INCOMPAT_FEATURES,
 			"pool_hdr.incompat_features is not valid. Do you want"
 			"to set it to default value 0x%x?",
 			def_hdr.incompat_features);
@@ -254,14 +270,14 @@ check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 
 	if (hdr.ro_compat_features != def_hdr.ro_compat_features) {
 		CHECK_STATUS_ASK(ppc,
-			CHECK_POOL_HDR_Q_DEFAULT_RO_COMPAT_FEATURES,
+			Q_DEFAULT_RO_COMPAT_FEATURES,
 			"pool_hdr.ro_compat_features is not valid. Do you want"
 			"to set it to default value 0x%x?",
 			def_hdr.ro_compat_features);
 	}
 
 	if (check_memory(hdr.unused, sizeof (hdr.unused), 0)) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_ZERO_UNUSED_AREA,
+		CHECK_STATUS_ASK(ppc, Q_ZERO_UNUSED_AREA,
 			"Unused area is not filled by zeros. Do you want to "
 			"fill it up?");
 	}
@@ -270,36 +286,36 @@ check_pool_hdr_default(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 }
 
 /*
- * check_pool_hdr_default_fix -- fix some default values in pool header
+ * pool_hdr_default_fix -- fix some default values in pool header
  */
 static struct check_status *
-check_pool_hdr_default_fix(PMEMpoolcheck *ppc,
+pool_hdr_default_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question,
 	void *context)
 {
 	ASSERT(context != NULL);
 
-	struct check_pool_hdr_default_ctx *ctx =
-		(struct check_pool_hdr_default_ctx *)context;
+	struct context *ctx =
+		(struct context *)context;
 
 	switch (question) {
-	case CHECK_POOL_HDR_Q_DEFAULT_SIGNATURE:
+	case Q_DEFAULT_SIGNATURE:
 		memcpy(ctx->hdr.signature, ctx->def_hdr.signature,
 			POOL_HDR_SIG_LEN);
 		break;
-	case CHECK_POOL_HDR_Q_DEFAULT_MAJOR:
+	case Q_DEFAULT_MAJOR:
 		ctx->hdr.major = ctx->def_hdr.major;
 		break;
-	case CHECK_POOL_HDR_Q_DEFAULT_COMPAT_FEATURES:
+	case Q_DEFAULT_COMPAT_FEATURES:
 		ctx->hdr.compat_features = ctx->def_hdr.compat_features;
 		break;
-	case CHECK_POOL_HDR_Q_DEFAULT_INCOMPAT_FEATURES:
+	case Q_DEFAULT_INCOMPAT_FEATURES:
 		ctx->hdr.incompat_features = ctx->def_hdr.incompat_features;
 		break;
-	case CHECK_POOL_HDR_Q_DEFAULT_RO_COMPAT_FEATURES:
+	case Q_DEFAULT_RO_COMPAT_FEATURES:
 		ctx->hdr.ro_compat_features = ctx->def_hdr.ro_compat_features;
 		break;
-	case CHECK_POOL_HDR_Q_ZERO_UNUSED_AREA:
+	case Q_ZERO_UNUSED_AREA:
 		memset(ctx->hdr.unused, 0, sizeof (ctx->hdr.unused));
 		break;
 	default:
@@ -310,10 +326,10 @@ check_pool_hdr_default_fix(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pool_hdr_get_valid_part -- returns valid part replica and part ids
+ * pool_get_valid_part -- returns valid part replica and part ids
  */
 static int
-check_pool_hdr_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
+pool_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
 	unsigned *ridp, unsigned *pidp)
 {
 	for (unsigned r = 0; r < ppc->pool->set_file->poolset->nreplicas; r++) {
@@ -323,7 +339,7 @@ check_pool_hdr_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
 			if (r == rid && p == pid)
 				continue;
 
-			if (check_pool_hdr_valid(rep->part[p].hdr)) {
+			if (pool_hdr_valid(rep->part[p].hdr)) {
 				*ridp = r;
 				*pidp = p;
 				return 0;
@@ -335,14 +351,14 @@ check_pool_hdr_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
 }
 
 /*
- * check_pool_hdr_poolset_uuid -- check poolset_uuid field
+ * pool_hdr_poolset_uuid -- check poolset_uuid field
  */
 static struct check_status *
-check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
-	union check_pool_hdr_location *loc)
+pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
+	union location *loc)
 {
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
 
 	/* for blk pool we can take the UUID from BTT Info header */
@@ -354,7 +370,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 			return NULL;
 		}
 
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO,
+		CHECK_STATUS_ASK(ppc, Q_BLK_UUID_FROM_BTT_INFO,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from BTT Info?",
 			check_get_uuid_str(
@@ -362,7 +378,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 	} else if (ppc->pool->params.is_poolset) {
 		unsigned rid = 0;
 		unsigned pid = 0;
-		if (check_pool_hdr_get_valid_part(ppc, loc->replica, loc->part,
+		if (pool_get_valid_part(ppc, loc->replica, loc->part,
 			&rid, &pid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_STATUS_ERR(ppc, "Can not repair "
@@ -374,7 +390,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		if (memcmp(hdr.poolset_uuid, valid_hdrp->poolset_uuid,
 					POOL_HDR_UUID_LEN) == 0)
 			return NULL;
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_UUID_FROM_VALID_PART,
+		CHECK_STATUS_ASK(ppc, Q_UUID_FROM_VALID_PART,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from valid pool file part ?",
 			check_get_uuid_str(valid_hdrp->poolset_uuid));
@@ -384,24 +400,24 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pool_hdr_poolset_uuid_fix -- fix poolset_uuid field
+ * pool_hdr_poolset_uuid_fix -- fix poolset_uuid field
  */
 static struct check_status *
-check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
+pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question,
 	void *context)
 {
 	ASSERT(context != NULL);
 
-	union check_pool_hdr_location *loc =
-		(union check_pool_hdr_location *)location;
-	struct check_pool_hdr_default_ctx *ctx =
-		(struct check_pool_hdr_default_ctx *)context;
+	union location *loc =
+		(union location *)location;
+	struct context *ctx =
+		(struct context *)context;
 
 	unsigned rid = 0;
 	unsigned pid = 0;
 	switch (question) {
-	case CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO:
+	case Q_BLK_UUID_FROM_BTT_INFO:
 		LOG(1, "setting pool_hdr.poolset_uuid to %s\n",
 			check_get_uuid_str(
 			ppc->pool->bttc.btt_info.parent_uuid));
@@ -410,8 +426,8 @@ check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 			POOL_HDR_UUID_LEN);
 		ppc->pool->uuid_op = UUID_FROM_BTT;
 		break;
-	case CHECK_POOL_HDR_Q_UUID_FROM_VALID_PART:
-		if (check_pool_hdr_get_valid_part(ppc, loc->replica, loc->part,
+	case Q_UUID_FROM_VALID_PART:
+		if (pool_get_valid_part(ppc, loc->replica, loc->part,
 			&rid, &pid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_STATUS_ERR(ppc,
@@ -432,68 +448,66 @@ check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pool_hdr_checksum_retry -- check if checksum match after all performed
- *	fixes
+ * pool_hdr_checksum_retry -- check if checksum match after all performed fixes
  */
 static struct check_status *
-check_pool_hdr_checksum_retry(PMEMpoolcheck *ppc,
-	union check_pool_hdr_location *loc)
+pool_hdr_checksum_retry(PMEMpoolcheck *ppc,
+	union location *loc)
 {
 	LOG(2, "checking pool header\n");
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 
-	if (check_pool_hdr_valid(&hdr))
-		loc->step = CHECK_STEPS_COMPLETE;
+	if (pool_hdr_valid(&hdr))
+		loc->step = CHECK_STEP_COMPLETE;
 
 	return NULL;
 }
 
 /*
- * check_pool_hdr_gen -- generate pool hdr values
+ * pool_hdr_gen -- generate pool hdr values
  */
 static struct check_status *
-check_pool_hdr_gen(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
+pool_hdr_gen(PMEMpoolcheck *ppc, union location *loc)
 {
 	LOG(2, "checking pool header\n");
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
 
 	if (hdr.crtime > (uint64_t)ppc->pool->set_file->mtime) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_CRTIME,
+		CHECK_STATUS_ASK(ppc, Q_CRTIME,
 			"pool_hdr.crtime is not valid. Do you want to set it "
 			"to file's modtime [%s]?",
 			check_get_time_str(ppc->pool->set_file->mtime));
 	}
 
-	CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_CHECKSUM,
+	CHECK_STATUS_ASK(ppc, Q_CHECKSUM,
 		"Do you want to regenerate checksum?");
 
 	return check_questions_sequence_validate(ppc);
 }
 
 /*
- * check_pool_hdr_gen_fix -- fix some pool hdr values by overwrite with
- *	generated values
+ * pool_hdr_gen_fix -- fix pool hdr values by overwrite with generated values
  */
 static struct check_status *
-check_pool_hdr_gen_fix(PMEMpoolcheck *ppc,
+pool_hdr_gen_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question,
 	void *context)
 {
 	ASSERT(context != NULL);
 
-	struct check_pool_hdr_default_ctx *ctx =
-		(struct check_pool_hdr_default_ctx *)context;
+	struct context *ctx =
+		(struct context *)context;
 
 	switch (question) {
-	case CHECK_POOL_HDR_Q_CRTIME:
+	case Q_CRTIME:
 		pool_hdr_convert2h(&ctx->hdr);
 		ctx->hdr.crtime = (uint64_t)ppc->pool->set_file->mtime;
 		pool_hdr_convert2le(&ctx->hdr);
 		break;
-	case CHECK_POOL_HDR_Q_CHECKSUM:
+	case Q_CHECKSUM:
 		util_checksum(&ctx->hdr, sizeof (ctx->hdr), &ctx->hdr.checksum,
 			1);
 		break;
@@ -505,10 +519,10 @@ check_pool_hdr_gen_fix(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pool_hdr_all_uuid_same -- check if all uuids are same and non-zero
+ * pool_hdr_all_uuid_same -- check if all uuids are same and non-zero
  */
 static int
-check_pool_hdr_all_uuid_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN], int n)
+pool_hdr_all_uuid_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN], int n)
 {
 	if (!check_memory(uuids[0], POOL_HDR_UUID_LEN, 0))
 		return 0;
@@ -521,10 +535,10 @@ check_pool_hdr_all_uuid_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN], int n)
 }
 
 /*
- * check_pool_hdr_get_max_same_uuid -- return indices of two the same uuids
+ * uuid_get_max_same -- return indices of two the same uuids
  */
 static int
-check_pool_hdr_get_max_same_uuid(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
+uuid_get_max_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
 		int n, int *indexp)
 {
 	int max = 0;
@@ -551,11 +565,11 @@ check_pool_hdr_get_max_same_uuid(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
 }
 
 /*
- * check_pool_hdr_uuids_single -- check UUID values for a single pool file
+ * pool_hdr_uuids_single -- check UUID values for a single pool file
  */
 static struct check_status *
-check_pool_hdr_uuids_single(PMEMpoolcheck *ppc,
-	union check_pool_hdr_location *loc)
+pool_hdr_uuids_single(PMEMpoolcheck *ppc,
+	union location *loc)
 {
 	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
 	unsigned nparts = ppc->pool->set_file->poolset->replica[loc->
@@ -564,17 +578,17 @@ check_pool_hdr_uuids_single(PMEMpoolcheck *ppc,
 		return NULL;
 
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
 
-	if (!check_pool_hdr_all_uuid_same(&hdr.uuid, 5)) {
+	if (!pool_hdr_all_uuid_same(&hdr.uuid, 5)) {
 		int index = 0;
-		if (check_pool_hdr_get_max_same_uuid(&hdr.uuid, 5, &index)) {
-			CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_REGENERATE_UUIDS,
+		if (uuid_get_max_same(&hdr.uuid, 5, &index)) {
+			CHECK_STATUS_ASK(ppc, Q_REGENERATE_UUIDS,
 				"UUID values don't match. Do you want to "
 				"regenerate UUIDs?");
 		} else {
-			CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_SET_VALID_UUID,
+			CHECK_STATUS_ASK(ppc, Q_SET_VALID_UUID,
 				"UUID values don't match. Do you want to set "
 				"it to valid value?");
 		}
@@ -584,10 +598,10 @@ check_pool_hdr_uuids_single(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pool_hdr_set_all_uuids -- set all uuids to the specified one
+ * pool_hdr_set_all_uuids -- set all uuids to the specified one
  */
 static void
-check_pool_hdr_set_all_uuids(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
+pool_hdr_set_all_uuids(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
 		int n, int index)
 {
 	for (int i = 0; i < n; i++) {
@@ -601,32 +615,32 @@ check_pool_hdr_set_all_uuids(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
  * check_pool_hdr_uuids_single_fix -- fix UUID values for a single pool file
  */
 static struct check_status *
-check_pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
+pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question,
 	void *context)
 {
 	ASSERT(context != NULL);
 
-	struct check_pool_hdr_default_ctx *ctx =
-		(struct check_pool_hdr_default_ctx *)context;
+	struct context *ctx =
+		(struct context *)context;
 
 	int index = 0;
 	switch (question) {
-	case CHECK_POOL_HDR_Q_REGENERATE_UUIDS:
+	case Q_REGENERATE_UUIDS:
 		if (util_uuid_generate(ctx->hdr.uuid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_STATUS_ERR(ppc, "uuid generation failed");
 		}
 		LOG(1, "setting UUIDs to: %s\n", check_get_uuid_str(
 			ctx->hdrp->uuid));
-		check_pool_hdr_set_all_uuids(&ctx->hdr.uuid, 5, 0);
+		pool_hdr_set_all_uuids(&ctx->hdr.uuid, 5, 0);
 		break;
-	case CHECK_POOL_HDR_Q_SET_VALID_UUID:
-		check_pool_hdr_get_max_same_uuid(&ctx->hdr.uuid, 5, &index);
+	case Q_SET_VALID_UUID:
+		uuid_get_max_same(&ctx->hdr.uuid, 5, &index);
 		unsigned char (*uuid_i)[POOL_HDR_UUID_LEN] = &ctx->hdr.uuid;
 		LOG(2, "setting UUIDs to %s\n", check_get_uuid_str(
 			uuid_i[index]));
-		check_pool_hdr_set_all_uuids(&ctx->hdrp->uuid, 5, index);
+		pool_hdr_set_all_uuids(&ctx->hdrp->uuid, 5, index);
 		break;
 	default:
 		FATAL("not implemented");
@@ -636,10 +650,10 @@ check_pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 }
 
 /*
- * check_pool_hdr_uuids -- check UUID values for pool file
+ * pool_hdr_uuids_check -- check UUID values for pool file
  */
 static struct check_status *
-check_pool_hdr_uuids(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
+pool_hdr_uuids_check(PMEMpoolcheck *ppc, union location *loc)
 {
 	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
 	unsigned nparts =
@@ -668,13 +682,13 @@ check_pool_hdr_uuids(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 	struct pool_hdr *next_repl_hdrp = next_rep->part[0].hdr;
 	struct pool_hdr *prev_repl_hdrp = prev_rep->part[0].hdr;
 
-	int next_part_cs_valid = check_pool_hdr_valid(next_part_hdrp);
-	int prev_part_cs_valid = check_pool_hdr_valid(prev_part_hdrp);
-	int next_repl_cs_valid = check_pool_hdr_valid(next_repl_hdrp);
-	int prev_repl_cs_valid = check_pool_hdr_valid(prev_repl_hdrp);
+	int next_part_cs_valid = pool_hdr_valid(next_part_hdrp);
+	int prev_part_cs_valid = pool_hdr_valid(prev_part_hdrp);
+	int next_repl_cs_valid = pool_hdr_valid(next_repl_hdrp);
+	int prev_repl_cs_valid = pool_hdr_valid(prev_repl_hdrp);
 
 	struct pool_hdr hdr;
-	check_pool_hdr_get(ppc, &hdr, NULL, loc);
+	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
 
 	int next_part_valid = !memcmp(hdr.next_part_uuid,
@@ -688,25 +702,25 @@ check_pool_hdr_uuids(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 			prev_repl_hdrp->uuid, POOL_HDR_UUID_LEN);
 
 	if ((single_part || next_part_cs_valid) && !next_part_valid) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_SET_NEXT_PART_UUID,
+		CHECK_STATUS_ASK(ppc, Q_SET_NEXT_PART_UUID,
 			"Invalid pool_hdr.next_part_uuid. Do you want to set "
 			"it to valid value?");
 	}
 
 	if ((single_part || prev_part_cs_valid) && !prev_part_valid) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_SET_PREV_PART_UUID,
+		CHECK_STATUS_ASK(ppc, Q_SET_PREV_PART_UUID,
 			"Invalid pool_hdr.prev_part_uuid. Do you want to set "
 			"it to valid value?");
 	}
 
 	if ((single_repl || prev_repl_cs_valid) && !next_repl_valid) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_SET_NEXT_REPL_UUID,
+		CHECK_STATUS_ASK(ppc, Q_SET_NEXT_REPL_UUID,
 			"Invalid pool_hdr.next_repl_uuid. Do you want to set "
 			"it to valid value?");
 	}
 
 	if ((single_repl || next_repl_cs_valid) && !prev_repl_valid) {
-		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_SET_PREV_REPL_UUID,
+		CHECK_STATUS_ASK(ppc, Q_SET_PREV_REPL_UUID,
 			"Invalid pool_hdr.prev_repl_uuid. Do you want to set "
 			"it to valid value?");
 	}
@@ -715,38 +729,38 @@ check_pool_hdr_uuids(PMEMpoolcheck *ppc, union check_pool_hdr_location *loc)
 }
 
 /*
- * check_pool_hdr_uuids_fix -- fix UUID values for pool file
+ * pool_hdr_uuids_fix -- fix UUID values for pool file
  */
 static struct check_status *
-check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
+pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 	struct check_instep_location *location, uint32_t question,
 	void *context)
 {
 	ASSERT(context != NULL);
 
-	struct check_pool_hdr_default_ctx *ctx =
-		(struct check_pool_hdr_default_ctx *)context;
+	struct context *ctx =
+		(struct context *)context;
 
 	switch (question) {
-	case CHECK_POOL_HDR_Q_SET_NEXT_PART_UUID:
+	case Q_SET_NEXT_PART_UUID:
 		LOG(2, "setting pool_hdr.next_part_uuid to %s\n",
 			check_get_uuid_str(ctx->next_part_hdrp->uuid));
 		memcpy(ctx->hdr.next_part_uuid, ctx->next_part_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
-	case CHECK_POOL_HDR_Q_SET_PREV_PART_UUID:
+	case Q_SET_PREV_PART_UUID:
 		LOG(2, "setting pool_hdr.prev_part_uuid to %s\n",
 			check_get_uuid_str(ctx->prev_part_hdrp->uuid));
 		memcpy(ctx->hdr.prev_part_uuid, ctx->prev_part_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
-	case CHECK_POOL_HDR_Q_SET_NEXT_REPL_UUID:
+	case Q_SET_NEXT_REPL_UUID:
 		LOG(2, "setting pool_hdr.next_repl_uuid to %s\n",
 			check_get_uuid_str(ctx->next_repl_hdrp->uuid));
 		memcpy(ctx->hdr.next_repl_uuid, ctx->next_repl_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
-	case CHECK_POOL_HDR_Q_SET_PREV_REPL_UUID:
+	case Q_SET_PREV_REPL_UUID:
 		LOG(2, "setting pool_hdr.prev_repl_uuid to %s\n",
 			check_get_uuid_str(ctx->prev_repl_hdrp->uuid));
 		memcpy(ctx->hdr.prev_repl_uuid, ctx->prev_repl_hdrp->uuid,
@@ -759,9 +773,9 @@ check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 	return NULL;
 }
 
-struct check_pool_hdr_step {
+struct step {
 	struct check_status *(*check)(PMEMpoolcheck *,
-		union check_pool_hdr_location *loc);
+		union location *loc);
 	struct check_status *(*fix)(PMEMpoolcheck *ppc,
 		struct check_instep_location *location, uint32_t question,
 		void *ctx);
@@ -769,47 +783,47 @@ struct check_pool_hdr_step {
 	bool many;
 };
 
-static const struct check_pool_hdr_step check_pool_hdr_steps[] = {
+static const struct step steps[] = {
 	{
-		.check	= check_pool_hdr_checksum,
+		.check	= pool_hdr_checksum,
 	},
 	{
-		.check	= check_pool_hdr_default,
+		.check	= pool_hdr_default_check,
 	},
 	{
-		.fix	= check_pool_hdr_default_fix,
+		.fix	= pool_hdr_default_fix,
 	},
 	{
-		.check	= check_pool_hdr_poolset_uuid,
+		.check	= pool_hdr_poolset_uuid,
 	},
 	{
-		.fix	= check_pool_hdr_poolset_uuid_fix,
+		.fix	= pool_hdr_poolset_uuid_fix,
 	},
 	{
-		.check	= check_pool_hdr_uuids_single,
+		.check	= pool_hdr_uuids_single,
 		.single	= true,
 	},
 	{
-		.fix	= check_pool_hdr_uuids_single_fix,
+		.fix	= pool_hdr_uuids_single_fix,
 		.single	= true,
 	},
 	{
-		.check	= check_pool_hdr_uuids,
+		.check	= pool_hdr_uuids_check,
 		.many	= true,
 	},
 	{
-		.fix	= check_pool_hdr_uuids_fix,
+		.fix	= pool_hdr_uuids_fix,
 		.many	= true,
 	},
 	{
-		.check	= check_pool_hdr_checksum_retry,
+		.check	= pool_hdr_checksum_retry,
 
 	},
 	{
-		.check	= check_pool_hdr_gen,
+		.check	= pool_hdr_gen,
 	},
 	{
-		.fix	= check_pool_hdr_gen_fix,
+		.fix	= pool_hdr_gen_fix,
 	},
 	{
 		.check	= NULL,
@@ -821,11 +835,10 @@ static const struct check_pool_hdr_step check_pool_hdr_steps[] = {
  */
 static struct check_status *
 check_pool_hdr_step(PMEMpoolcheck *ppc,
-	union check_pool_hdr_location *loc, struct pool_replica *rep,
+	union location *loc, struct pool_replica *rep,
 	unsigned nreplicas)
 {
-	const struct check_pool_hdr_step *step =
-		&check_pool_hdr_steps[loc->step++];
+	const struct step *step = &steps[loc->step++];
 
 	struct check_status *status = NULL;
 	if (step->fix != NULL) {
@@ -833,8 +846,8 @@ check_pool_hdr_step(PMEMpoolcheck *ppc,
 		if (!check_has_answer(ppc->data))
 			return NULL;
 
-		struct check_pool_hdr_default_ctx ctx;
-		check_pool_hdr_get(ppc, &ctx.hdr, &ctx.hdrp, loc);
+		struct context ctx;
+		pool_hdr_get(ppc, &ctx.hdr, &ctx.hdrp, loc);
 		pool_hdr_convert2h(&ctx.hdr);
 		pool_hdr_default(ppc->pool->params.type, &ctx.def_hdr);
 
@@ -883,7 +896,7 @@ check_pool_hdr_step(PMEMpoolcheck *ppc,
 struct check_status *
 check_pool_hdr(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union check_pool_hdr_location) !=
+	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
 	int rdonly = !ppc->repair || ppc->dry_run;
@@ -893,8 +906,8 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 		return CHECK_STATUS_ERR(ppc, "cannot map pool headers");
 	}
 
-	union check_pool_hdr_location *loc =
-		(union check_pool_hdr_location *)&ppc->data->instep_location;
+	union location *loc =
+		(union location *)check_step_location_get(ppc->data);
 	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
 	struct check_status *status = NULL;
 
@@ -906,9 +919,9 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 				PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS)
 				loc->step = 0;
 
-			while (loc->step != CHECK_STEPS_COMPLETE &&
-				(check_pool_hdr_steps[loc->step].check
-				!= NULL || check_pool_hdr_steps[loc->step].fix
+			while (loc->step != CHECK_STEP_COMPLETE &&
+				(steps[loc->step].check
+				!= NULL || steps[loc->step].fix
 				!= NULL)) {
 
 				status = check_pool_hdr_step(ppc, loc, rep,

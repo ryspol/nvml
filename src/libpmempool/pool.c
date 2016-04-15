@@ -34,79 +34,26 @@
  * pool.c -- pool processing functions
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <sys/queue.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <err.h>
 
 #include "out.h"
-#include "util.h"
 #include "libpmemobj.h"
 #include "lane.h"
 #include "redo.h"
 #include "list.h"
+#include "libpmempool.h"
+#include "pool.h"
 #include "obj.h"
 #include "libpmemlog.h"
 #include "libpmemblk.h"
-#include "libpmempool.h"
-#include "pool.h"
 #include "pmempool.h"
-#include "check.h"
 #include "check_util.h"
-
-/*
- * pool_hdr_convert2h -- convert pool header to host byte order
- */
-void
-pool_hdr_convert2h(struct pool_hdr *hdrp)
-{
-	hdrp->compat_features = le32toh(hdrp->compat_features);
-	hdrp->incompat_features = le32toh(hdrp->incompat_features);
-	hdrp->ro_compat_features = le32toh(hdrp->ro_compat_features);
-	hdrp->arch_flags.alignment_desc =
-		le64toh(hdrp->arch_flags.alignment_desc);
-	hdrp->arch_flags.e_machine = le16toh(hdrp->arch_flags.e_machine);
-	hdrp->crtime = le64toh(hdrp->crtime);
-	hdrp->checksum = le64toh(hdrp->checksum);
-}
-
-/*
- * pool_hdr_convert2le -- convert pool header to LE byte order
- */
-void
-pool_hdr_convert2le(struct pool_hdr *hdrp)
-{
-	hdrp->compat_features = htole32(hdrp->compat_features);
-	hdrp->incompat_features = htole32(hdrp->incompat_features);
-	hdrp->ro_compat_features = htole32(hdrp->ro_compat_features);
-	hdrp->arch_flags.alignment_desc =
-		htole64(hdrp->arch_flags.alignment_desc);
-	hdrp->arch_flags.e_machine = htole16(hdrp->arch_flags.e_machine);
-	hdrp->crtime = htole64(hdrp->crtime);
-	hdrp->checksum = htole64(hdrp->checksum);
-}
-
-/*
- * pool_hdr_get_type -- return pool type based on pool header data
- */
-enum pool_type
-pool_hdr_get_type(const struct pool_hdr *hdrp)
-{
-	if (memcmp(hdrp->signature, LOG_HDR_SIG, POOL_HDR_SIG_LEN) == 0)
-		return POOL_TYPE_LOG;
-	else if (memcmp(hdrp->signature, BLK_HDR_SIG, POOL_HDR_SIG_LEN) == 0)
-		return POOL_TYPE_BLK;
-	else if (memcmp(hdrp->signature, OBJ_HDR_SIG, POOL_HDR_SIG_LEN) == 0)
-		return POOL_TYPE_OBJ;
-	else
-		return POOL_TYPE_UNKNOWN;
-}
 
 /*
  * pool_get_min_size -- return minimum size of pool for specified type
@@ -214,8 +161,8 @@ err_close:
 /*
  * pool_parse_params -- parse pool type, file size and block size
  */
-int
-pool_parse_params(const PMEMpoolcheck *ppc, struct pool_params *params,
+static int
+pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 	int check)
 {
 	struct stat stat_buf;
@@ -317,7 +264,7 @@ out_close:
 /*
  * pool_set_file_open -- opens pool set file or regular file
  */
-struct pool_set_file *
+static struct pool_set_file *
 pool_set_file_open(const char *fname, int rdonly, int check)
 {
 	struct pool_set_file *file = calloc(1, sizeof (*file));
@@ -350,7 +297,7 @@ pool_set_file_open(const char *fname, int rdonly, int check)
 	/* get modification time from the first part of first replica */
 	const char *path = file->poolset->replica[0]->part[0].path;
 	if (stat(path, &buf)) {
-		warn("%s", path);
+		ERR("%s", path);
 		goto err_close_poolset;
 	}
 
@@ -370,9 +317,47 @@ err:
 }
 
 /*
+ * pool_data_alloc -- allocate pool data and open set_file
+ */
+struct pool_data *
+pool_data_alloc(PMEMpoolcheck *ppc)
+{
+	struct pool_data *pool = malloc(sizeof (*pool));
+	if (!pool) {
+		ERR("!malloc");
+		return NULL;
+	}
+
+	TAILQ_INIT(&pool->arenas);
+	pool->narenas = 0;
+
+	if (pool_params_parse(ppc, &pool->params, 0)) {
+		if (errno)
+			perror(ppc->path);
+		else
+			ERR("%s: cannot determine type of pool\n",
+				ppc->path);
+		goto error;
+	}
+
+	int rdonly = !ppc->repair || ppc->dry_run;
+	ppc->pool->set_file = pool_set_file_open(ppc->path, rdonly, 0);
+	if (!ppc->pool->set_file) {
+		perror(ppc->path);
+		goto error;
+	}
+
+	return pool;
+
+error:
+	pool_data_free(pool);
+	return NULL;
+}
+
+/*
  * pool_set_file_close -- closes pool set file or regular file
  */
-void
+static void
 pool_set_file_close(struct pool_set_file *file)
 {
 	if (file->poolset)
@@ -383,6 +368,28 @@ pool_set_file_close(struct pool_set_file *file)
 	}
 	free(file->fname);
 	free(file);
+}
+
+/*
+ * pool_data_free -- close set_file and release pool data
+ */
+void
+pool_data_free(struct pool_data *pool)
+{
+	if (pool->set_file)
+		pool_set_file_close(pool->set_file);
+
+	while (!TAILQ_EMPTY(&pool->arenas)) {
+		struct arena *arenap = TAILQ_FIRST(&pool->arenas);
+		if (arenap->map)
+			free(arenap->map);
+		if (arenap->flog)
+			free(arenap->flog);
+		TAILQ_REMOVE(&pool->arenas, arenap, next);
+		free(arenap);
+	}
+
+	free(pool);
 }
 
 /*
@@ -397,25 +404,31 @@ pool_set_file_map(struct pool_set_file *file, uint64_t offset)
 }
 
 /*
- * pool_set_file_unmap_headers -- unmap headers of each pool set part file
+ * pool_read -- read from pool set file or regular file
  */
-void
-pool_set_file_unmap_headers(struct pool_set_file *file)
+int
+pool_read(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
 {
-	if (!file->poolset)
-		return;
-	for (unsigned r = 0; r < file->poolset->nreplicas; r++) {
-		struct pool_replica *rep = file->poolset->replica[r];
-		for (unsigned p = 0; p < rep->nparts; p++) {
-			struct pool_set_part *part = &rep->part[p];
-			if (part->hdr != NULL) {
-				ASSERT(part->hdrsize > 0);
-				munmap(part->hdr, part->hdrsize);
-				part->hdr = NULL;
-				part->hdrsize = 0;
-			}
-		}
-	}
+	if (off + nbytes > file->size)
+		return -1;
+
+	memcpy(buff, (char *)file->addr + off, nbytes);
+
+	return 0;
+}
+
+/*
+ * pool_write -- write to pool set file or regular file
+ */
+int
+pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
+{
+	if (off + nbytes > file->size)
+		return -1;
+
+	memcpy((char *)file->addr + off, buff, nbytes);
+
+	return 0;
 }
 
 /*
@@ -452,51 +465,57 @@ err:
 }
 
 /*
- * pool_set_file_read -- read from pool set file or regular file
+ * pool_set_file_unmap_headers -- unmap headers of each pool set part file
  */
-int
-pool_set_file_read(struct pool_set_file *file, void *buff, size_t nbytes,
-	uint64_t off)
+void
+pool_set_file_unmap_headers(struct pool_set_file *file)
 {
-	if (off + nbytes > file->size)
-		return -1;
-
-	memcpy(buff, (char *)file->addr + off, nbytes);
-
-	return 0;
+	if (!file->poolset)
+		return;
+	for (unsigned r = 0; r < file->poolset->nreplicas; r++) {
+		struct pool_replica *rep = file->poolset->replica[r];
+		for (unsigned p = 0; p < rep->nparts; p++) {
+			struct pool_set_part *part = &rep->part[p];
+			if (part->hdr != NULL) {
+				ASSERT(part->hdrsize > 0);
+				munmap(part->hdr, part->hdrsize);
+				part->hdr = NULL;
+				part->hdrsize = 0;
+			}
+		}
+	}
 }
 
 /*
- * pool_read -- read data from file
+ * pool_hdr_convert2h -- convert pool header to host byte order
  */
-int
-pool_read(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
+void
+pool_hdr_convert2h(struct pool_hdr *hdrp)
 {
-	return pool_set_file_read(file, buff, nbytes, off);
+	hdrp->compat_features = le32toh(hdrp->compat_features);
+	hdrp->incompat_features = le32toh(hdrp->incompat_features);
+	hdrp->ro_compat_features = le32toh(hdrp->ro_compat_features);
+	hdrp->arch_flags.alignment_desc =
+		le64toh(hdrp->arch_flags.alignment_desc);
+	hdrp->arch_flags.e_machine = le16toh(hdrp->arch_flags.e_machine);
+	hdrp->crtime = le64toh(hdrp->crtime);
+	hdrp->checksum = le64toh(hdrp->checksum);
 }
 
 /*
- * pool_set_file_write -- write to pool set file or regular file
+ * pool_hdr_convert2le -- convert pool header to LE byte order
  */
-static int
-pool_set_file_write(struct pool_set_file *file, void *buff,
-		size_t nbytes, uint64_t off)
+void
+pool_hdr_convert2le(struct pool_hdr *hdrp)
 {
-	if (off + nbytes > file->size)
-		return -1;
-
-	memcpy((char *)file->addr + off, buff, nbytes);
-
-	return 0;
-}
-
-/*
- * pool_write -- read data from file
- */
-int
-pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
-{
-	return pool_set_file_write(file, buff, nbytes, off);
+	hdrp->compat_features = htole32(hdrp->compat_features);
+	hdrp->incompat_features = htole32(hdrp->incompat_features);
+	hdrp->ro_compat_features = htole32(hdrp->ro_compat_features);
+	hdrp->arch_flags.alignment_desc =
+		htole64(hdrp->arch_flags.alignment_desc);
+	hdrp->arch_flags.e_machine = htole16(hdrp->arch_flags.e_machine);
+	hdrp->crtime = htole64(hdrp->crtime);
+	hdrp->checksum = htole64(hdrp->checksum);
 }
 
 /*
@@ -554,47 +573,19 @@ pool_hdr_default(enum pool_type type, struct pool_hdr *hdrp)
 }
 
 /*
- * pool_get_first_valid_arena -- get first valid BTT Info in arena
+ * pool_hdr_get_type -- return pool type based on pool header data
  */
-int
-pool_get_first_valid_arena(struct pool_set_file *file, struct arena *arenap)
+enum pool_type
+pool_hdr_get_type(const struct pool_hdr *hdrp)
 {
-	uint64_t offset = 2 * BTT_ALIGNMENT;
-	int backup = 0;
-	struct btt_info *infop = &arenap->btt_info;
-	arenap->zeroed = true;
-
-	uint64_t last_offset = (file->size & ~(BTT_ALIGNMENT - 1))
-			- BTT_ALIGNMENT;
-	/*
-	 * Starting at offset, read every page and check for
-	 * valid BTT Info Header. Check signature and checksum.
-	 */
-	while (!pool_read(file, infop, sizeof (*infop), offset)) {
-		bool zeroed = !check_memory((const uint8_t *)infop,
-				sizeof (*infop), 0);
-		arenap->zeroed = arenap->zeroed && zeroed;
-
-		if (check_btt_info_valid(infop)) {
-			pool_btt_info_convert2h(infop);
-			arenap->valid = true;
-			arenap->offset = offset;
-			return 1;
-		}
-
-		if (!backup) {
-			if (file->size > BTT_MAX_ARENA)
-				offset += BTT_MAX_ARENA - BTT_ALIGNMENT;
-			else
-				offset = last_offset;
-		} else {
-			offset += BTT_ALIGNMENT;
-		}
-
-		backup = !backup;
-	}
-
-	return 0;
+	if (memcmp(hdrp->signature, LOG_HDR_SIG, POOL_HDR_SIG_LEN) == 0)
+		return POOL_TYPE_LOG;
+	else if (memcmp(hdrp->signature, BLK_HDR_SIG, POOL_HDR_SIG_LEN) == 0)
+		return POOL_TYPE_BLK;
+	else if (memcmp(hdrp->signature, OBJ_HDR_SIG, POOL_HDR_SIG_LEN) == 0)
+		return POOL_TYPE_OBJ;
+	else
+		return POOL_TYPE_UNKNOWN;
 }
 
 /*
@@ -619,20 +610,91 @@ pool_btt_info_convert2h(struct btt_info *infop)
 	infop->checksum = le64toh(infop->checksum);
 }
 
+#define	BTT_INFO_SIG	"BTT_ARENA_INFO\0"
+
 /*
- * pool_get_type_str -- return human-readable pool type string
+ * pool_btt_info_valid -- check consistency of BTT Info header
  */
-const char *
-pool_get_type_str(enum pool_type type)
+int
+pool_btt_info_valid(struct btt_info *infop)
 {
-	switch (type) {
-	case POOL_TYPE_LOG:
-		return "log";
-	case POOL_TYPE_BLK:
-		return "blk";
-	case POOL_TYPE_OBJ:
-		return "obj";
-	default:
-		return "unknown";
+	if (!memcmp(infop->sig, BTT_INFO_SIG, BTTINFO_SIG_LEN))
+		return util_checksum(infop, sizeof (*infop), &infop->checksum,
+			0);
+	else
+		return -1;
+}
+
+/*
+ * pool_get_first_valid_arena -- get first valid BTT Info in arena
+ */
+int
+pool_get_first_valid_arena(struct pool_set_file *file, struct arena *arenap)
+{
+	uint64_t offset = 2 * BTT_ALIGNMENT;
+	int backup = 0;
+	struct btt_info *infop = &arenap->btt_info;
+	arenap->zeroed = true;
+
+	uint64_t last_offset = (file->size & ~(BTT_ALIGNMENT - 1))
+			- BTT_ALIGNMENT;
+	/*
+	 * Starting at offset, read every page and check for
+	 * valid BTT Info Header. Check signature and checksum.
+	 */
+	while (!pool_read(file, infop, sizeof (*infop), offset)) {
+		bool zeroed = !check_memory((const uint8_t *)infop,
+				sizeof (*infop), 0);
+		arenap->zeroed = arenap->zeroed && zeroed;
+
+		if (pool_btt_info_valid(infop)) {
+			pool_btt_info_convert2h(infop);
+			arenap->valid = true;
+			arenap->offset = offset;
+			return 1;
+		}
+
+		if (!backup) {
+			if (file->size > BTT_MAX_ARENA)
+				offset += BTT_MAX_ARENA - BTT_ALIGNMENT;
+			else
+				offset = last_offset;
+		} else {
+			offset += BTT_ALIGNMENT;
+		}
+
+		backup = !backup;
 	}
+
+	return 0;
+}
+
+/*
+ * pool_get_first_valid_btt -- return offset to first valid BTT Info
+ *
+ * - Return offset to first valid BTT Info header in pool file.
+ * - Start at specific offset.
+ * - Convert BTT Info header to host endianness.
+ * - Return the BTT Info header by pointer.
+ */
+uint64_t
+pool_get_first_valid_btt(struct pmempool_check *ppc, struct btt_info
+	*infop, uint64_t offset)
+{
+	/*
+	 * Starting at offset, read every page and check for
+	 * valid BTT Info Header. Check signature and checksum.
+	 */
+	while (!pool_read(ppc->pool->set_file, infop, sizeof (*infop),
+		offset)) {
+
+		if (pool_btt_info_valid(infop)) {
+			pool_btt_info_convert2h(infop);
+			return offset;
+		}
+
+		offset += BTT_ALIGNMENT;
+	}
+
+	return 0;
 }

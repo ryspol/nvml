@@ -34,8 +34,10 @@
  * pool.h -- internal definitions for pool processing functions
  */
 
+#include <stdbool.h>
 #include <sys/queue.h>
 
+#include "util.h"
 #include "log.h"
 #include "blk.h"
 #include "btt_layout.h"
@@ -109,31 +111,30 @@ struct pool_data {
 	uint32_t narenas;
 };
 
-int pool_parse_params(const PMEMpoolcheck *ppc, struct pool_params *params,
-	int check);
+struct pool_data *pool_data_alloc(PMEMpoolcheck *ppc);
+void pool_data_free(struct pool_data *pool);
 
-struct pool_set_file *pool_set_file_open(const char *fname, int rdonly,
-	int check);
-void pool_set_file_close(struct pool_set_file *file);
 void *pool_set_file_map(struct pool_set_file *file, uint64_t offset);
-
-void pool_hdr_convert2h(struct pool_hdr *hdrp);
-void pool_hdr_convert2le(struct pool_hdr *hdrp);
-void pool_btt_info_convert2h(struct btt_info *infop);
-
-void pool_hdr_default(enum pool_type type, struct pool_hdr *hdrp);
-enum pool_type pool_hdr_get_type(const struct pool_hdr *hdrp);
-const char *pool_get_type_str(enum pool_type type);
-
 int pool_set_file_read(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
+
 int pool_read(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
 int pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off);
 
-int pool_get_first_valid_arena(struct pool_set_file *file,
-	struct arena *arenap);
-
 int pool_set_file_map_headers(struct pool_set_file *file, int rdonly,
 	size_t hdrsize);
 void pool_set_file_unmap_headers(struct pool_set_file *file);
+
+void pool_hdr_convert2h(struct pool_hdr *hdrp);
+void pool_hdr_convert2le(struct pool_hdr *hdrp);
+void pool_hdr_default(enum pool_type type, struct pool_hdr *hdrp);
+enum pool_type pool_hdr_get_type(const struct pool_hdr *hdrp);
+
+void pool_btt_info_convert2h(struct btt_info *infop);
+int pool_btt_info_valid(struct btt_info *infop);
+
+int pool_get_first_valid_arena(struct pool_set_file *file,
+	struct arena *arenap);
+uint64_t pool_get_first_valid_btt(struct pmempool_check *ppc, struct btt_info
+	*infop, uint64_t offset);

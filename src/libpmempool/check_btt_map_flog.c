@@ -40,12 +40,10 @@
 #include <sys/param.h>
 
 #include "out.h"
-#include "util.h"
 #include "btt.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
-#include "check.h"
 #include "check_util.h"
 #include "check_btt_map_flog.h"
 
@@ -68,6 +66,18 @@ enum questions {
 	Q_REPAIR_MAP,
 	Q_REPAIR_FLOG,
 };
+
+/*
+ * btt_flog_convert2h -- convert btt_flog to host byte order
+ */
+static void
+btt_flog_convert2h(struct btt_flog *flogp)
+{
+	flogp->lba = le32toh(flogp->lba);
+	flogp->old_map = le32toh(flogp->old_map);
+	flogp->new_map = le32toh(flogp->new_map);
+	flogp->seq = le32toh(flogp->seq);
+}
 
 /*
  * flog_read -- read and convert flog from file
@@ -99,8 +109,8 @@ flog_read(PMEMpoolcheck *ppc, struct arena *arenap)
 		struct btt_flog *flog_beta = (struct btt_flog *)(ptr +
 				sizeof (struct btt_flog));
 
-		check_btt_flog_convert2h(flog_alpha);
-		check_btt_flog_convert2h(flog_beta);
+		btt_flog_convert2h(flog_alpha);
+		btt_flog_convert2h(flog_beta);
 
 		ptr += BTT_FLOG_PAIR_ALIGN;
 	}
@@ -649,7 +659,7 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
-	union location *loc = (union location *)&ppc->data->instep_location;
+	union location *loc = (union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
 	if (ppc->pool->blk_no_layout)
@@ -667,7 +677,7 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 				loc->narena);
 		}
 
-		while (loc->step != CHECK_STEPS_COMPLETE &&
+		while (loc->step != CHECK_STEP_COMPLETE &&
 			(steps[loc->step].check != NULL ||
 			steps[loc->step].fix != NULL)) {
 

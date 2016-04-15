@@ -34,14 +34,10 @@
  * libpmempool.c -- entry points for libpmempool
  */
 
-#include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/queue.h>
 
-#include "util.h"
 #include "out.h"
 #include "libpmempool.h"
 #include "pmempool.h"
@@ -201,12 +197,11 @@ pmempool_check(PMEMpoolcheck *ppc)
 	do {
 		result = check_step(ppc);
 
-		if (ppc->data->step == PMEMPOOL_CHECK_END &&
-			result == NULL)
+		if (check_ended(ppc->data) && result == NULL)
 			return NULL;
 	} while (result == NULL);
 
-	return &result->status;
+	return check_status_get(result);
 }
 
 /*
