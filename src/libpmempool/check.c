@@ -53,6 +53,8 @@
 #include "check_pool_hdr.h"
 #include "check_pmemx.h"
 #include "check_btt_info.h"
+#include "check_btt_map_flog.h"
+#include "check_write.h"
 
 struct check_step {
 	struct check_status *(*func)(PMEMpoolcheck *);
@@ -67,21 +69,28 @@ static const struct check_step check_steps[] = {
 		.part	= true,
 	},
 	{
-		.type	= POOL_TYPE_BLK
-				| POOL_TYPE_LOG
-				| POOL_TYPE_UNKNOWN,
+		.type	= POOL_TYPE_BLK | POOL_TYPE_LOG | POOL_TYPE_UNKNOWN,
 		.func	= check_pool_hdr,
 		.part	= true,
 	},
 	{
-		.type	= POOL_TYPE_BLK
-				| POOL_TYPE_LOG,
+		.type	= POOL_TYPE_BLK | POOL_TYPE_LOG,
 		.func	= check_pmemx,
 		.part	= false,
 	},
 	{
 		.type	= POOL_TYPE_BLK,
 		.func	= check_btt_info,
+		.part	= false,
+	},
+	{
+		.type	= POOL_TYPE_BLK,
+		.func	= check_btt_map_flog,
+		.part	= false,
+	},
+	{
+		.type	= POOL_TYPE_BLK | POOL_TYPE_LOG,
+		.func	= check_write,
 		.part	= false,
 	},
 	{

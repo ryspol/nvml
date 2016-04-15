@@ -43,7 +43,7 @@
 #include "pmempool.h"
 #include "pool.h"
 #include "check.h"
-#include "check_utils.h"
+#include "check_util.h"
 #include "check_pool_hdr.h"
 
 union check_pool_hdr_location {
@@ -357,7 +357,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from BTT Info?",
-			check_utils_get_uuid_str(
+			check_get_uuid_str(
 				ppc->pool->bttc.btt_info.parent_uuid));
 	} else if (ppc->pool->params.is_poolset) {
 		unsigned rid = 0;
@@ -377,7 +377,7 @@ check_pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		CHECK_STATUS_ASK(ppc, CHECK_POOL_HDR_Q_UUID_FROM_VALID_PART,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from valid pool file part ?",
-			check_utils_get_uuid_str(valid_hdrp->poolset_uuid));
+			check_get_uuid_str(valid_hdrp->poolset_uuid));
 	}
 
 	return check_questions_sequence_validate(ppc);
@@ -403,7 +403,7 @@ check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 	switch (question) {
 	case CHECK_POOL_HDR_Q_BLK_UUID_FROM_BTT_INFO:
 		LOG(1, "setting pool_hdr.poolset_uuid to %s\n",
-			check_utils_get_uuid_str(
+			check_get_uuid_str(
 			ppc->pool->bttc.btt_info.parent_uuid));
 		memcpy(ctx->hdr.poolset_uuid,
 			ppc->pool->bttc.btt_info.parent_uuid,
@@ -420,7 +420,7 @@ check_pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 		struct pool_hdr *valid_hdrp = ppc->pool->set_file->poolset->
 			replica[rid]->part[pid].hdr;
 		LOG(1, "setting pool_hdr.poolset_uuid to %s\n",
-			check_utils_get_uuid_str(valid_hdrp->poolset_uuid));
+			check_get_uuid_str(valid_hdrp->poolset_uuid));
 		memcpy(ctx->hdr.poolset_uuid, valid_hdrp->poolset_uuid,
 			POOL_HDR_UUID_LEN);
 		break;
@@ -617,14 +617,14 @@ check_pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_STATUS_ERR(ppc, "uuid generation failed");
 		}
-		LOG(1, "setting UUIDs to: %s\n", check_utils_get_uuid_str(
+		LOG(1, "setting UUIDs to: %s\n", check_get_uuid_str(
 			ctx->hdrp->uuid));
 		check_pool_hdr_set_all_uuids(&ctx->hdr.uuid, 5, 0);
 		break;
 	case CHECK_POOL_HDR_Q_SET_VALID_UUID:
 		check_pool_hdr_get_max_same_uuid(&ctx->hdr.uuid, 5, &index);
 		unsigned char (*uuid_i)[POOL_HDR_UUID_LEN] = &ctx->hdr.uuid;
-		LOG(2, "setting UUIDs to %s\n", check_utils_get_uuid_str(
+		LOG(2, "setting UUIDs to %s\n", check_get_uuid_str(
 			uuid_i[index]));
 		check_pool_hdr_set_all_uuids(&ctx->hdrp->uuid, 5, index);
 		break;
@@ -730,25 +730,25 @@ check_pool_hdr_uuids_fix(PMEMpoolcheck *ppc,
 	switch (question) {
 	case CHECK_POOL_HDR_Q_SET_NEXT_PART_UUID:
 		LOG(2, "setting pool_hdr.next_part_uuid to %s\n",
-			check_utils_get_uuid_str(ctx->next_part_hdrp->uuid));
+			check_get_uuid_str(ctx->next_part_hdrp->uuid));
 		memcpy(ctx->hdr.next_part_uuid, ctx->next_part_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
 	case CHECK_POOL_HDR_Q_SET_PREV_PART_UUID:
 		LOG(2, "setting pool_hdr.prev_part_uuid to %s\n",
-			check_utils_get_uuid_str(ctx->prev_part_hdrp->uuid));
+			check_get_uuid_str(ctx->prev_part_hdrp->uuid));
 		memcpy(ctx->hdr.prev_part_uuid, ctx->prev_part_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
 	case CHECK_POOL_HDR_Q_SET_NEXT_REPL_UUID:
 		LOG(2, "setting pool_hdr.next_repl_uuid to %s\n",
-			check_utils_get_uuid_str(ctx->next_repl_hdrp->uuid));
+			check_get_uuid_str(ctx->next_repl_hdrp->uuid));
 		memcpy(ctx->hdr.next_repl_uuid, ctx->next_repl_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
 	case CHECK_POOL_HDR_Q_SET_PREV_REPL_UUID:
 		LOG(2, "setting pool_hdr.prev_repl_uuid to %s\n",
-			check_utils_get_uuid_str(ctx->prev_repl_hdrp->uuid));
+			check_get_uuid_str(ctx->prev_repl_hdrp->uuid));
 		memcpy(ctx->hdr.prev_repl_uuid, ctx->prev_repl_hdrp->uuid,
 			POOL_HDR_UUID_LEN);
 		break;
@@ -862,7 +862,7 @@ check_pool_hdr_step(PMEMpoolcheck *ppc,
 			ctx.prev_repl_hdrp = prev_rep->part[0].hdr;
 		}
 
-		status = check_utils_answer_loop(ppc,
+		status = check_answer_loop(ppc,
 			(struct check_instep_location *)loc, &ctx,
 			step->fix);
 

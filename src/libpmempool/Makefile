@@ -40,9 +40,9 @@ INCS += -I$(TOP)/src/libpmemlog
 INCS += -I$(TOP)/src/libpmemblk
 INCS += -I$(TOP)/src/libpmemobj
 
-SOURCE = libpmempool.c check.c check_utils.c check_backup.c check_pool_hdr.c\
-	check_pmemx.c check_btt_info.c pool.c $(COMMON)/util.c $(COMMON)/set.c\
-	$(COMMON)/out.c
+SOURCE = libpmempool.c check.c check_util.c check_backup.c check_pool_hdr.c\
+	check_pmemx.c check_btt_info.c check_btt_map_flog.c check_write.c\
+	pool.c $(COMMON)/util.c $(COMMON)/set.c $(COMMON)/out.c
 
 LIBPMEMBLK_PRIV=btt_init btt_write btt_fini
 

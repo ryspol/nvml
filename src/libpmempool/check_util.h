@@ -37,14 +37,18 @@
 #define	UUID_STR_MAX 37
 
 struct check_status *
-check_utils_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
+check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
 	void *ctx, struct check_status *(*callback)(PMEMpoolcheck *,
 	struct check_instep_location *loc, uint32_t question, void *ctx));
 
-const char *check_utils_get_uuid_str(uuid_t uuid);
+const char *check_get_uuid_str(uuid_t uuid);
 
-int check_utils_btt_info_valid(struct btt_info *infop);
+int check_btt_info_valid(struct btt_info *infop);
 
-struct check_status *check_utils_log_read(PMEMpoolcheck *ppc);
+struct check_status *check_log_read(PMEMpoolcheck *ppc);
 
-struct check_status *check_utils_blk_read(PMEMpoolcheck *ppc);
+struct check_status *check_blk_read(PMEMpoolcheck *ppc);
+
+void check_btt_flog_convert2h(struct btt_flog *flogp);
+void check_btt_flog_convert2le(struct btt_flog *flogp);
+void check_btt_info_convert2le(struct btt_info *infop);

@@ -58,7 +58,7 @@
 #include "pool.h"
 #include "pmempool.h"
 #include "check.h"
-#include "check_utils.h"
+#include "check_util.h"
 
 /*
  * pool_hdr_convert2h -- convert pool header to host byte order
@@ -476,6 +476,30 @@ pool_read(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
 }
 
 /*
+ * pool_set_file_write -- write to pool set file or regular file
+ */
+static int
+pool_set_file_write(struct pool_set_file *file, void *buff,
+		size_t nbytes, uint64_t off)
+{
+	if (off + nbytes > file->size)
+		return -1;
+
+	memcpy((char *)file->addr + off, buff, nbytes);
+
+	return 0;
+}
+
+/*
+ * pool_write -- read data from file
+ */
+int
+pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
+{
+	return pool_set_file_write(file, buff, nbytes, off);
+}
+
+/*
  * pool_get_signature -- return signature of specified pool type
  */
 static const char *
@@ -551,7 +575,7 @@ pool_get_first_valid_arena(struct pool_set_file *file, struct arena *arenap)
 				sizeof (*infop), 0);
 		arenap->zeroed = arenap->zeroed && zeroed;
 
-		if (check_utils_btt_info_valid(infop)) {
+		if (check_btt_info_valid(infop)) {
 			pool_btt_info_convert2h(infop);
 			arenap->valid = true;
 			arenap->offset = offset;
