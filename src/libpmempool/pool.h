@@ -129,6 +129,7 @@ int pool_set_file_read(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
 int pool_read(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
+int pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off);
 
 int pool_get_first_valid_arena(struct pool_set_file *file,
 	struct arena *arenap);

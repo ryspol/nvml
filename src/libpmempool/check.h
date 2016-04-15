@@ -47,7 +47,7 @@ TAILQ_HEAD(check_status_head, check_status);
 #define	CHECK_STEPS_COMPLETE	UINT32_MAX
 
 /* container for storing instep location */
-#define	CHECK_INSTEP_LOCATION_NUM	5
+#define	CHECK_INSTEP_LOCATION_NUM	8
 
 struct check_instep_location {
 	uint64_t instep_location[CHECK_INSTEP_LOCATION_NUM];

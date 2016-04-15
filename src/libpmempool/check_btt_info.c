@@ -45,7 +45,7 @@
 #include "pmempool.h"
 #include "pool.h"
 #include "check.h"
-#include "check_utils.h"
+#include "check_util.h"
 #include "check_btt_info.h"
 
 union check_btt_info_location {
@@ -90,7 +90,7 @@ check_btt_info_get_first_valid_btt(struct pmempool_check *ppc, struct btt_info
 	while (!pool_read(ppc->pool->set_file, infop, sizeof (*infop),
 		offset)) {
 
-		if (check_utils_btt_info_valid(infop)) {
+		if (check_btt_info_valid(infop)) {
 			pool_btt_info_convert2h(infop);
 			return offset;
 		}
@@ -145,7 +145,7 @@ check_btt_info_checksum(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
 	}
 
 	/* check consistency of BTT Info */
-	int ret = check_utils_btt_info_valid(&loc->arena->btt_info);
+	int ret = check_btt_info_valid(&loc->arena->btt_info);
 
 	if (ret == 1) {
 		LOG(2, "arena %u: BTT Info header checksum correct\n",
@@ -422,7 +422,7 @@ check_btt_info_gen_fix_exe(PMEMpoolcheck *ppc,
 		struct btt_info *infop =
 			(struct btt_info *)((uintptr_t)addr + offset);
 
-		if (check_utils_btt_info_valid(infop) != 1) {
+		if (check_btt_info_valid(infop) != 1) {
 			status = CHECK_STATUS_ERR(ppc, "writing layout "
 				"failed");
 			goto error_btt;
@@ -571,7 +571,7 @@ check_btt_info_step(PMEMpoolcheck *ppc, union check_btt_info_location *loc)
 		if (!check_has_answer(ppc->data))
 			return NULL;
 
-		status = check_utils_answer_loop(ppc,
+		status = check_answer_loop(ppc,
 			(struct check_instep_location *)loc, NULL,
 			step->fix);
 

@@ -43,7 +43,7 @@
 #include "pmempool.h"
 #include "pool.h"
 #include "check.h"
-#include "check_utils.h"
+#include "check_util.h"
 #include "check_pmemx.h"
 
 union check_pmemx_location {
@@ -69,7 +69,7 @@ check_pmemx_log(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 	LOG(2, "checking pmemlog header\n");
 
 	static struct check_status *status = NULL;
-	if ((status = check_utils_log_read(ppc)) != NULL) {
+	if ((status = check_log_read(ppc)) != NULL) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 		return status;
 	}
@@ -211,7 +211,7 @@ check_pmemx_blk(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 	LOG(2, "checking pmemblk header\n");
 
 	static struct check_status *status = NULL;
-	if ((status = check_utils_blk_read(ppc)) != NULL) {
+	if ((status = check_blk_read(ppc)) != NULL) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 		return status;
 	}
@@ -326,7 +326,7 @@ check_pmemx_step(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 				return NULL;
 
 		if (step->type == POOL_TYPE_LOG) {
-			if ((status = check_utils_log_read(ppc)) != NULL) {
+			if ((status = check_log_read(ppc)) != NULL) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return status;
 			}
@@ -334,13 +334,13 @@ check_pmemx_step(PMEMpoolcheck *ppc, union check_pmemx_location *loc)
 			/*
 			 * blk related questions require blk preparation
 			 */
-			if ((status = check_utils_blk_read(ppc)) != NULL) {
+			if ((status = check_blk_read(ppc)) != NULL) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return status;
 			}
 		}
 
-		status = check_utils_answer_loop(ppc,
+		status = check_answer_loop(ppc,
 			(struct check_instep_location *)loc, NULL,
 			step->fix);
 	} else
