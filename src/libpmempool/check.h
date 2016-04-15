@@ -34,61 +34,8 @@
  * check.h -- internal definitions for logic performing check
  */
 
-#define	CHECK_MAX_MSG_STR_SIZE 8192
-
-/* queue of check statuses */
-struct check_status {
-	TAILQ_ENTRY(check_status) next;
-	struct pmempool_check_status status;
-};
-
-TAILQ_HEAD(check_status_head, check_status);
-
-#define	CHECK_STEPS_COMPLETE	UINT32_MAX
-
-/* container for storing instep location */
-#define	CHECK_INSTEP_LOCATION_NUM	8
-
-struct check_instep_location {
-	uint64_t instep_location[CHECK_INSTEP_LOCATION_NUM];
-};
-
-/* check control context */
-struct check_data {
-	uint32_t step;
-	struct check_instep_location instep_location;
-
-	struct check_status *error;
-	struct check_status_head infos;
-	struct check_status_head questions;
-	struct check_status_head answers;
-
-	struct check_status *check_status_cache;
-};
+#include "check_util.h"
 
 int check_init(PMEMpoolcheck *ppc);
 struct check_status *check_step(PMEMpoolcheck *ppc);
 void check_fini(PMEMpoolcheck *ppc);
-
-struct check_status *
-check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
-	uint32_t question, const char *fmt, ...);
-void check_status_push(PMEMpoolcheck *ppc, struct check_status *);
-bool check_has_answer(struct check_data *data);
-struct check_status *check_questions_sequence_validate(PMEMpoolcheck *ppc);
-void check_status_release(PMEMpoolcheck *ppc, struct check_status *status);
-
-void check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap);
-
-/* create error status */
-#define	CHECK_STATUS_ERR(ppc, ...)\
-	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, __VA_ARGS__)
-
-/* create question status */
-#define	CHECK_STATUS_ASK(ppc, question, ...)\
-	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_QUESTION, question,\
-		__VA_ARGS__)
-
-int check_memory(const uint8_t *buff, size_t len, uint8_t val);
-
-const char *check_get_time_str(time_t time);

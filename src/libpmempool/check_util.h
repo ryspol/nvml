@@ -34,21 +34,62 @@
  * check_utils.h -- internal definitions check utils
  */
 
-#define	UUID_STR_MAX 37
+#define	CHECK_STEP_COMPLETE	UINT32_MAX
+
+/* check control context */
+struct check_data;
+
+/* queue of check statuses */
+struct check_status;
+
+/* container for storing instep location size */
+#define	CHECK_INSTEP_LOCATION_NUM	8
+
+struct check_instep_location {
+	uint64_t instep_location[CHECK_INSTEP_LOCATION_NUM];
+};
+
+struct check_data *check_data_alloc(void);
+void check_data_free(struct check_data *data);
+char *check_msg_alloc(void);
+
+uint32_t check_step_get(struct check_data *data);
+void check_step_inc(struct check_data *data);
+struct check_instep_location *check_step_location_get(struct check_data *data);
+
+void check_end(struct check_data *data);
+int check_ended(struct check_data *data);
+
+struct check_status *
+check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
+	uint32_t question, const char *fmt, ...);
+void check_status_release(PMEMpoolcheck *ppc, struct check_status *status);
+struct check_status *check_pop_question(struct check_data *data);
+struct check_status *check_push_answer(PMEMpoolcheck *ppc);
+bool check_has_answer(struct check_data *data);
+
+struct pmempool_check_status *check_status_get(struct check_status *status);
+int check_status_is(struct check_status *status, enum pmempool_check_msg_type type);
+
+/* create error status */
+#define	CHECK_STATUS_ERR(ppc, ...)\
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, __VA_ARGS__)
+
+/* create question status */
+#define	CHECK_STATUS_ASK(ppc, question, ...)\
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_QUESTION, question,\
+		__VA_ARGS__)
 
 struct check_status *
 check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
 	void *ctx, struct check_status *(*callback)(PMEMpoolcheck *,
 	struct check_instep_location *loc, uint32_t question, void *ctx));
+struct check_status *check_questions_sequence_validate(PMEMpoolcheck *ppc);
 
+int check_memory(const uint8_t *buff, size_t len, uint8_t val);
+
+const char *check_get_time_str(time_t time);
 const char *check_get_uuid_str(uuid_t uuid);
 
-int check_btt_info_valid(struct btt_info *infop);
+void check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap);
 
-struct check_status *check_log_read(PMEMpoolcheck *ppc);
-
-struct check_status *check_blk_read(PMEMpoolcheck *ppc);
-
-void check_btt_flog_convert2h(struct btt_flog *flogp);
-void check_btt_flog_convert2le(struct btt_flog *flogp);
-void check_btt_info_convert2le(struct btt_info *infop);

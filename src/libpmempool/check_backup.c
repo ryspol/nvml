@@ -39,19 +39,20 @@
 #include <sys/mman.h>
 
 #include "out.h"
-#include "util.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
-#include "check.h"
+#include "check_util.h"
 #include "check_backup.h"
 
 /*
- * check_backup_cp -- copy file to its backup location
+ * check_backup_create -- create backup file
  */
 static int
-check_backup_cp(PMEMpoolcheck *ppc)
+backup_create(PMEMpoolcheck *ppc)
 {
+	LOG(1, "creating backup file: %s", ppc->backup_path);
+
 	struct pool_set_file *file = ppc->pool->set_file;
 	int dfd = util_file_create(ppc->backup_path, file->size, 0);
 	if (dfd < 0)
@@ -74,23 +75,13 @@ check_backup_cp(PMEMpoolcheck *ppc)
 }
 
 /*
- * check_backup_create -- create backup file
- */
-static int
-check_backup_create(PMEMpoolcheck *ppc)
-{
-	LOG(1, "creating backup file: %s\n", ppc->backup_path);
-	return check_backup_cp(ppc);
-}
-
-/*
  * check_backup -- perform backup if requested and needed
  */
 struct check_status *
 check_backup(PMEMpoolcheck *ppc)
 {
 	if (ppc->repair && ppc->backup_path != NULL && !ppc->dry_run) {
-		if (!check_backup_create(ppc)) {
+		if (!backup_create(ppc)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 			return CHECK_STATUS_ERR(ppc,
 				"unable to create backup file");

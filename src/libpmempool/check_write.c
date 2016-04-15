@@ -40,12 +40,10 @@
 #include <sys/param.h>
 
 #include "out.h"
-#include "util.h"
 #include "btt.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
-#include "check.h"
 #include "check_util.h"
 #include "check_write.h"
 
@@ -84,6 +82,19 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 
 	return NULL;
 }
+
+/*
+ * btt_flog_convert2le -- convert btt_flog to LE byte order
+ */
+static void
+btt_flog_convert2le(struct btt_flog *flogp)
+{
+	flogp->lba = htole32(flogp->lba);
+	flogp->old_map = htole32(flogp->old_map);
+	flogp->new_map = htole32(flogp->new_map);
+	flogp->seq = htole32(flogp->seq);
+}
+
 /*
  * blk_write_flog -- convert and write flog to file
  */
@@ -104,8 +115,8 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 		struct btt_flog *flog_beta = (struct btt_flog *)(ptr +
 				sizeof (struct btt_flog));
 
-		check_btt_flog_convert2le(flog_alpha);
-		check_btt_flog_convert2le(flog_beta);
+		btt_flog_convert2le(flog_alpha);
+		btt_flog_convert2le(flog_beta);
 
 		ptr += BTT_FLOG_PAIR_ALIGN;
 	}
@@ -148,6 +159,28 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 }
 
 /*
+ * btt_info_convert2le -- convert btt_info header to LE byte order
+ */
+static void
+btt_info_convert2le(struct btt_info *infop)
+{
+	infop->flags = htole64(infop->flags);
+	infop->minor = htole16(infop->minor);
+	infop->external_lbasize = htole32(infop->external_lbasize);
+	infop->external_nlba = htole32(infop->external_nlba);
+	infop->internal_lbasize = htole32(infop->internal_lbasize);
+	infop->internal_nlba = htole32(infop->internal_nlba);
+	infop->nfree = htole32(infop->nfree);
+	infop->infosize = htole32(infop->infosize);
+	infop->nextoff = htole64(infop->nextoff);
+	infop->dataoff = htole64(infop->dataoff);
+	infop->mapoff = htole64(infop->mapoff);
+	infop->flogoff = htole64(infop->flogoff);
+	infop->infooff = htole64(infop->infooff);
+	infop->checksum = htole64(infop->checksum);
+}
+
+/*
  * blk_write -- write all structures for blk pool
  */
 static struct check_status *
@@ -171,7 +204,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	struct arena *arenap;
 	TAILQ_FOREACH(arenap, &ppc->pool->arenas, next) {
 
-		check_btt_info_convert2le(&arenap->btt_info);
+		btt_info_convert2le(&arenap->btt_info);
 
 		if (ppc->pool->uuid_op == UUID_REGENERATED) {
 			memcpy(arenap->btt_info.parent_uuid,
@@ -264,10 +297,10 @@ check_write(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
-	union location *loc = (union location *)&ppc->data->instep_location;
+	union location *loc = (union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
-	while (loc->step != CHECK_STEPS_COMPLETE &&
+	while (loc->step != CHECK_STEP_COMPLETE &&
 		steps[loc->step].func != NULL) {
 
 		status = step(ppc, loc);

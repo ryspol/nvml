@@ -112,8 +112,6 @@ struct pmempool_check_status {
 	} data;
 };
 
-#define	PMEMPOOL_CHECK_END UINT32_MAX
-
 typedef struct pmempool_check PMEMpoolcheck;
 
 PMEMpoolcheck *pmempool_check_init(struct pmempool_check_args *args);
