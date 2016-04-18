@@ -69,11 +69,18 @@ struct check_status *check_push_answer(PMEMpoolcheck *ppc);
 bool check_has_answer(struct check_data *data);
 
 struct pmempool_check_status *check_status_get(struct check_status *status);
-int check_status_is(struct check_status *status, enum pmempool_check_msg_type type);
+int check_status_is(struct check_status *status,
+	enum pmempool_check_msg_type type);
+
+/* create info status */
+#define	CHECK_INFO(ppc, ...)\
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_INFO, 0, 0,\
+		__VA_ARGS__)
 
 /* create error status */
 #define	CHECK_ERR(ppc, ...)\
-	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, __VA_ARGS__)
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, 0,\
+		__VA_ARGS__)
 
 /* create question status */
 #define	CHECK_ASK(ppc, question, ...)\
@@ -92,4 +99,3 @@ const char *check_get_time_str(time_t time);
 const char *check_get_uuid_str(uuid_t uuid);
 
 void check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap);
-

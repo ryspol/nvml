@@ -120,7 +120,8 @@ int pool_set_file_read(struct pool_set_file *file, void *buff, size_t nbytes,
 
 int pool_read(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
-int pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off);
+int pool_write(struct pool_set_file *file, void *buff, size_t nbytes,
+	uint64_t off);
 
 int pool_set_file_map_headers(struct pool_set_file *file, int rdonly,
 	size_t hdrsize);

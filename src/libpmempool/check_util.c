@@ -179,8 +179,14 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	if (ppc->args.flags & PMEMPOOL_CHECK_FORMAT_STR) {
 		va_list ap;
 		va_start(ap, fmt);
-		vsnprintf(ppc->msg, MAX_MSG_STR_SIZE, fmt, ap);
+		int p = vsnprintf(ppc->msg, MAX_MSG_STR_SIZE, fmt, ap);
 		va_end(ap);
+
+		if (type != PMEMPOOL_CHECK_MSG_TYPE_QUESTION && errno &&
+			p > 0) {
+			snprintf(ppc->msg + p, MAX_MSG_STR_SIZE - (size_t)p,
+				": %s", strerror(errno));
+		}
 
 		st->status.str.msg = ppc->msg;
 		st->status.type = type;
@@ -431,4 +437,3 @@ check_insert_arena(PMEMpoolcheck *ppc, struct arena *arenap)
 	TAILQ_INSERT_TAIL(&ppc->pool->arenas, arenap, next);
 	ppc->pool->narenas++;
 }
-

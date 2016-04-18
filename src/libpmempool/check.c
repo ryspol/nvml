@@ -193,4 +193,3 @@ check_fini(PMEMpoolcheck *ppc)
 	check_data_free(ppc->data);
 	free(ppc->msg);
 }
-
