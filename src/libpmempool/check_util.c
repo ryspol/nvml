@@ -272,7 +272,7 @@ check_push_answer(PMEMpoolcheck *ppc)
 	if (status->answer == PMEMPOOL_CHECK_ANSWER_EMPTY) {
 		status_push(ppc->data, ppc->data->check_status_cache);
 		ppc->data->check_status_cache = NULL;
-		return CHECK_STATUS_ERR(ppc, "Answer must be either %s or %s",
+		return CHECK_ERR(ppc, "Answer must be either %s or %s",
 			CHECK_ANSWER_YES, CHECK_ANSWER_NO);
 	} else {
 		TAILQ_INSERT_TAIL(&ppc->data->answers,
@@ -331,7 +331,7 @@ check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
 
 	while ((answer = pop_answer(ppc->data)) != NULL) {
 		if (answer->status.answer != PMEMPOOL_CHECK_ANSWER_YES) {
-			result = CHECK_STATUS_ERR(ppc, "");
+			result = CHECK_ERR(ppc, "");
 			goto cannot_repair;
 		}
 

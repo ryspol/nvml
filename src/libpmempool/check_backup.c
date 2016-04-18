@@ -46,7 +46,7 @@
 #include "check_backup.h"
 
 /*
- * check_backup_create -- create backup file
+ * backup_create -- create backup file
  */
 static int
 backup_create(PMEMpoolcheck *ppc)
@@ -59,7 +59,7 @@ backup_create(PMEMpoolcheck *ppc)
 		return -1;
 
 	void *daddr = mmap(NULL, file->size, PROT_READ | PROT_WRITE,
-			MAP_SHARED, dfd, 0);
+		MAP_SHARED, dfd, 0);
 	if (daddr == MAP_FAILED) {
 		close(dfd);
 		return -1;
@@ -83,8 +83,7 @@ check_backup(PMEMpoolcheck *ppc)
 	if (ppc->repair && ppc->backup_path != NULL && !ppc->dry_run) {
 		if (!backup_create(ppc)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-			return CHECK_STATUS_ERR(ppc,
-				"unable to create backup file");
+			return CHECK_ERR(ppc, "unable to create backup file");
 		}
 	}
 	return NULL;

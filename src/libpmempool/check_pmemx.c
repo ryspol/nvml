@@ -91,7 +91,7 @@ log_read(PMEMpoolcheck *ppc)
 	uint64_t offset = sizeof (ppc->pool->hdr.log.hdr);
 
 	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
-		return CHECK_STATUS_ERR(ppc, "cannot read pmemlog structure");
+		return CHECK_ERR(ppc, "cannot read pmemlog structure");
 	}
 
 	/* endianness conversion */
@@ -118,14 +118,14 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 		roundup(sizeof (ppc->pool->hdr.log), LOG_FORMAT_DATA_ALIGN);
 
 	if (ppc->pool->hdr.log.start_offset != d_start_offset) {
-		CHECK_STATUS_ASK(ppc, Q_LOG_START_OFFSET,
+		CHECK_ASK(ppc, Q_LOG_START_OFFSET,
 			"invalid pmemlog.start_offset: 0x%" PRIx64 ". Do you "
 			" want to set pmemlog.start_offset to default 0x%x?",
 			ppc->pool->hdr.log.start_offset, d_start_offset);
 	}
 
 	if (ppc->pool->hdr.log.end_offset != ppc->pool->set_file->size) {
-		CHECK_STATUS_ASK(ppc, Q_LOG_END_OFFSET,
+		CHECK_ASK(ppc, Q_LOG_END_OFFSET,
 			"invalid pmemlog.end_offset: 0x%" PRIx64 ". Do you "
 			"want to set pmemlog.end_offset to 0x%x?",
 			ppc->pool->hdr.log.end_offset,
@@ -134,7 +134,7 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 	if (ppc->pool->hdr.log.write_offset < d_start_offset ||
 		ppc->pool->hdr.log.write_offset > ppc->pool->set_file->size) {
-		CHECK_STATUS_ASK(ppc, Q_LOG_WRITE_OFFSET,
+		CHECK_ASK(ppc, Q_LOG_WRITE_OFFSET,
 			"invalid pmemlog.write_offset: 0x%" PRIx64 ". Do you "
 			"want to set pmemlog.write_offset to "
 			"pmemlog.end_offset?",
@@ -252,7 +252,7 @@ blk_read(PMEMpoolcheck *ppc)
 	uint64_t offset = sizeof (ppc->pool->hdr.blk.hdr);
 
 	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
-		return CHECK_STATUS_ERR(ppc, "cannot read pmemblk structure");
+		return CHECK_ERR(ppc, "cannot read pmemblk structure");
 	}
 
 	/* endianness conversion */
@@ -295,7 +295,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 			ppc->pool->bttc.btt_info.external_lbasize;
 
 		if (ppc->pool->hdr.blk.bsize != btt_bsize) {
-			CHECK_STATUS_ASK(ppc, Q_BLK_BSIZE,
+			CHECK_ASK(ppc, Q_BLK_BSIZE,
 				"invalid pmemblk.bsize. Do you want to set "
 				"pmemblk.bsize to %lu from BTT Info?",
 				btt_bsize);
@@ -307,7 +307,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 			blk_bsize(ppc->pool->hdr.blk.bsize,
 				ppc->pool->set_file->size)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return CHECK_STATUS_ERR(ppc, "invalid pmemblk.bsize");
+			return CHECK_ERR(ppc, "invalid pmemblk.bsize");
 		}
 	}
 

@@ -72,11 +72,11 @@ struct pmempool_check_status *check_status_get(struct check_status *status);
 int check_status_is(struct check_status *status, enum pmempool_check_msg_type type);
 
 /* create error status */
-#define	CHECK_STATUS_ERR(ppc, ...)\
+#define	CHECK_ERR(ppc, ...)\
 	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, __VA_ARGS__)
 
 /* create question status */
-#define	CHECK_STATUS_ASK(ppc, question, ...)\
+#define	CHECK_ASK(ppc, question, ...)\
 	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_QUESTION, question,\
 		__VA_ARGS__)
 
