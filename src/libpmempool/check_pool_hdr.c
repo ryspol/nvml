@@ -173,7 +173,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 	int cs_valid = pool_hdr_valid(&hdr);
 
 	if (check_memory((void *)&hdr, sizeof (hdr), 0) == 0) {
-		if (!ppc->repair) {
+		if (!ppc->args.repair) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 			return CHECK_ERR(ppc, "empty pool hdr");
 		}
@@ -181,7 +181,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 		if (cs_valid) {
 			enum pool_type type = pool_hdr_get_type(&hdr);
 			if (type == POOL_TYPE_UNKNOWN) {
-				if (!ppc->repair) {
+				if (!ppc->args.repair) {
 					ppc->result =
 					PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 					return CHECK_ERR(ppc,
@@ -195,7 +195,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 				return NULL;
 			}
 		} else {
-			if (!ppc->repair) {
+			if (!ppc->args.repair) {
 				ppc->result =
 					PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 				return CHECK_ERR(ppc,
@@ -206,7 +206,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 		}
 	}
 
-	ASSERTeq(ppc->repair, true);
+	ASSERTeq(ppc->args.repair, true);
 
 	if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
 		ppc->pool->params.type = pool_hdr_possible_type(ppc);
@@ -232,7 +232,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 static struct check_status *
 pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 {
-	ASSERTeq(ppc->repair, true);
+	ASSERTeq(ppc->args.repair, true);
 
 	struct pool_hdr hdr;
 	pool_hdr_get(ppc, &hdr, NULL, loc);
@@ -899,7 +899,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
-	int rdonly = !ppc->repair || ppc->dry_run;
+	int rdonly = !ppc->args.repair || ppc->args.dry_run;
 	if (pool_set_file_map_headers(ppc->pool->set_file, rdonly,
 			sizeof (struct pool_hdr))) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;

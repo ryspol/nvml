@@ -119,7 +119,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 			loc->arena->id);
 		loc->step = CHECK_STEP_COMPLETE;
 	} else {
-		if (!ppc->repair) {
+		if (!ppc->args.repair) {
 			status = CHECK_ERR(ppc,
 				"arena %u: BTT Info header checksum incorrect",
 				loc->arena->id);
@@ -147,7 +147,7 @@ cleanup:
 static struct check_status *
 btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 {
-	ASSERT(ppc->repair);
+	ASSERT(ppc->args.repair);
 
 	/*
 	 * BTT Info header is not consistent, so try to find
@@ -468,7 +468,7 @@ btt_info_gen_fix(PMEMpoolcheck *ppc,
 static void
 btt_info_final(PMEMpoolcheck *ppc, union location *loc)
 {
-	if (ppc->repair && loc->advanced_repair) {
+	if (ppc->args.repair && loc->advanced_repair) {
 		if (loc->offset2)
 			loc->nextoff = loc->offset2 - loc->offset;
 		else

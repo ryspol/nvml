@@ -66,7 +66,7 @@ enum questions {
 static struct check_status *
 log_write(PMEMpoolcheck *ppc, union location *loc)
 {
-	if (!ppc->repair || ppc->dry_run)
+	if (!ppc->args.repair || ppc->args.dry_run)
 		return NULL;
 
 	/* endianness conversion */
@@ -186,7 +186,7 @@ btt_info_convert2le(struct btt_info *infop)
 static struct check_status *
 blk_write(PMEMpoolcheck *ppc, union location *loc)
 {
-	if (!ppc->repair || ppc->dry_run)
+	if (!ppc->args.repair || ppc->args.dry_run)
 		return NULL;
 
 	struct check_status *status = NULL;

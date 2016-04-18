@@ -120,12 +120,12 @@ check_data_free(struct check_data *data)
 	free(data);
 }
 
-#define	CHECK_MAX_MSG_STR_SIZE 8192
+#define	MAX_MSG_STR_SIZE 8192
 
 char *
 check_msg_alloc()
 {
-	char *msg =  malloc(sizeof (char) * CHECK_MAX_MSG_STR_SIZE);
+	char *msg =  malloc(sizeof (char) * MAX_MSG_STR_SIZE);
 	if (!msg) {
 		ERR("!malloc");
 	}
@@ -176,10 +176,10 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 {
 	struct check_status *st = malloc(sizeof (*st));
 
-	if (ppc->flags & PMEMPOOL_CHECK_FORMAT_STR) {
+	if (ppc->args.flags & PMEMPOOL_CHECK_FORMAT_STR) {
 		va_list ap;
 		va_start(ap, fmt);
-		vsnprintf(ppc->msg, CHECK_MAX_MSG_STR_SIZE, fmt, ap);
+		vsnprintf(ppc->msg, MAX_MSG_STR_SIZE, fmt, ap);
 		va_end(ap);
 
 		st->status.str.msg = ppc->msg;
@@ -196,7 +196,7 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 		break;
 	case PMEMPOOL_CHECK_MSG_TYPE_QUESTION:
 		st->status.question = question;
-		if (ppc->always_yes) {
+		if (ppc->args.always_yes) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_YES;
 			TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
