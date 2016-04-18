@@ -175,7 +175,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 	if (check_memory((void *)&hdr, sizeof (hdr), 0) == 0) {
 		if (!ppc->repair) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
-			return CHECK_STATUS_ERR(ppc, "empty pool hdr");
+			return CHECK_ERR(ppc, "empty pool hdr");
 		}
 	} else {
 		if (cs_valid) {
@@ -184,7 +184,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 				if (!ppc->repair) {
 					ppc->result =
 					PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
-					return CHECK_STATUS_ERR(ppc,
+					return CHECK_ERR(ppc,
 						"invalid signature");
 				} else {
 					LOG(1, "invalid signature");
@@ -198,7 +198,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 			if (!ppc->repair) {
 				ppc->result =
 					PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
-				return CHECK_STATUS_ERR(ppc,
+				return CHECK_ERR(ppc,
 					"incorrect pool header checksum");
 			} else {
 				LOG(1, "incorrect pool header checksum");
@@ -212,14 +212,14 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 		ppc->pool->params.type = pool_hdr_possible_type(ppc);
 		if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return CHECK_STATUS_ERR(ppc, "cannot determine pool "
+			return CHECK_ERR(ppc, "cannot determine pool "
 				"type");
 		}
 	}
 
 	if (!pool_supported(ppc->pool->params.type)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		return CHECK_STATUS_ERR(ppc, "Unsupported pool type '%s'",
+		return CHECK_ERR(ppc, "Unsupported pool type '%s'",
 			pool_type_get_str(ppc->pool->params.type));
 	}
 
@@ -242,26 +242,26 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 	pool_hdr_default(ppc->pool->params.type, &def_hdr);
 
 	if (memcmp(hdr.signature, def_hdr.signature, POOL_HDR_SIG_LEN)) {
-		CHECK_STATUS_ASK(ppc, Q_DEFAULT_SIGNATURE,
+		CHECK_ASK(ppc, Q_DEFAULT_SIGNATURE,
 			"pool_hdr.signature is not valid. Do you want to set "
 			"it to %.8s?", def_hdr.signature);
 	}
 
 	if (hdr.major != def_hdr.major) {
-		CHECK_STATUS_ASK(ppc, Q_DEFAULT_MAJOR,
+		CHECK_ASK(ppc, Q_DEFAULT_MAJOR,
 			"pool_hdr.major is not valid. Do you want to set it "
 			"to default value 0x%x?", def_hdr.major);
 	}
 
 	if (hdr.compat_features != def_hdr.compat_features) {
-		CHECK_STATUS_ASK(ppc, Q_DEFAULT_COMPAT_FEATURES,
+		CHECK_ASK(ppc, Q_DEFAULT_COMPAT_FEATURES,
 			"pool_hdr.compat_features is not valid. Do you want "
 			"to set it to default value 0x%x?",
 			def_hdr.compat_features);
 	}
 
 	if (hdr.incompat_features != def_hdr.incompat_features) {
-		CHECK_STATUS_ASK(ppc,
+		CHECK_ASK(ppc,
 			Q_DEFAULT_INCOMPAT_FEATURES,
 			"pool_hdr.incompat_features is not valid. Do you want"
 			"to set it to default value 0x%x?",
@@ -269,7 +269,7 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 	}
 
 	if (hdr.ro_compat_features != def_hdr.ro_compat_features) {
-		CHECK_STATUS_ASK(ppc,
+		CHECK_ASK(ppc,
 			Q_DEFAULT_RO_COMPAT_FEATURES,
 			"pool_hdr.ro_compat_features is not valid. Do you want"
 			"to set it to default value 0x%x?",
@@ -277,7 +277,7 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 	}
 
 	if (check_memory(hdr.unused, sizeof (hdr.unused), 0)) {
-		CHECK_STATUS_ASK(ppc, Q_ZERO_UNUSED_AREA,
+		CHECK_ASK(ppc, Q_ZERO_UNUSED_AREA,
 			"Unused area is not filled by zeros. Do you want to "
 			"fill it up?");
 	}
@@ -370,7 +370,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 			return NULL;
 		}
 
-		CHECK_STATUS_ASK(ppc, Q_BLK_UUID_FROM_BTT_INFO,
+		CHECK_ASK(ppc, Q_BLK_UUID_FROM_BTT_INFO,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from BTT Info?",
 			check_get_uuid_str(
@@ -381,7 +381,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		if (pool_get_valid_part(ppc, loc->replica, loc->part,
 			&rid, &pid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return CHECK_STATUS_ERR(ppc, "Can not repair "
+			return CHECK_ERR(ppc, "Can not repair "
 				"pool_hdr.poolset_uuid");
 		}
 		struct pool_hdr *valid_hdrp =
@@ -390,7 +390,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc,
 		if (memcmp(hdr.poolset_uuid, valid_hdrp->poolset_uuid,
 					POOL_HDR_UUID_LEN) == 0)
 			return NULL;
-		CHECK_STATUS_ASK(ppc, Q_UUID_FROM_VALID_PART,
+		CHECK_ASK(ppc, Q_UUID_FROM_VALID_PART,
 			"Invalid pool_hdr.poolset_uuid. Do you want to set it "
 			"to %s from valid pool file part ?",
 			check_get_uuid_str(valid_hdrp->poolset_uuid));
@@ -430,7 +430,7 @@ pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc,
 		if (pool_get_valid_part(ppc, loc->replica, loc->part,
 			&rid, &pid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return CHECK_STATUS_ERR(ppc,
+			return CHECK_ERR(ppc,
 				"Can not repair pool_hdr.poolset_uuid");
 		}
 		struct pool_hdr *valid_hdrp = ppc->pool->set_file->poolset->
@@ -476,13 +476,13 @@ pool_hdr_gen(PMEMpoolcheck *ppc, union location *loc)
 	pool_hdr_convert2h(&hdr);
 
 	if (hdr.crtime > (uint64_t)ppc->pool->set_file->mtime) {
-		CHECK_STATUS_ASK(ppc, Q_CRTIME,
+		CHECK_ASK(ppc, Q_CRTIME,
 			"pool_hdr.crtime is not valid. Do you want to set it "
 			"to file's modtime [%s]?",
 			check_get_time_str(ppc->pool->set_file->mtime));
 	}
 
-	CHECK_STATUS_ASK(ppc, Q_CHECKSUM,
+	CHECK_ASK(ppc, Q_CHECKSUM,
 		"Do you want to regenerate checksum?");
 
 	return check_questions_sequence_validate(ppc);
@@ -584,11 +584,11 @@ pool_hdr_uuids_single(PMEMpoolcheck *ppc,
 	if (!pool_hdr_all_uuid_same(&hdr.uuid, 5)) {
 		int index = 0;
 		if (uuid_get_max_same(&hdr.uuid, 5, &index)) {
-			CHECK_STATUS_ASK(ppc, Q_REGENERATE_UUIDS,
+			CHECK_ASK(ppc, Q_REGENERATE_UUIDS,
 				"UUID values don't match. Do you want to "
 				"regenerate UUIDs?");
 		} else {
-			CHECK_STATUS_ASK(ppc, Q_SET_VALID_UUID,
+			CHECK_ASK(ppc, Q_SET_VALID_UUID,
 				"UUID values don't match. Do you want to set "
 				"it to valid value?");
 		}
@@ -629,7 +629,7 @@ pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc,
 	case Q_REGENERATE_UUIDS:
 		if (util_uuid_generate(ctx->hdr.uuid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return CHECK_STATUS_ERR(ppc, "uuid generation failed");
+			return CHECK_ERR(ppc, "uuid generation failed");
 		}
 		LOG(1, "setting UUIDs to: %s\n", check_get_uuid_str(
 			ctx->hdrp->uuid));
@@ -702,25 +702,25 @@ pool_hdr_uuids_check(PMEMpoolcheck *ppc, union location *loc)
 			prev_repl_hdrp->uuid, POOL_HDR_UUID_LEN);
 
 	if ((single_part || next_part_cs_valid) && !next_part_valid) {
-		CHECK_STATUS_ASK(ppc, Q_SET_NEXT_PART_UUID,
+		CHECK_ASK(ppc, Q_SET_NEXT_PART_UUID,
 			"Invalid pool_hdr.next_part_uuid. Do you want to set "
 			"it to valid value?");
 	}
 
 	if ((single_part || prev_part_cs_valid) && !prev_part_valid) {
-		CHECK_STATUS_ASK(ppc, Q_SET_PREV_PART_UUID,
+		CHECK_ASK(ppc, Q_SET_PREV_PART_UUID,
 			"Invalid pool_hdr.prev_part_uuid. Do you want to set "
 			"it to valid value?");
 	}
 
 	if ((single_repl || prev_repl_cs_valid) && !next_repl_valid) {
-		CHECK_STATUS_ASK(ppc, Q_SET_NEXT_REPL_UUID,
+		CHECK_ASK(ppc, Q_SET_NEXT_REPL_UUID,
 			"Invalid pool_hdr.next_repl_uuid. Do you want to set "
 			"it to valid value?");
 	}
 
 	if ((single_repl || next_repl_cs_valid) && !prev_repl_valid) {
-		CHECK_STATUS_ASK(ppc, Q_SET_PREV_REPL_UUID,
+		CHECK_ASK(ppc, Q_SET_PREV_REPL_UUID,
 			"Invalid pool_hdr.prev_repl_uuid. Do you want to set "
 			"it to valid value?");
 	}
@@ -903,7 +903,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 	if (pool_set_file_map_headers(ppc->pool->set_file, rdonly,
 			sizeof (struct pool_hdr))) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-		return CHECK_STATUS_ERR(ppc, "cannot map pool headers");
+		return CHECK_ERR(ppc, "cannot map pool headers");
 	}
 
 	union location *loc =

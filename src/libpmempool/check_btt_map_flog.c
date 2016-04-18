@@ -132,9 +132,8 @@ static int
 map_read(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	uint64_t mapoff = arenap->offset + arenap->btt_info.mapoff;
-	arenap->mapsize = roundup(
-			arenap->btt_info.external_nlba *
-			BTT_MAP_ENTRY_SIZE, BTT_ALIGNMENT);
+	arenap->mapsize = roundup(arenap->btt_info.external_nlba *
+		BTT_MAP_ENTRY_SIZE, BTT_ALIGNMENT);
 
 	arenap->map = malloc(arenap->mapsize);
 	if (!arenap->map) {
@@ -256,8 +255,7 @@ static const unsigned Nseq[] = { 0, 2, 3, 1 };
  * flog_get_valid -- return valid flog entry
  */
 static struct btt_flog *
-flog_get_valid(struct btt_flog *flog_alpha,
-		struct btt_flog *flog_beta)
+flog_get_valid(struct btt_flog *flog_alpha, struct btt_flog *flog_beta)
 {
 	/*
 	 * The interesting cases are:
@@ -315,12 +313,12 @@ check_prepare(PMEMpoolcheck *ppc, union location *loc)
 
 	/* read flog and map entries */
 	if (flog_read(ppc, arenap)) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot read flog");
+		status = CHECK_ERR(ppc, "Cannot read flog");
 		goto error;
 	}
 
 	if (map_read(ppc, arenap)) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot read map");
+		status = CHECK_ERR(ppc, "Cannot read map");
 		goto error;
 	}
 
@@ -328,39 +326,39 @@ check_prepare(PMEMpoolcheck *ppc, union location *loc)
 	uint32_t bitmapsize = howmany(arenap->btt_info.internal_nlba, 8);
 	loc->bitmap = calloc(bitmapsize, 1);
 	if (!loc->bitmap) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot allocate memory for "
-			"blocks bitmap");
+		status = CHECK_ERR(ppc,
+			"Cannot allocate memory for blocks bitmap");
 		goto error;
 	}
 
 	loc->fbitmap = calloc(bitmapsize, 1);
 	if (!loc->fbitmap) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot allocate memory for "
-			"flog bitmap");
+		status = CHECK_ERR(ppc,
+			"Cannot allocate memory for flog bitmap");
 		goto error;
 	}
 
 	/* list of invalid map entries */
 	loc->list_inval = list_alloc();
 	if (!loc->list_inval) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot allocate memory for "
-			"invalid map entries list");
+		status = CHECK_ERR(ppc,
+			"Cannot allocate memory for invalid map entries list");
 		goto error;
 	}
 
 	/* list of invalid flog entries */
 	loc->list_flog_inval = list_alloc();
 	if (!loc->list_flog_inval) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot allocate memory for "
-			"invalid flog entries list");
+		status = CHECK_ERR(ppc,
+			"Cannot allocate memory for invalid flog entries list");
 		goto error;
 	}
 
 	/* list of unmapped blocks */
 	loc->list_unmap = list_alloc();
 	if (!loc->list_unmap) {
-		status = CHECK_STATUS_ERR(ppc, "Cannot allocate memory for "
-			"unmaped blocks list");
+		status = CHECK_ERR(ppc,
+			"Cannot allocate memory for unmaped blocks list");
 		goto error;
 	}
 
@@ -391,15 +389,15 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 		if (entry < arenap->btt_info.internal_nlba) {
 			if (util_isset(loc->bitmap, entry)) {
 				LOG(1, "arena %u: map entry %u duplicated "
-					"at %u\n", arenap->id, entry, i);
+					"at %u", arenap->id, entry, i);
 				if (!list_push(loc->list_inval, i))
 					goto error_push;
 			} else {
 				util_setbit(loc->bitmap, entry);
 			}
 		} else {
-			LOG(1, "arena %u: invalid map entry at %u\n",
-				arenap->id, i);
+			LOG(1, "arena %u: invalid map entry at %u", arenap->id,
+				i);
 			if (!list_push(loc->list_inval, i))
 				goto error_push;
 		}
@@ -414,8 +412,8 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 			sizeof (struct btt_flog));
 
 		/*
-		 * Check flog entry and return current one
-		 * by checking sequence number.
+		 * Check flog entry and return current one by checking sequence
+		 * number.
 		 */
 		struct btt_flog *flog_cur = flog_get_valid(flog_alpha,
 			flog_beta);
@@ -428,9 +426,8 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 				BTT_MAP_ENTRY_LBA_MASK;
 
 			/*
-			 * Check if lba is in extranal_nlba range,
-			 * and check if both old_map and new_map are
-			 * in internal_nlba range.
+			 * Check if lba is in extranal_nlba range, and check if
+			 * both old_map and new_map are in internal_nlba range.
 			 */
 			if (flog_cur->lba >= arenap->btt_info.external_nlba ||
 				entry >= arenap->btt_info.internal_nlba ||
@@ -443,8 +440,8 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 
 			if (util_isset(loc->fbitmap, entry)) {
 				/*
-				 * Here we have two flog entries which holds
-				 * the same free block.
+				 * Here we have two flog entries which holds the
+				 * same free block.
 				 */
 				LOG(1, "arena %u: duplicated flog entry "
 					"at %u\n", arenap->id, entry);
@@ -515,27 +512,28 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 	 * We are able to repair if and only if number of unmapped blocks is
 	 * equal to sum of invalid map and flog entries.
 	 */
-	if (loc->list_unmap->count != (loc->list_inval->count + loc->list_flog_inval->count)) {
+	if (loc->list_unmap->count != (loc->list_inval->count +
+		loc->list_flog_inval->count)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		status = CHECK_STATUS_ERR(ppc, "arena %u: cannot repair map "
+		status = CHECK_ERR(ppc, "arena %u: cannot repair map "
 			"and flog", arenap->id);
 		return status;
 	}
 
 	if (loc->list_inval->count > 0) {
-		CHECK_STATUS_ASK(ppc, Q_REPAIR_MAP, "Do you want repair "
+		CHECK_ASK(ppc, Q_REPAIR_MAP, "Do you want repair "
 			"invalid map entries?");
 	}
 
 	if (loc->list_flog_inval->count > 0) {
-		CHECK_STATUS_ASK(ppc, Q_REPAIR_FLOG, "Do you want to repair "
+		CHECK_ASK(ppc, Q_REPAIR_FLOG, "Do you want to repair "
 			"invalid flog entries?");
 	}
 
 	return check_questions_sequence_validate(ppc);
 
 error_push:
-	status = CHECK_STATUS_ERR(ppc, "Cannot allocate momory for list item");
+	status = CHECK_ERR(ppc, "Cannot allocate momory for list item");
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 	check_cleanup(ppc, loc);
 	return status;
@@ -566,7 +564,8 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 			}
 			loc->arenap->map[inval] = unmap | BTT_MAP_ENTRY_ERROR;
 			LOG(1, "arena %u: storing 0x%x at %u entry\n",
-					loc->arenap->id, loc->arenap->map[inval], inval);
+				loc->arenap->id, loc->arenap->map[inval],
+				inval);
 		}
 		break;
 	case Q_REPAIR_FLOG:
@@ -577,11 +576,13 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 				return NULL;
 			}
 
-			struct btt_flog *flog_alpha = (struct btt_flog *)(loc->arenap->flog +
-					inval * BTT_FLOG_PAIR_ALIGN);
-			struct btt_flog *flog_beta = (struct btt_flog *)(loc->arenap->flog +
-					inval * BTT_FLOG_PAIR_ALIGN +
-					sizeof (struct btt_flog));
+			struct btt_flog *flog_alpha = (struct btt_flog *)
+				(loc->arenap->flog +
+				inval * BTT_FLOG_PAIR_ALIGN);
+			struct btt_flog *flog_beta = (struct btt_flog *)
+				(loc->arenap->flog +
+				inval * BTT_FLOG_PAIR_ALIGN +
+				sizeof (struct btt_flog));
 			memset(flog_beta, 0, sizeof (*flog_beta));
 			uint32_t entry = unmap | BTT_MAP_ENTRY_ERROR;
 			flog_alpha->lba = 0;
@@ -659,7 +660,8 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
-	union location *loc = (union location *)check_step_location_get(ppc->data);
+	union location *loc =
+		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
 	if (ppc->pool->blk_no_layout)

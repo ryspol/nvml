@@ -77,7 +77,7 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 
 	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.log, sizeof (ppc->pool->hdr.log), 0)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		return CHECK_STATUS_ERR(ppc, "writing pmemlog structure failed");
+		return CHECK_ERR(ppc, "writing pmemlog structure failed");
 	}
 
 	return NULL;
@@ -103,7 +103,7 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	if (!arenap->flog) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-		return CHECK_STATUS_ERR(ppc, "flog is missing");
+		return CHECK_ERR(ppc, "flog is missing");
 	}
 
 	uint64_t flogoff = arenap->offset + arenap->btt_info.flogoff;
@@ -125,7 +125,7 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 		/*if (errno)
 			warn("%s", ppc->fname);*/
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		return CHECK_STATUS_ERR(ppc, "arena %u: writing BTT FLOG failed\n", arenap->id);
+		return CHECK_ERR(ppc, "arena %u: writing BTT FLOG failed\n", arenap->id);
 	}
 
 	return NULL;;
@@ -139,7 +139,7 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	if (!arenap->map) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-		return CHECK_STATUS_ERR(ppc, "map is missing");
+		return CHECK_ERR(ppc, "map is missing");
 	}
 
 	uint64_t mapoff = arenap->offset + arenap->btt_info.mapoff;
@@ -152,7 +152,7 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 		/*if (errno)
 			warn("%s", ppc->fname);*/
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		return CHECK_STATUS_ERR(ppc, "arena %u: writing BTT map failed\n", arenap->id);
+		return CHECK_ERR(ppc, "arena %u: writing BTT map failed\n", arenap->id);
 	}
 
 	return NULL;
@@ -197,7 +197,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.blk, sizeof (ppc->pool->hdr.blk), 0)) {
 		/*if (errno)
 			warn("%s", ppc->fname);*/
-		status = CHECK_STATUS_ERR(ppc, "writing pmemblk structure failed");
+		status = CHECK_ERR(ppc, "writing pmemblk structure failed");
 		goto error;
 	}
 
@@ -220,7 +220,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 			sizeof (arenap->btt_info), arenap->offset)) {
 			/*if (errno)
 				warn("%s", ppc->fname);*/
-			status = CHECK_STATUS_ERR(ppc, "arena %u: writing BTT Info failed",
+			status = CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
 				arenap->id);
 			goto error;
 		}
@@ -230,7 +230,8 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 				le64toh(arenap->btt_info.infooff))) {
 			/*if (errno)
 				warn("%s", ppc->fname);*/
-			status = CHECK_STATUS_ERR(ppc, "arena %u: writing BTT Info backup failed",
+			status = CHECK_ERR(ppc,
+				"arena %u: writing BTT Info backup failed",
 				arenap->id);
 			goto error;
 		}
@@ -297,7 +298,8 @@ check_write(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep_location));
 
-	union location *loc = (union location *)check_step_location_get(ppc->data);
+	union location *loc =
+		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
 	while (loc->step != CHECK_STEP_COMPLETE &&
