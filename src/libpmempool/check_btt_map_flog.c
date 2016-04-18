@@ -71,7 +71,7 @@ enum questions {
  * btt_flog_convert2h -- convert btt_flog to host byte order
  */
 static void
-btt_flog_convert2h(struct btt_flog *flogp)
+flog_convert2h(struct btt_flog *flogp)
 {
 	flogp->lba = le32toh(flogp->lba);
 	flogp->old_map = le32toh(flogp->old_map);
@@ -109,8 +109,8 @@ flog_read(PMEMpoolcheck *ppc, struct arena *arenap)
 		struct btt_flog *flog_beta = (struct btt_flog *)(ptr +
 				sizeof (struct btt_flog));
 
-		btt_flog_convert2h(flog_alpha);
-		btt_flog_convert2h(flog_beta);
+		flog_convert2h(flog_alpha);
+		flog_convert2h(flog_beta);
 
 		ptr += BTT_FLOG_PAIR_ALIGN;
 	}
@@ -503,7 +503,7 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 		LOG(1, "arena %u: number of invalid flog entries: %u\n",
 			arenap->id, loc->list_flog_inval->count);
 
-	if (!ppc->repair && loc->list_unmap->count > 0) {
+	if (!ppc->args.repair && loc->list_unmap->count > 0) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 		return NULL;
 	}

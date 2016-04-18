@@ -126,6 +126,8 @@ pmempool_ppc_set_default(PMEMpoolcheck *ppc)
 PMEMpoolcheck *
 pmempool_check_init(struct pmempool_check_args *args)
 {
+	ASSERTne(args, NULL);
+
 	if (args->path == NULL) {
 		ERR("path can not be NULL");
 		errno = EINVAL;
@@ -168,23 +170,34 @@ pmempool_check_init(struct pmempool_check_args *args)
 		return NULL;
 	}
 	pmempool_ppc_set_default(ppc);
+	memcpy(&ppc->args, args, sizeof (ppc->args));
 	ppc->path = strdup(args->path);
-	ppc->pool_type = args->pool_type;
-	ppc->repair = args->repair;
-	ppc->dry_run = args->dry_run;
-	ppc->always_yes = args->always_yes;
-	ppc->flags = args->flags;
-	if (args->backup_path != NULL)
+	if (!ppc->args.path) {
+		ERR("!strdup");
+		goto error_path_malloc;
+	}
+	ppc->args.path = ppc->path;
+	if (args->backup_path != NULL) {
 		ppc->backup_path = strdup(args->backup_path);
-
-	if (check_init(ppc) != 0) {
-		free(ppc->backup_path);
-		free(ppc->path);
-		free(ppc);
-		return NULL;
+		if (!ppc->args.backup_path) {
+			ERR("!strdup");
+			goto error_backup_path_malloc;
+		}
+		ppc->args.backup_path = ppc->backup_path;
 	}
 
+	if (check_init(ppc) != 0)
+		goto error_check_init;
+
 	return ppc;
+
+error_check_init:
+	free(ppc->backup_path);
+error_backup_path_malloc:
+	free(ppc->path);
+error_path_malloc:
+	free(ppc);
+	return NULL;
 }
 
 /*

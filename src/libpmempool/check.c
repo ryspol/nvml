@@ -163,7 +163,7 @@ check_step(PMEMpoolcheck *ppc)
 		 * don't continue if pool is not consistent
 		 * and we don't want to repair
 		 */
-		if (!ppc->repair)
+		if (!ppc->args.repair)
 			goto check_end;
 		else
 			return stat;

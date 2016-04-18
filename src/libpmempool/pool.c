@@ -211,7 +211,7 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 		}
 	}
 
-	if (ppc->pool_type != PMEMPOOL_POOL_TYPE_BTT_DEV) {
+	if (ppc->args.pool_type != PMEMPOOL_POOL_TYPE_BTT_DEV) {
 		struct pool_hdr hdr;
 		memcpy(&hdr, addr, sizeof (hdr));
 
@@ -232,7 +232,7 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 
 		params->type = pool_hdr_get_type(&hdr);
 
-		enum pool_type declared_type = 1 << ppc->pool_type;
+		enum pool_type declared_type = 1 << ppc->args.pool_type;
 		if ((params->type & ~declared_type) != 0) {
 			ERR("declared pool type does not match");
 			ret = -1;
@@ -340,7 +340,7 @@ pool_data_alloc(PMEMpoolcheck *ppc)
 		goto error;
 	}
 
-	int rdonly = !ppc->repair || ppc->dry_run;
+	int rdonly = !ppc->args.repair || ppc->args.dry_run;
 	ppc->pool->set_file = pool_set_file_open(ppc->path, rdonly, 0);
 	if (!ppc->pool->set_file) {
 		perror(ppc->path);

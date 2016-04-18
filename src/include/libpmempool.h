@@ -92,8 +92,6 @@ enum pmempool_check_result {
 	PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR
 };
 
-#define	PMEMPOOL_MAX_ANSWER_STR_SIZE 4
-
 struct pmempool_check_status {
 	enum pmempool_check_msg_type type;
 	uint32_t question;
@@ -127,8 +125,8 @@ enum pmempool_check_result pmempool_check_end(PMEMpoolcheck *ppc,
  * verify that the version available at run-time is compatible with the version
  * used at compile-time by passing these defines to pmempool_check_version().
  */
-#define	PMEMPOOL_MAJOR_VERSION 1
-#define	PMEMPOOL_MINOR_VERSION 0
+#define	PMEMPOOL_MAJOR_VERSION 0
+#define	PMEMPOOL_MINOR_VERSION 1
 const char *pmempool_check_version(
 		unsigned major_required,
 		unsigned minor_required);

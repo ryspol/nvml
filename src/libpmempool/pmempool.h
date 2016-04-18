@@ -45,12 +45,8 @@ extern unsigned long Pagesize;
  */
 struct pmempool_check {
 	char *path;
-	enum pmempool_pool_type pool_type;
-	bool repair;
-	bool dry_run;
-	bool always_yes;
-	uint32_t flags;
 	char *backup_path;
+	struct pmempool_check_args args;
 
 	char *msg;
 	struct check_data *data;
