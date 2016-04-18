@@ -80,7 +80,8 @@ backup_create(PMEMpoolcheck *ppc)
 struct check_status *
 check_backup(PMEMpoolcheck *ppc)
 {
-	if (ppc->args.repair && ppc->backup_path != NULL && !ppc->args.dry_run) {
+	if (ppc->args.repair && ppc->backup_path != NULL &&
+		!ppc->args.dry_run) {
 		if (!backup_create(ppc)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 			return CHECK_ERR(ppc, "unable to create backup file");

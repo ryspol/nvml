@@ -70,12 +70,13 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 		return NULL;
 
 	/* endianness conversion */
-	ppc->pool->hdr.log.start_offset = htole64(ppc->pool->hdr.log.start_offset);
-	ppc->pool->hdr.log.end_offset = htole64(ppc->pool->hdr.log.end_offset);
-	ppc->pool->hdr.log.write_offset = htole64(ppc->pool->hdr.log.write_offset);
+	struct pmemlog *log = &ppc->pool->hdr.log;
+	log->start_offset = htole64(log->start_offset);
+	log->end_offset = htole64(log->end_offset);
+	log->write_offset = htole64(log->write_offset);
 
 
-	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.log, sizeof (ppc->pool->hdr.log), 0)) {
+	if (pool_write(ppc->pool->set_file, log, sizeof (*log), 0)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemlog structure failed");
 	}
@@ -121,14 +122,15 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 		ptr += BTT_FLOG_PAIR_ALIGN;
 	}
 
-	if (pool_write(ppc->pool->set_file, arenap->flog, arenap->flogsize, flogoff)) {
-		/*if (errno)
-			warn("%s", ppc->fname);*/
+	if (pool_write(ppc->pool->set_file, arenap->flog, arenap->flogsize,
+		flogoff)) {
+		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		return CHECK_ERR(ppc, "arena %u: writing BTT FLOG failed\n", arenap->id);
+		return CHECK_ERR(ppc, "arena %u: writing BTT FLOG failed\n",
+			arenap->id);
 	}
 
-	return NULL;;
+	return NULL;
 }
 
 /*
@@ -148,11 +150,12 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 	for (i = 0; i < arenap->btt_info.external_nlba; i++)
 		arenap->map[i] = htole32(arenap->map[i]);
 
-	if (pool_write(ppc->pool->set_file, arenap->map, arenap->mapsize, mapoff)) {
-		/*if (errno)
-			warn("%s", ppc->fname);*/
+	if (pool_write(ppc->pool->set_file, arenap->map, arenap->mapsize,
+		mapoff)) {
+		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		return CHECK_ERR(ppc, "arena %u: writing BTT map failed\n", arenap->id);
+		return CHECK_ERR(ppc, "arena %u: writing BTT map failed\n",
+			arenap->id);
 	}
 
 	return NULL;
@@ -194,9 +197,9 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	/* endianness conversion */
 	ppc->pool->hdr.blk.bsize = htole32(ppc->pool->hdr.blk.bsize);
 
-	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.blk, sizeof (ppc->pool->hdr.blk), 0)) {
-		/*if (errno)
-			warn("%s", ppc->fname);*/
+	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.blk,
+		sizeof (ppc->pool->hdr.blk), 0)) {
+		CHECK_INFO(ppc, "%s", ppc->path);
 		status = CHECK_ERR(ppc, "writing pmemblk structure failed");
 		goto error;
 	}
@@ -218,9 +221,8 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 
 		if (pool_write(ppc->pool->set_file, &arenap->btt_info,
 			sizeof (arenap->btt_info), arenap->offset)) {
-			/*if (errno)
-				warn("%s", ppc->fname);*/
-			status = CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
+			status = CHECK_ERR(ppc, "%s", ppc->path);
+			CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
 				arenap->id);
 			goto error;
 		}
@@ -228,24 +230,20 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 		if (pool_write(ppc->pool->set_file, &arenap->btt_info,
 			sizeof (arenap->btt_info), arenap->offset +
 				le64toh(arenap->btt_info.infooff))) {
-			/*if (errno)
-				warn("%s", ppc->fname);*/
+			CHECK_INFO(ppc, "%s", ppc->path);
 			status = CHECK_ERR(ppc,
 				"arena %u: writing BTT Info backup failed",
 				arenap->id);
 			goto error;
 		}
 
-		if (blk_write_flog(ppc, arenap))
-			// return PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return NULL;
+		if ((status = blk_write_flog(ppc, arenap)))
+			goto error;
 
-		if (blk_write_map(ppc, arenap))
-			// return PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-			return NULL;
+		if ((status = blk_write_map(ppc, arenap)))
+			goto error;
 	}
 
-	// return PMEMPOOL_CHECK_RESULT_CONSISTENT;
 	return NULL;
 
 error:
