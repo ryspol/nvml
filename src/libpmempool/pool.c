@@ -46,6 +46,8 @@
 #include "libpmemobj.h"
 #include "lane.h"
 #include "redo.h"
+#include "memops.h"
+#include "pmalloc.h"
 #include "list.h"
 #include "libpmempool.h"
 #include "pool.h"
