@@ -105,7 +105,7 @@ log_read(PMEMpoolcheck *ppc)
 static struct check_status *
 log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 {
-	LOG(2, "checking pmemlog header\n");
+	CHECK_INFO(ppc, "checking pmemlog header");
 
 	static struct check_status *status = NULL;
 	if ((status = log_read(ppc)) != NULL) {
@@ -118,30 +118,43 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 		roundup(sizeof (ppc->pool->hdr.log), LOG_FORMAT_DATA_ALIGN);
 
 	if (ppc->pool->hdr.log.start_offset != d_start_offset) {
-		CHECK_ASK(ppc, Q_LOG_START_OFFSET,
-			"invalid pmemlog.start_offset: 0x%" PRIx64 ". Do you "
+		if ((status = CHECK_ASK(ppc, Q_LOG_START_OFFSET,
+			"invalid pmemlog.start_offset: 0x%" PRIx64 ".|Do you "
 			" want to set pmemlog.start_offset to default 0x%x?",
-			ppc->pool->hdr.log.start_offset, d_start_offset);
+			ppc->pool->hdr.log.start_offset, d_start_offset)))
+			goto error;
+
 	}
 
 	if (ppc->pool->hdr.log.end_offset != ppc->pool->set_file->size) {
-		CHECK_ASK(ppc, Q_LOG_END_OFFSET,
-			"invalid pmemlog.end_offset: 0x%" PRIx64 ". Do you "
+		if ((status = CHECK_ASK(ppc, Q_LOG_END_OFFSET,
+			"invalid pmemlog.end_offset: 0x%" PRIx64 ".|Do you "
 			"want to set pmemlog.end_offset to 0x%x?",
 			ppc->pool->hdr.log.end_offset,
-			ppc->pool->set_file->size);
+			ppc->pool->set_file->size)))
+			goto error;
 	}
 
 	if (ppc->pool->hdr.log.write_offset < d_start_offset ||
 		ppc->pool->hdr.log.write_offset > ppc->pool->set_file->size) {
-		CHECK_ASK(ppc, Q_LOG_WRITE_OFFSET,
-			"invalid pmemlog.write_offset: 0x%" PRIx64 ". Do you "
+		if ((status = CHECK_ASK(ppc, Q_LOG_WRITE_OFFSET,
+			"invalid pmemlog.write_offset: 0x%" PRIx64 ".|Do you "
 			"want to set pmemlog.write_offset to "
 			"pmemlog.end_offset?",
-			ppc->pool->hdr.log.write_offset);
+			ppc->pool->hdr.log.write_offset)))
+			goto error;
 	}
 
+	if (ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
+		CHECK_INFO(ppc, "pmemlog header correct");
+
 	return check_questions_sequence_validate(ppc);
+
+error:
+	ASSERT(check_status_is(status, PMEMPOOL_CHECK_MSG_TYPE_ERROR));
+	ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+	return status;
 }
 
 /*
@@ -159,18 +172,18 @@ log_hdr_fix(PMEMpoolcheck *ppc,
 		/* determine constant values for pmemlog */
 		d_start_offset = roundup(sizeof (ppc->pool->hdr.log),
 			LOG_FORMAT_DATA_ALIGN);
-		LOG(1, "setting pmemlog.start_offset to 0x%" PRIx64,
+		CHECK_INFO(ppc, "setting pmemlog.start_offset to 0x%" PRIx64,
 			d_start_offset);
 		ppc->pool->hdr.log.start_offset = d_start_offset;
 		break;
 	case Q_LOG_END_OFFSET:
-		LOG(1, "setting pmemlog.end_offset to 0x%"
+		CHECK_INFO(ppc, "setting pmemlog.end_offset to 0x%"
 			PRIx64, ppc->pool->set_file->size);
 		ppc->pool->hdr.log.end_offset =
 			ppc->pool->set_file->size;
 			break;
 	case Q_LOG_WRITE_OFFSET:
-		LOG(1, "setting pmemlog.write_offset to "
+		CHECK_INFO(ppc, "setting pmemlog.write_offset to "
 			"pmemlog.end_offset");
 		ppc->pool->hdr.log.write_offset =
 			ppc->pool->set_file->size;
@@ -277,7 +290,7 @@ blk_bsize(uint32_t bsize, uint64_t fsize)
 static struct check_status *
 blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 {
-	LOG(2, "checking pmemblk header\n");
+	CHECK_INFO(ppc, "checking pmemblk header");
 
 	static struct check_status *status = NULL;
 	if ((status = blk_read(ppc)) != NULL) {
@@ -296,7 +309,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 		if (ppc->pool->hdr.blk.bsize != btt_bsize) {
 			CHECK_ASK(ppc, Q_BLK_BSIZE,
-				"invalid pmemblk.bsize. Do you want to set "
+				"invalid pmemblk.bsize.|Do you want to set "
 				"pmemblk.bsize to %lu from BTT Info?",
 				btt_bsize);
 		}
@@ -310,6 +323,10 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 			return CHECK_ERR(ppc, "invalid pmemblk.bsize");
 		}
 	}
+
+	if (ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
+		CHECK_INFO(ppc, "pmemblk header correct");
 
 	return check_questions_sequence_validate(ppc);
 }
@@ -335,7 +352,7 @@ blk_hdr_fix(PMEMpoolcheck *ppc,
 				&ppc->pool->bttc);
 		btt_bsize = ppc->pool->bttc.btt_info.
 			external_lbasize;
-		LOG(1, "setting pmemblk.b_size to 0x%" PRIx32,
+		CHECK_INFO(ppc, "setting pmemblk.b_size to 0x%" PRIx32,
 			btt_bsize);
 		ppc->pool->hdr.blk.bsize = btt_bsize;
 		break;
@@ -436,9 +453,9 @@ check_pmemx(PMEMpoolcheck *ppc)
 
 		status = check_pmemx_step(ppc, loc);
 		if (status != NULL)
-			goto cleanup_return;
+			goto out;
 	}
 
-cleanup_return:
+out:
 	return status;
 }

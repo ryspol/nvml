@@ -97,8 +97,6 @@ static const struct check_step check_steps[] = {
 int
 check_init(PMEMpoolcheck *ppc)
 {
-	if (!(ppc->msg = check_msg_alloc()))
-		goto error_msg_malloc;
 	if (!(ppc->data = check_data_alloc()))
 		goto error_data_malloc;
 	if (!(ppc->pool = pool_data_alloc(ppc)))
@@ -109,9 +107,61 @@ check_init(PMEMpoolcheck *ppc)
 error_pool_malloc:
 	check_data_free(ppc->data);
 error_data_malloc:
-	free(ppc->msg);
-error_msg_malloc:
 	return -1;
+}
+
+static inline struct check_status *
+status_get(PMEMpoolcheck *ppc)
+{
+	struct check_status *status = NULL;
+
+reprocess:
+	/* clear cache if exists */
+	check_clear_status_cache(ppc->data);
+
+	/* return next info if exists */
+	if ((status = check_pop_info(ppc->data)))
+		return status;
+
+	switch (ppc->result) {
+	case PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS:
+		/*
+		 * push answer for previous question. return if answer is not
+		 * valid.
+		 */
+		if (check_push_answer(ppc))
+			goto reprocess;
+
+		if ((status = check_pop_question(ppc->data)))
+			/* if has next question ask it */
+			return status;
+		else
+			/* process answers otherwise */
+			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
+		break;
+	case PMEMPOOL_CHECK_RESULT_CONSISTENT:
+	case PMEMPOOL_CHECK_RESULT_REPAIRED:
+		return status;
+	case PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT:
+		/*
+		 * don't continue if pool is not consistent and we don't want
+		 * to repair
+		 */
+		if (!ppc->args.repair)
+			goto check_end;
+		else
+			return status;
+	case PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR:
+	case PMEMPOOL_CHECK_RESULT_ERROR:
+		goto check_end;
+	default:
+		goto check_end;
+	}
+	return status;
+
+check_end:
+	check_end(ppc->data);
+	return check_pop_error(ppc->data);
 }
 
 /*
@@ -120,67 +170,36 @@ error_msg_malloc:
 struct check_status *
 check_step(PMEMpoolcheck *ppc)
 {
-	struct check_status *stat = NULL;
+	struct check_status *status = NULL;
+	/* return if we have infos of questions to ask of check ended */
+	if ((status = status_get(ppc)) || check_ended(ppc->data))
+		return status;
 
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
-		if ((stat = check_push_answer(ppc)))
-			return stat;
-
-		if ((stat = check_pop_question(ppc->data)))
-			return stat;
-		else
-			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
+	/* get next step and check if exists */
+	const struct check_step *step = &check_steps[check_step_get(ppc->data)];
+	if (step->func == NULL) {
+		check_end(ppc->data);
+		return status;
 	}
 
-	if (check_ended(ppc->data))
+	/* check if required conditions are met */
+	if (!(step->type & ppc->pool->params.type) ||
+		(ppc->pool->params.is_part && !step->part)) {
+		/* skip test */
+		check_step_inc(ppc->data);
 		return NULL;
+	}
 
-	const struct check_step *step = &check_steps[check_step_get(ppc->data)];
+	/* perform step */
+	status = step->func(ppc);
 
-	if (step->func == NULL)
-		goto check_end;
-
-	if (!(step->type & ppc->pool->params.type))
-		goto check_skip;
-
-	if (ppc->pool->params.is_part && !step->part)
-		goto check_skip;
-
-	stat = step->func(ppc);
-
+	/* move on to next step if no questions was generated */
 	if (ppc->result != PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
 		check_step_inc(ppc->data);
 	}
 
-	switch (ppc->result) {
-	case PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS:
-		return check_pop_question(ppc->data);
-	case PMEMPOOL_CHECK_RESULT_CONSISTENT:
-	case PMEMPOOL_CHECK_RESULT_REPAIRED:
-		return stat;
-	case PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT:
-		/*
-		 * don't continue if pool is not consistent
-		 * and we don't want to repair
-		 */
-		if (!ppc->args.repair)
-			goto check_end;
-		else
-			return stat;
-	case PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR:
-	case PMEMPOOL_CHECK_RESULT_ERROR:
-		goto check_end;
-	default:
-		goto check_end;
-	}
-
-check_end:
-	check_end(ppc->data);
-	return stat;
-
-check_skip:
-	check_step_inc(ppc->data);
-	return NULL;
+	/* get current status and return */
+	return status_get(ppc);
 }
 
 /*
@@ -191,5 +210,4 @@ check_fini(PMEMpoolcheck *ppc)
 {
 	pool_data_free(ppc->pool);
 	check_data_free(ppc->data);
-	free(ppc->msg);
 }

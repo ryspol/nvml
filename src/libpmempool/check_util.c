@@ -49,6 +49,7 @@
 struct check_status {
 	TAILQ_ENTRY(check_status) next;
 	struct pmempool_check_status status;
+	char *msg;
 };
 
 TAILQ_HEAD(check_status_head, check_status);
@@ -120,18 +121,6 @@ check_data_free(struct check_data *data)
 	free(data);
 }
 
-#define	MAX_MSG_STR_SIZE 8192
-
-char *
-check_msg_alloc()
-{
-	char *msg =  malloc(sizeof (char) * MAX_MSG_STR_SIZE);
-	if (!msg) {
-		ERR("!malloc");
-	}
-	return msg;
-}
-
 uint32_t
 check_step_get(struct check_data *data)
 {
@@ -157,64 +146,134 @@ check_step_location_get(struct check_data *data)
 void
 check_end(struct check_data *data)
 {
+	// ASSERT(data->step != CHECK_END);
 	data->step = CHECK_END;
 }
 
 int
 check_ended(struct check_data *data)
 {
-	ASSERT(data->step != CHECK_END);
 	return data->step == CHECK_END;
+}
+
+#define	MSG_SEPARATOR	'|'
+#define	MSG_PLACE_OF_SEPARATION	'.'
+#define	MAX_MSG_STR_SIZE 8192
+
+static inline struct check_status *
+status_alloc()
+{
+	struct check_status *status = malloc(sizeof (*status));
+	if (!status)
+		FATAL("!malloc");
+	status->msg = malloc(sizeof (char) * MAX_MSG_STR_SIZE);
+	if (!status->msg) {
+		free(status);
+		FATAL("!malloc");
+	}
+	status->status.str.msg = status->msg;
+	return status;
+}
+
+static void
+status_release(struct check_status *status)
+{
+	free(status->msg);
+	free(status);
+}
+
+static inline int
+status_msg_trim(const char *msg)
+{
+	char *sep = strchr(msg, MSG_SEPARATOR);
+	if (sep) {
+		ASSERTne(sep, msg);
+		--sep;
+		ASSERTeq(*sep, MSG_PLACE_OF_SEPARATION);
+		*sep = '\0';
+		return 0;
+	}
+	return 1;
 }
 
 /*
  * check_status_create -- create single status, push it to proper queue
+ *	MSG_SEPARATOR character in fmt is treated as message separator. If
+ *	creating question but ppc arguments do not allow to make any changes
+ *	(asking any question is pointless) it takes part of message before
+ *	MSG_SEPARATOR character and use it to create error message. Character
+ *	just before separator must be a MSG_PLACE_OF_SEPARATION character.
  */
 struct check_status *
 check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	uint32_t question, const char *fmt, ...)
 {
-	struct check_status *st = malloc(sizeof (*st));
+	struct check_status *st = status_alloc();
+	struct check_status *info = NULL;
 
 	if (ppc->args.flags & PMEMPOOL_CHECK_FORMAT_STR) {
 		va_list ap;
 		va_start(ap, fmt);
-		int p = vsnprintf(ppc->msg, MAX_MSG_STR_SIZE, fmt, ap);
+		int p = vsnprintf(st->msg, MAX_MSG_STR_SIZE, fmt, ap);
 		va_end(ap);
 
 		if (type != PMEMPOOL_CHECK_MSG_TYPE_QUESTION && errno &&
 			p > 0) {
-			snprintf(ppc->msg + p, MAX_MSG_STR_SIZE - (size_t)p,
+			snprintf(st->msg + p, MAX_MSG_STR_SIZE - (size_t)p,
 				": %s", strerror(errno));
 		}
 
-		st->status.str.msg = ppc->msg;
 		st->status.type = type;
 	}
 
-	switch (type) {
+reprocess:
+	switch (st->status.type) {
 	case PMEMPOOL_CHECK_MSG_TYPE_ERROR:
 		ASSERTeq(ppc->data->error, NULL);
 		ppc->data->error = st;
+		return st;
 		break;
 	case PMEMPOOL_CHECK_MSG_TYPE_INFO:
 		TAILQ_INSERT_TAIL(&ppc->data->infos, st, next);
 		break;
 	case PMEMPOOL_CHECK_MSG_TYPE_QUESTION:
-		st->status.question = question;
-		if (ppc->args.always_yes) {
+
+		if (!ppc->args.repair) {
+			status_msg_trim(st->msg);
+			st->status.type = PMEMPOOL_CHECK_MSG_TYPE_ERROR;
+			goto reprocess;
+		} else if (ppc->args.always_yes) {
+			if (!status_msg_trim(st->msg)) {
+				info = st;
+				info->status.type =
+					PMEMPOOL_CHECK_MSG_TYPE_INFO;
+				st = status_alloc();
+				st->status.question = question;
+			}
+
 			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_YES;
 			TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
 		} else {
+			st->status.question = question;
 			ppc->result = PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_EMPTY;
 			TAILQ_INSERT_TAIL(&ppc->data->questions, st, next);
 		}
+		if (ppc->args.always_yes) {
+		} else {
+
+		}
 		break;
 	}
 
-	return st;
+	if (info) {
+		st = info;
+		info = NULL;
+		goto reprocess;
+	}
+
+	return NULL;
 }
 
 /*
@@ -225,7 +284,20 @@ check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
 {
 	if (status->status.type == PMEMPOOL_CHECK_MSG_TYPE_ERROR)
 		ppc->data->error = NULL;
-	free(status);
+
+	status_release(status);
+}
+
+static struct check_status *
+check_pop_status(struct check_data *data, struct check_status_head *queue)
+{
+	ASSERTeq(data->check_status_cache, NULL);
+	if (!TAILQ_EMPTY(queue)) {
+		data->check_status_cache = TAILQ_FIRST(queue);
+		TAILQ_REMOVE(queue, data->check_status_cache, next);
+	}
+
+	return data->check_status_cache;
 }
 
 /*
@@ -234,13 +306,41 @@ check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
 struct check_status *
 check_pop_question(struct check_data *data)
 {
-	data->check_status_cache = NULL;
-	if (!TAILQ_EMPTY(&data->questions)) {
-		data->check_status_cache = TAILQ_FIRST(&data->questions);
-		TAILQ_REMOVE(&data->questions, data->check_status_cache, next);
-	}
+	return check_pop_status(data, &data->questions);
+}
 
+/*
+ * check_pop_info -- pop single info from infos queue
+ */
+struct check_status *
+check_pop_info(struct check_data *data)
+{
+	return check_pop_status(data, &data->infos);
+}
+
+/*
+ * check_pop_error -- pop error from state
+ */
+struct check_status *
+check_pop_error(struct check_data *data)
+{
+	data->check_status_cache = data->error;
+	data->error = NULL;
 	return data->check_status_cache;
+}
+
+void
+check_clear_status_cache(struct check_data *data)
+{
+	if (data->check_status_cache) {
+		enum pmempool_check_msg_type type =
+			data->check_status_cache->status.type;
+		if (type == PMEMPOOL_CHECK_MSG_TYPE_INFO ||
+			type == PMEMPOOL_CHECK_MSG_TYPE_ERROR) {
+			status_release(data->check_status_cache);
+			data->check_status_cache = NULL;
+		}
+	}
 }
 
 /*
@@ -259,11 +359,11 @@ status_push(struct check_data *data, struct check_status *st)
 /*
  * check_push_answer -- process answer and push it to answers queue
  */
-struct check_status *
+int
 check_push_answer(PMEMpoolcheck *ppc)
 {
 	if (ppc->data->check_status_cache == NULL)
-		return NULL;
+		return 0;
 
 	struct pmempool_check_status *status =
 		&ppc->data->check_status_cache->status;
@@ -278,19 +378,29 @@ check_push_answer(PMEMpoolcheck *ppc)
 	if (status->answer == PMEMPOOL_CHECK_ANSWER_EMPTY) {
 		status_push(ppc->data, ppc->data->check_status_cache);
 		ppc->data->check_status_cache = NULL;
-		return CHECK_ERR(ppc, "Answer must be either %s or %s",
+		CHECK_INFO(ppc, "Answer must be either %s or %s",
 			CHECK_ANSWER_YES, CHECK_ANSWER_NO);
+		return 1;
 	} else {
 		TAILQ_INSERT_TAIL(&ppc->data->answers,
 			ppc->data->check_status_cache, next);
 		ppc->data->check_status_cache = NULL;
 	}
 
-	return NULL;
+	return 0;
 }
 
 /*
- * check_has_answer -- check if any answer exists
+ * check_has_info - check if any info exists
+ */
+bool
+check_has_info(struct check_data *data)
+{
+	return !TAILQ_EMPTY(&data->infos);
+}
+
+/*
+ * check_has_answer - check if any answer exists
  */
 bool
 check_has_answer(struct check_data *data)
@@ -368,7 +478,8 @@ check_questions_sequence_validate(PMEMpoolcheck *ppc)
 {
 	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
 		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS);
+		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS ||
+		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED);
 	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
 		return ppc->data->questions.tqh_first;
 	else

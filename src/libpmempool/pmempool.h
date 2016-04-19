@@ -48,7 +48,6 @@ struct pmempool_check {
 	char *backup_path;
 	struct pmempool_check_args args;
 
-	char *msg;
 	struct check_data *data;
 	struct pool_data *pool;
 	enum pmempool_check_result result;

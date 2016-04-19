@@ -166,7 +166,7 @@ pool_type_get_str(enum pool_type type)
 static struct check_status *
 pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 {
-	LOG(2, "checking pool header\n");
+	CHECK_INFO(ppc, "checking pool header");
 	struct pool_hdr hdr;
 	pool_hdr_get(ppc, &hdr, NULL, loc);
 
@@ -187,10 +187,11 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 					return CHECK_ERR(ppc,
 						"invalid signature");
 				} else {
-					LOG(1, "invalid signature");
+					CHECK_INFO(ppc, "invalid signature");
 				}
 			} else {
 				// valid check sum
+				CHECK_INFO(ppc, "pool header checksum correct");
 				loc->step = CHECK_STEP_COMPLETE;
 				return NULL;
 			}
@@ -201,7 +202,8 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 				return CHECK_ERR(ppc,
 					"incorrect pool header checksum");
 			} else {
-				LOG(1, "incorrect pool header checksum");
+				CHECK_INFO(ppc,
+					"incorrect pool header checksum");
 			}
 		}
 	}
@@ -243,19 +245,19 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 
 	if (memcmp(hdr.signature, def_hdr.signature, POOL_HDR_SIG_LEN)) {
 		CHECK_ASK(ppc, Q_DEFAULT_SIGNATURE,
-			"pool_hdr.signature is not valid. Do you want to set "
+			"pool_hdr.signature is not valid.|Do you want to set "
 			"it to %.8s?", def_hdr.signature);
 	}
 
 	if (hdr.major != def_hdr.major) {
 		CHECK_ASK(ppc, Q_DEFAULT_MAJOR,
-			"pool_hdr.major is not valid. Do you want to set it "
+			"pool_hdr.major is not valid.|Do you want to set it "
 			"to default value 0x%x?", def_hdr.major);
 	}
 
 	if (hdr.compat_features != def_hdr.compat_features) {
 		CHECK_ASK(ppc, Q_DEFAULT_COMPAT_FEATURES,
-			"pool_hdr.compat_features is not valid. Do you want "
+			"pool_hdr.compat_features is not valid.|Do you want "
 			"to set it to default value 0x%x?",
 			def_hdr.compat_features);
 	}
@@ -263,7 +265,7 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 	if (hdr.incompat_features != def_hdr.incompat_features) {
 		CHECK_ASK(ppc,
 			Q_DEFAULT_INCOMPAT_FEATURES,
-			"pool_hdr.incompat_features is not valid. Do you want"
+			"pool_hdr.incompat_features is not valid.|Do you want"
 			"to set it to default value 0x%x?",
 			def_hdr.incompat_features);
 	}
@@ -271,14 +273,14 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 	if (hdr.ro_compat_features != def_hdr.ro_compat_features) {
 		CHECK_ASK(ppc,
 			Q_DEFAULT_RO_COMPAT_FEATURES,
-			"pool_hdr.ro_compat_features is not valid. Do you want"
+			"pool_hdr.ro_compat_features is not valid.|Do you want"
 			"to set it to default value 0x%x?",
 			def_hdr.ro_compat_features);
 	}
 
 	if (check_memory(hdr.unused, sizeof (hdr.unused), 0)) {
 		CHECK_ASK(ppc, Q_ZERO_UNUSED_AREA,
-			"Unused area is not filled by zeros. Do you want to "
+			"unused area is not filled by zeros.|Do you want to "
 			"fill it up?");
 	}
 
@@ -300,22 +302,33 @@ pool_hdr_default_fix(PMEMpoolcheck *ppc,
 
 	switch (question) {
 	case Q_DEFAULT_SIGNATURE:
+		CHECK_INFO(ppc, "setting pool_hdr.signature to %.8s",
+			ctx->def_hdr.signature);
 		memcpy(ctx->hdr.signature, ctx->def_hdr.signature,
 			POOL_HDR_SIG_LEN);
 		break;
 	case Q_DEFAULT_MAJOR:
+		CHECK_INFO(ppc, "setting pool_hdr.major to 0x%x",
+			ctx->def_hdr.major);
 		ctx->hdr.major = ctx->def_hdr.major;
 		break;
 	case Q_DEFAULT_COMPAT_FEATURES:
+		CHECK_INFO(ppc, "setting pool_hdr.compat_features to 0x%x",
+			ctx->def_hdr.compat_features);
 		ctx->hdr.compat_features = ctx->def_hdr.compat_features;
 		break;
 	case Q_DEFAULT_INCOMPAT_FEATURES:
+		CHECK_INFO(ppc, "setting pool_hdr.incompat_features to 0x%x",
+			ctx->def_hdr.incompat_features);
 		ctx->hdr.incompat_features = ctx->def_hdr.incompat_features;
 		break;
 	case Q_DEFAULT_RO_COMPAT_FEATURES:
+		CHECK_INFO(ppc, "setting pool_hdr.ro_compat_features to 0x%x",
+			ctx->def_hdr.ro_compat_features);
 		ctx->hdr.ro_compat_features = ctx->def_hdr.ro_compat_features;
 		break;
 	case Q_ZERO_UNUSED_AREA:
+		CHECK_INFO(ppc, "setting pool_hdr.unused to zeros");
 		memset(ctx->hdr.unused, 0, sizeof (ctx->hdr.unused));
 		break;
 	default:
@@ -470,7 +483,6 @@ pool_hdr_checksum_retry(PMEMpoolcheck *ppc,
 static struct check_status *
 pool_hdr_gen(PMEMpoolcheck *ppc, union location *loc)
 {
-	LOG(2, "checking pool header\n");
 	struct pool_hdr hdr;
 	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
