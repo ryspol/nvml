@@ -64,9 +64,13 @@ struct check_status *
 check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	uint32_t question, const char *fmt, ...);
 void check_status_release(PMEMpoolcheck *ppc, struct check_status *status);
+void check_clear_status_cache(struct check_data *data);
 struct check_status *check_pop_question(struct check_data *data);
-struct check_status *check_push_answer(PMEMpoolcheck *ppc);
+struct check_status *check_pop_error(struct check_data *data);
+struct check_status *check_pop_info(struct check_data *data);
+bool check_has_info(struct check_data *data);
 bool check_has_answer(struct check_data *data);
+int check_push_answer(PMEMpoolcheck *ppc);
 
 struct pmempool_check_status *check_status_get(struct check_status *status);
 int check_status_is(struct check_status *status,
@@ -74,13 +78,11 @@ int check_status_is(struct check_status *status,
 
 /* create info status */
 #define	CHECK_INFO(ppc, ...)\
-	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_INFO, 0, 0,\
-		__VA_ARGS__)
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_INFO, 0, __VA_ARGS__)
 
 /* create error status */
 #define	CHECK_ERR(ppc, ...)\
-	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, 0,\
-		__VA_ARGS__)
+	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_ERROR, 0, __VA_ARGS__)
 
 /* create question status */
 #define	CHECK_ASK(ppc, question, ...)\

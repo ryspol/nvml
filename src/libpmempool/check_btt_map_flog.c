@@ -664,6 +664,9 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
+	if (!loc->arenap && loc->narena == 0)
+		CHECK_INFO(ppc, "checking BTT map and flog");
+
 	if (ppc->pool->blk_no_layout)
 		return NULL;
 
@@ -674,8 +677,9 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 	}
 
 	while (loc->arenap != NULL) {
-		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
-			LOG(2, "arena %u: checking map and flog\n",
+		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS &&
+			loc->step == 0) {
+			CHECK_INFO(ppc, "arena %u: checking map and flog",
 				loc->narena);
 		}
 
@@ -689,6 +693,7 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 		}
 		loc->arenap = TAILQ_NEXT(loc->arenap, next);
 		loc->narena++;
+		loc->step = 0;
 	}
 
 cleanup:

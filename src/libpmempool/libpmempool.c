@@ -206,6 +206,8 @@ error_path_malloc:
 struct pmempool_check_status *
 pmempool_check(PMEMpoolcheck *ppc)
 {
+	ASSERTne(ppc, NULL);
+
 	struct check_status *result = NULL;
 	do {
 		result = check_step(ppc);

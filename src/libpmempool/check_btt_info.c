@@ -115,7 +115,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 	int ret = pool_btt_info_valid(&loc->arena->btt_info);
 
 	if (ret == 1) {
-		LOG(2, "arena %u: BTT Info header checksum correct\n",
+		CHECK_INFO(ppc, "arena %u: BTT Info header checksum correct",
 			loc->arena->id);
 		loc->step = CHECK_STEP_COMPLETE;
 	} else {
@@ -559,6 +559,9 @@ check_btt_info(PMEMpoolcheck *ppc)
 	union location *loc =
 		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
+
+	if (!loc->offset)
+		CHECK_INFO(ppc, "checking BTT Info headers");
 
 	if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
 		loc->offset = 2 * BTT_ALIGNMENT;
