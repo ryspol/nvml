@@ -1,0 +1,13 @@
+libpmempool_btt/TEST0: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = consistent
+
+libpmempool_btt/TEST0: Done
