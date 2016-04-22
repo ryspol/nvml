@@ -126,7 +126,11 @@ pmempool_ppc_set_default(PMEMpoolcheck *ppc)
 PMEMpoolcheck *
 pmempool_check_init(struct pmempool_check_args *args)
 {
-	ASSERTne(args, NULL);
+	if (!args) {
+		ERR("args can not be NULL");
+		errno = EINVAL;
+		return NULL;
+	}
 
 	if (args->path == NULL) {
 		ERR("path can not be NULL");

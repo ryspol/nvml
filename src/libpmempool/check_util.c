@@ -172,6 +172,8 @@ status_alloc()
 		FATAL("!malloc");
 	}
 	status->status.str.msg = status->msg;
+	status->status.answer = PMEMPOOL_CHECK_ANSWER_EMPTY;
+	status->status.question = CHECK_INVALID_QUESTION;
 	return status;
 }
 
@@ -191,6 +193,17 @@ status_msg_trim(const char *msg)
 		--sep;
 		ASSERTeq(*sep, MSG_PLACE_OF_SEPARATION);
 		*sep = '\0';
+		return 0;
+	}
+	return 1;
+}
+
+static inline int
+status_msg_prepare(const char *msg)
+{
+	char *sep = strchr(msg, MSG_SEPARATOR);
+	if (sep) {
+		*sep = ' ';
 		return 0;
 	}
 	return 1;
@@ -248,21 +261,17 @@ reprocess:
 				info->status.type =
 					PMEMPOOL_CHECK_MSG_TYPE_INFO;
 				st = status_alloc();
-				st->status.question = question;
 			}
-
+			st->status.question = question;
 			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_YES;
 			TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
 		} else {
+			status_msg_prepare(st->msg);
 			st->status.question = question;
 			ppc->result = PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_EMPTY;
 			TAILQ_INSERT_TAIL(&ppc->data->questions, st, next);
-		}
-		if (ppc->args.always_yes) {
-		} else {
-
 		}
 		break;
 	}
@@ -291,13 +300,14 @@ check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
 static struct check_status *
 check_pop_status(struct check_data *data, struct check_status_head *queue)
 {
-	ASSERTeq(data->check_status_cache, NULL);
 	if (!TAILQ_EMPTY(queue)) {
+		ASSERTeq(data->check_status_cache, NULL);
 		data->check_status_cache = TAILQ_FIRST(queue);
 		TAILQ_REMOVE(queue, data->check_status_cache, next);
+		return data->check_status_cache;
 	}
 
-	return data->check_status_cache;
+	return NULL;
 }
 
 /*

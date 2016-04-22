@@ -115,14 +115,12 @@ struct pool_data *pool_data_alloc(PMEMpoolcheck *ppc);
 void pool_data_free(struct pool_data *pool);
 
 void *pool_set_file_map(struct pool_set_file *file, uint64_t offset);
-int pool_set_file_read(struct pool_set_file *file, void *buff, size_t nbytes,
-	uint64_t off);
-
 int pool_read(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
 int pool_write(struct pool_set_file *file, void *buff, size_t nbytes,
 	uint64_t off);
 
+unsigned pool_set_files_count(struct pool_set_file *file);
 int pool_set_file_map_headers(struct pool_set_file *file, int rdonly,
 	size_t hdrsize);
 void pool_set_file_unmap_headers(struct pool_set_file *file);
@@ -137,5 +135,5 @@ int pool_btt_info_valid(struct btt_info *infop);
 
 int pool_get_first_valid_arena(struct pool_set_file *file,
 	struct arena *arenap);
-uint64_t pool_get_first_valid_btt(struct pmempool_check *ppc, struct btt_info
+uint64_t pool_get_valid_btt(struct pmempool_check *ppc, struct btt_info
 	*infop, uint64_t offset);

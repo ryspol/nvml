@@ -57,7 +57,7 @@ struct check_step {
 
 static const struct check_step check_steps[] = {
 	{
-		.type	= POOL_TYPE_ALL,
+		.type	= POOL_TYPE_ALL | POOL_TYPE_UNKNOWN,
 		.func	= check_backup,
 		.part	= true,
 	},

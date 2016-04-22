@@ -314,7 +314,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 				btt_bsize);
 		}
 	} else if (ppc->pool->bttc.zeroed) {
-		LOG(2, "no BTT layout\n");
+		CHECK_INFO(ppc, "no BTT layout");
 	} else {
 		if (ppc->pool->hdr.blk.bsize < BTT_MIN_LBA_SIZE ||
 			blk_bsize(ppc->pool->hdr.blk.bsize,
