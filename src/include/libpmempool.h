@@ -65,6 +65,7 @@ struct pmempool_check_args {
 	bool dry_run;
 	bool aggresive;
 	bool always_yes;
+	bool verbose;
 	uint32_t flags;
 	const char *backup_path;
 };

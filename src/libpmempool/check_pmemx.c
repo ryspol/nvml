@@ -161,8 +161,8 @@ error:
  * log_hdr_fix -- fix pmemlog header
  */
 static struct check_status *
-log_hdr_fix(PMEMpoolcheck *ppc,
-	struct check_instep_location *location, uint32_t question, void *ctx)
+log_hdr_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
+	uint32_t question, void *ctx)
 {
 	struct check_status *result = NULL;
 	uint64_t d_start_offset;
@@ -177,19 +177,17 @@ log_hdr_fix(PMEMpoolcheck *ppc,
 		ppc->pool->hdr.log.start_offset = d_start_offset;
 		break;
 	case Q_LOG_END_OFFSET:
-		CHECK_INFO(ppc, "setting pmemlog.end_offset to 0x%"
-			PRIx64, ppc->pool->set_file->size);
-		ppc->pool->hdr.log.end_offset =
-			ppc->pool->set_file->size;
+		CHECK_INFO(ppc, "setting pmemlog.end_offset to 0x%" PRIx64,
+			ppc->pool->set_file->size);
+		ppc->pool->hdr.log.end_offset = ppc->pool->set_file->size;
 			break;
 	case Q_LOG_WRITE_OFFSET:
 		CHECK_INFO(ppc, "setting pmemlog.write_offset to "
 			"pmemlog.end_offset");
-		ppc->pool->hdr.log.write_offset =
-			ppc->pool->set_file->size;
+		ppc->pool->hdr.log.write_offset = ppc->pool->set_file->size;
 		break;
 	default:
-		FATAL("not implemented");
+		ERR("not implemented question id: %u", question);
 	}
 
 	return result;
@@ -211,9 +209,8 @@ blk_get_max_bsize(uint64_t fsize)
 	uint32_t internal_nlba = 2 * nfree;
 
 	/* compute flog size */
-	uint32_t flog_size = nfree *
-		(uint32_t)roundup(2 * sizeof (struct btt_flog),
-				BTT_FLOG_PAIR_ALIGN);
+	uint32_t flog_size = nfree * (uint32_t)roundup(2 *
+		sizeof (struct btt_flog), BTT_FLOG_PAIR_ALIGN);
 	flog_size = (uint32_t)roundup(flog_size, BTT_ALIGNMENT);
 
 	/* compute arena size from file size */
@@ -236,9 +233,8 @@ blk_get_max_bsize(uint64_t fsize)
 	if (internal_lbasize < BTT_MIN_LBA_SIZE)
 		internal_lbasize = BTT_MIN_LBA_SIZE;
 
-	internal_lbasize =
-		roundup(internal_lbasize, BTT_INTERNAL_LBA_ALIGNMENT)
-			- BTT_INTERNAL_LBA_ALIGNMENT;
+	internal_lbasize = roundup(internal_lbasize, BTT_INTERNAL_LBA_ALIGNMENT)
+		- BTT_INTERNAL_LBA_ALIGNMENT;
 
 	return (uint32_t)internal_lbasize;
 }
@@ -318,7 +314,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 	} else {
 		if (ppc->pool->hdr.blk.bsize < BTT_MIN_LBA_SIZE ||
 			blk_bsize(ppc->pool->hdr.blk.bsize,
-				ppc->pool->set_file->size)) {
+			ppc->pool->set_file->size)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "invalid pmemblk.bsize");
 		}
@@ -335,8 +331,8 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
  * blk_hdr_fix -- fix pmemblk header
  */
 static struct check_status *
-blk_hdr_fix(PMEMpoolcheck *ppc,
-	struct check_instep_location *location, uint32_t question, void *ctx)
+blk_hdr_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
+	uint32_t question, void *ctx)
 {
 	struct check_status *result = NULL;
 	uint32_t btt_bsize;
@@ -344,28 +340,25 @@ blk_hdr_fix(PMEMpoolcheck *ppc,
 	switch (question) {
 	case Q_BLK_BSIZE:
 		/*
-		 * check for valid BTT Info arena as we can take bsize from
-		 * it
+		 * check for valid BTT Info arena as we can take bsize from it
 		 */
 		if (!ppc->pool->bttc.valid)
 			pool_get_first_valid_arena(ppc->pool->set_file,
 				&ppc->pool->bttc);
-		btt_bsize = ppc->pool->bttc.btt_info.
-			external_lbasize;
+		btt_bsize = ppc->pool->bttc.btt_info.external_lbasize;
 		CHECK_INFO(ppc, "setting pmemblk.b_size to 0x%" PRIx32,
 			btt_bsize);
 		ppc->pool->hdr.blk.bsize = btt_bsize;
 		break;
 	default:
-		FATAL("not implemented");
+		ERR("not implemented question id: %u", question);
 	}
 
 	return result;
 }
 
 struct step {
-	struct check_status *(*check)(PMEMpoolcheck *,
-		union location *loc);
+	struct check_status *(*check)(PMEMpoolcheck *, union location *loc);
 	struct check_status *(*fix)(PMEMpoolcheck *ppc,
 		struct check_instep_location *location, uint32_t question,
 		void *ctx);
@@ -408,7 +401,7 @@ check_pmemx_step(PMEMpoolcheck *ppc, union location *loc)
 	struct check_status *status = NULL;
 	if (step->fix != NULL) {
 		if (!check_has_answer(ppc->data))
-				return NULL;
+			return NULL;
 
 		if (step->type == POOL_TYPE_LOG) {
 			if ((status = log_read(ppc)) != NULL) {
@@ -426,8 +419,7 @@ check_pmemx_step(PMEMpoolcheck *ppc, union location *loc)
 		}
 
 		status = check_answer_loop(ppc,
-			(struct check_instep_location *)loc, NULL,
-			step->fix);
+			(struct check_instep_location *)loc, NULL, step->fix);
 	} else
 		status = step->check(ppc, loc);
 
