@@ -1,0 +1,149 @@
+/*
+ * Copyright 2016, Intel Corporation
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in
+ *       the documentation and/or other materials provided with the
+ *       distribution.
+ *
+ *     * Neither the name of the copyright holder nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * libpmempool_btt -- Placeholder for testing libpmempool API.
+ *
+ */
+
+#include <stddef.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "unittest.h"
+
+/*
+ * check_pool -- check given pool
+ */
+static void
+check_pool(struct pmempool_check_args *args)
+{
+	const char *status2str[] = {
+		[PMEMPOOL_CHECK_RESULT_CONSISTENT]	= "consistent",
+		[PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT] = "not consistent",
+		[PMEMPOOL_CHECK_RESULT_REPAIRED]	= "repaired",
+		[PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR]	= "cannot repair",
+		[PMEMPOOL_CHECK_RESULT_ERROR]	= "fatal",
+	};
+
+	PMEMpoolcheck *ppc = pmempool_check_init(args);
+	if (!ppc) {
+		UT_OUT("Error: %s\n", strerror(errno));
+		return;
+	}
+
+	struct pmempool_check_status *status = NULL;
+	while ((status = pmempool_check(ppc)) != NULL) {
+		switch (status->type) {
+		case PMEMPOOL_CHECK_MSG_TYPE_ERROR:
+			UT_OUT("%s\n", status->str.msg);
+			break;
+		case PMEMPOOL_CHECK_MSG_TYPE_INFO:
+			UT_OUT("%s\n", status->str.msg);
+			break;
+		case PMEMPOOL_CHECK_MSG_TYPE_QUESTION:
+			UT_OUT("%s\n", status->str.msg);
+			status->str.answer = "yes";
+			break;
+		default:
+			pmempool_check_end(ppc, status);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	enum pmempool_check_result ret = pmempool_check_end(ppc, status);
+	UT_OUT("status = %s\n", status2str[ret]);
+}
+
+
+/*
+ * print_usage -- print usage of program
+ */
+static void
+print_usage(char *name)
+{
+	UT_OUT("Usage: %s [-t <pool_type>] [-r <repair>] [-d <dry_run>] "
+			"[-y <always_yes>] [-f <flags>] [-a <aggressive>] "
+			"[-b <backup_path>] [-n] <pool_path>\n", name);
+}
+
+int
+main(int argc, char *argv[])
+{
+	START(argc, argv, "libpmempool_btt");
+	int opt;
+	char *backup;
+
+	struct pmempool_check_args args = {
+		.path		= NULL,
+		.pool_type	= PMEMPOOL_POOL_TYPE_BTT_DEV,
+		.repair		= true,
+		.dry_run	= false,
+		.aggresive	= false,
+		.always_yes	= false,
+		.flags		= PMEMPOOL_CHECK_FORMAT_STR,
+		.verbose	= true,
+		.backup_path	= NULL
+	};
+
+	while ((opt = getopt(argc, argv, "r:d:a:y:b:")) != -1) {
+		switch (opt) {
+		case 'r':
+			args.repair = (bool)strtoul(optarg, NULL, 0);
+			break;
+		case 'd':
+			args.dry_run = (bool)strtoul(optarg, NULL, 0);
+			break;
+		case 'a':
+			args.aggresive = (bool)strtoul(optarg, NULL, 0);
+			break;
+		case 'y':
+			args.always_yes = (bool)strtoul(optarg, NULL, 0);
+			break;
+		case 'b':
+			backup = malloc(strlen(optarg));
+			strcpy(backup, optarg);
+			args.backup_path = backup;
+			break;
+		default:
+			print_usage(argv[0]);
+			return -1;
+		}
+	}
+	if (optind < argc) {
+		args.path = argv[optind];
+	}
+
+	check_pool(&args);
+	DONE(NULL);
+}
