@@ -31,7 +31,7 @@
  */
 
 /*
- * check_btt_info.c -- check btt info
+ * check_btt_info.c -- check btt map and flog
  */
 
 #include <unistd.h>
@@ -370,6 +370,121 @@ error:
 	return status;
 }
 
+/*
+ * map_entry_check -- check single map entry
+ */
+static int
+map_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i)
+{
+	struct arena *arenap = loc->arenap;
+	uint32_t entry = arenap->map[i];
+	if ((entry & ~BTT_MAP_ENTRY_LBA_MASK) == 0)
+		entry = i;
+	else
+		entry &= BTT_MAP_ENTRY_LBA_MASK;
+
+	/* add duplicated and invalid entries to list */
+	if (entry < arenap->btt_info.internal_nlba) {
+		if (util_isset(loc->bitmap, entry)) {
+			CHECK_INFO(ppc, "arena %u: map entry %u duplicated at "
+				"%u", arenap->id, entry, i);
+			if (!list_push(loc->list_inval, i))
+				return 1;
+		} else {
+			util_setbit(loc->bitmap, entry);
+		}
+	} else {
+		CHECK_INFO(ppc, "arena %u: invalid map entry at %u", arenap->id,
+			i);
+		if (!list_push(loc->list_inval, i))
+			return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * flog_entry_check --  check single flog entry
+ */
+static int
+flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
+	uint8_t **ptr)
+{
+	struct arena *arenap = loc->arenap;
+
+	/* first and second copy of flog entry */
+	struct btt_flog *flog_alpha = (struct btt_flog *)*ptr;
+	struct btt_flog *flog_beta = (struct btt_flog *)(*ptr +
+		sizeof (struct btt_flog));
+
+	/*
+	 * Check flog entry and return current one by checking sequence number.
+	 */
+	struct btt_flog *flog_cur = flog_get_valid(flog_alpha, flog_beta);
+
+	/* insert invalid and duplicated indexes to list */
+	if (!flog_cur) {
+		CHECK_INFO(ppc, "arena %u: invalid flog entry at %u",
+			arenap->id, i);
+		if (!list_push(loc->list_flog_inval, i))
+			return 1;
+
+		goto next;
+	}
+
+	uint32_t entry = flog_cur->old_map & BTT_MAP_ENTRY_LBA_MASK;
+	uint32_t new_entry = flog_cur->new_map & BTT_MAP_ENTRY_LBA_MASK;
+
+	/*
+	 * Check if lba is in extranal_nlba range, and check if both old_map and
+	 * new_map are in internal_nlba range.
+	 */
+	if (flog_cur->lba >= arenap->btt_info.external_nlba ||
+		new_entry >= arenap->btt_info.internal_nlba) {
+		CHECK_INFO(ppc, "arena %u: invalid flog entry at %u",
+			arenap->id, entry);
+		if (!list_push(loc->list_flog_inval, i))
+			return 1;
+	}
+
+	if (util_isset(loc->fbitmap, entry)) {
+		/*
+		 * Here we have two flog entries which holds the same free block
+		 */
+		CHECK_INFO(ppc, "arena %u: duplicated flog entry at %u\n",
+			arenap->id, entry);
+		if (!list_push(loc->list_flog_inval, i))
+			return 1;
+	} else if (util_isset(loc->bitmap, entry)) {
+		/* here we have probably an unfinished write */
+		if (util_isset(loc->bitmap, new_entry)) {
+			/* Both old_map and new_map are already used in map. */
+			CHECK_INFO(ppc, "arena %u: duplicated flog entry at "
+				"%u\n", arenap->id, entry);
+			if (!list_push(loc->list_flog_inval, i))
+				return 1;
+		} else {
+			/*
+			 * Unfinished write. Next time pool is opened, the map
+			 * will be updated to new_map.
+			 */
+			util_setbit(loc->bitmap, new_entry);
+			util_setbit(loc->fbitmap, entry);
+		}
+	} else {
+		/* totally fine case */
+		util_setbit(loc->bitmap, entry);
+		util_setbit(loc->fbitmap, entry);
+	}
+
+next:
+	*ptr += BTT_FLOG_PAIR_ALIGN;
+	return 0;
+}
+
+/*
+ * check_arena_map_flog -- check map and flog
+ */
 static struct check_status *
 check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 {
@@ -379,128 +494,35 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 	/* check map entries */
 	uint32_t i;
 	for (i = 0; i < arenap->btt_info.external_nlba; i++) {
-		uint32_t entry = arenap->map[i];
-		if ((entry & ~BTT_MAP_ENTRY_LBA_MASK) == 0)
-			entry = i;
-		else
-			entry &= BTT_MAP_ENTRY_LBA_MASK;
-
-		/* add duplicated and invalid entries to list */
-		if (entry < arenap->btt_info.internal_nlba) {
-			if (util_isset(loc->bitmap, entry)) {
-				LOG(1, "arena %u: map entry %u duplicated "
-					"at %u", arenap->id, entry, i);
-				if (!list_push(loc->list_inval, i))
-					goto error_push;
-			} else {
-				util_setbit(loc->bitmap, entry);
-			}
-		} else {
-			LOG(1, "arena %u: invalid map entry at %u", arenap->id,
-				i);
-			if (!list_push(loc->list_inval, i))
-				goto error_push;
-		}
+		if (map_entry_check(ppc, loc, i))
+			goto error_push;
 	}
 
 	/* check flog entries */
 	uint8_t *ptr = arenap->flog;
 	for (i = 0; i < arenap->btt_info.nfree; i++) {
-		/* first and second copy of flog entry */
-		struct btt_flog *flog_alpha = (struct btt_flog *)ptr;
-		struct btt_flog *flog_beta = (struct btt_flog *)(ptr +
-			sizeof (struct btt_flog));
-
-		/*
-		 * Check flog entry and return current one by checking sequence
-		 * number.
-		 */
-		struct btt_flog *flog_cur = flog_get_valid(flog_alpha,
-			flog_beta);
-
-		/* insert invalid and duplicated indexes to list */
-		if (flog_cur) {
-			uint32_t entry = flog_cur->old_map &
-				BTT_MAP_ENTRY_LBA_MASK;
-			uint32_t new_entry = flog_cur->new_map &
-				BTT_MAP_ENTRY_LBA_MASK;
-
-			/*
-			 * Check if lba is in extranal_nlba range, and check if
-			 * both old_map and new_map are in internal_nlba range.
-			 */
-			if (flog_cur->lba >= arenap->btt_info.external_nlba ||
-				entry >= arenap->btt_info.internal_nlba ||
-				new_entry >= arenap->btt_info.internal_nlba) {
-				LOG(1, "arena %u: invalid flog entry "
-					"at %u\n", arenap->id, entry);
-				if (!list_push(loc->list_flog_inval, i))
-					goto error_push;
-			}
-
-			if (util_isset(loc->fbitmap, entry)) {
-				/*
-				 * Here we have two flog entries which holds the
-				 * same free block.
-				 */
-				LOG(1, "arena %u: duplicated flog entry "
-					"at %u\n", arenap->id, entry);
-				if (!list_push(loc->list_flog_inval, i))
-					goto error_push;
-			} else if (util_isset(loc->bitmap, entry)) {
-				/* here we have probably an unfinished write */
-
-				if (util_isset(loc->bitmap, new_entry)) {
-					/*
-					 * Both old_map and new_map are already
-					 * used in map.
-					 */
-					LOG(1, "arena %u: duplicated flog "
-						"entry at %u\n", arenap->id,
-						entry);
-					if (!list_push(loc->list_flog_inval, i))
-						goto error_push;
-				} else {
-					/*
-					 * Unfinished write. Next time pool
-					 * is opened, the map will be updated
-					 * to new_map.
-					 */
-					util_setbit(loc->bitmap, new_entry);
-					util_setbit(loc->fbitmap, entry);
-				}
-			} else {
-				/* totally fine case */
-				util_setbit(loc->bitmap, entry);
-				util_setbit(loc->fbitmap, entry);
-			}
-		} else {
-			LOG(1, "arena %u: invalid flog entry at %u\n",
-				arenap->id, i);
-			if (!list_push(loc->list_flog_inval, i))
-				goto error_push;
-		}
-
-		ptr += BTT_FLOG_PAIR_ALIGN;
+		if (flog_entry_check(ppc, loc, i, &ptr))
+			goto error_push;
 	}
 
 	/* check unmapped blocks and insert to list */
 	for (i = 0; i < arenap->btt_info.internal_nlba; i++) {
 		if (!util_isset(loc->bitmap, i)) {
-			LOG(1, "arena %u: unmapped block %u\n", arenap->id, i);
+			CHECK_INFO(ppc, "arena %u: unmapped block %u",
+				arenap->id, i);
 			if (!list_push(loc->list_unmap, i))
 				goto error_push;
 		}
 	}
 
 	if (loc->list_unmap->count)
-		LOG(1, "arena %u: number of unmapped blocks: %u\n",
-				arenap->id, loc->list_unmap->count);
+		CHECK_INFO(ppc, "arena %u: number of unmapped blocks: %u",
+			arenap->id, loc->list_unmap->count);
 	if (loc->list_inval->count)
-		LOG(1, "arena %u: number of invalid map entries: %u\n",
-				arenap->id, loc->list_inval->count);
+		CHECK_INFO(ppc, "arena %u: number of invalid map entries: %u",
+			arenap->id, loc->list_inval->count);
 	if (loc->list_flog_inval->count)
-		LOG(1, "arena %u: number of invalid flog entries: %u\n",
+		CHECK_INFO(ppc, "arena %u: number of invalid flog entries: %u",
 			arenap->id, loc->list_flog_inval->count);
 
 	if (!ppc->args.repair && loc->list_unmap->count > 0) {
@@ -515,19 +537,19 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 	if (loc->list_unmap->count != (loc->list_inval->count +
 		loc->list_flog_inval->count)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		status = CHECK_ERR(ppc, "arena %u: cannot repair map "
-			"and flog", arenap->id);
+		status = CHECK_ERR(ppc, "arena %u: cannot repair map and flog",
+			arenap->id);
 		return status;
 	}
 
 	if (loc->list_inval->count > 0) {
-		CHECK_ASK(ppc, Q_REPAIR_MAP, "Do you want repair "
-			"invalid map entries?");
+		CHECK_ASK(ppc, Q_REPAIR_MAP, "Do you want repair invalid map "
+			"entries?");
 	}
 
 	if (loc->list_flog_inval->count > 0) {
-		CHECK_ASK(ppc, Q_REPAIR_FLOG, "Do you want to repair "
-			"invalid flog entries?");
+		CHECK_ASK(ppc, Q_REPAIR_FLOG, "Do you want to repair invalid "
+			"flog entries?");
 	}
 
 	return check_questions_sequence_validate(ppc);
@@ -540,7 +562,7 @@ error_push:
 }
 
 /*
- * check_arena_map_flog_fix -- fix BTT Info using its backup
+ * check_arena_map_flog_fix -- fix map and flog
  */
 static struct check_status *
 check_arena_map_flog_fix(PMEMpoolcheck *ppc,
@@ -554,8 +576,8 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 	switch (question) {
 	case Q_REPAIR_MAP:
 		/*
-		 * Repair invalid or duplicated map entries
-		 * by using unmapped blocks.
+		 * Repair invalid or duplicated map entries by using unmapped
+		 * blocks.
 		 */
 		while (list_pop(loc->list_inval, &inval)) {
 			if (!list_pop(loc->list_unmap, &unmap)) {
@@ -563,7 +585,7 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 				return NULL;
 			}
 			loc->arenap->map[inval] = unmap | BTT_MAP_ENTRY_ERROR;
-			LOG(1, "arena %u: storing 0x%x at %u entry\n",
+			CHECK_INFO(ppc, "arena %u: storing 0x%x at %u entry",
 				loc->arenap->id, loc->arenap->map[inval],
 				inval);
 		}
@@ -590,12 +612,13 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 			flog_alpha->old_map = entry;
 			flog_alpha->seq = 1;
 
-			LOG(1, "arena %u: repairing flog at %u with free block "
-				"entry 0x%x\n", loc->arenap->id, inval, entry);
+			CHECK_INFO(ppc, "arena %u: repairing flog at %u with "
+				"free block entry 0x%x", loc->arenap->id,
+				inval, entry);
 		}
 		break;
 	default:
-		FATAL("not implemented");
+		ERR("not implemented question id: %u", question);
 	}
 
 	return NULL;
@@ -610,29 +633,29 @@ struct step {
 
 static const struct step steps[] = {
 	{
-		.check		= check_prepare,
+		.check	= check_prepare,
 
 	},
 	{
-		.check		= check_arena_map_flog,
+		.check	= check_arena_map_flog,
 
 	},
 	{
-		.fix		= check_arena_map_flog_fix,
+		.fix	= check_arena_map_flog_fix,
 
 	},
 	{
-		.check		= check_cleanup,
+		.check	= check_cleanup,
 
 	},
 	{
-		.check		= NULL,
+		.check	= NULL,
 
 	},
 };
 
 /*
- * check_btt_info_step -- perform single step according to its parameters
+ * step -- perform single step according to its parameters
  */
 static inline struct check_status *
 step(PMEMpoolcheck *ppc, union location *loc)
@@ -652,7 +675,7 @@ step(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * check_btt_info -- entry point for btt info check
+ * check_btt_map_flog -- perform check and fixing of map and flog
  */
 struct check_status *
 check_btt_map_flog(PMEMpoolcheck *ppc)
@@ -664,14 +687,12 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
-	if (!loc->arenap && loc->narena == 0)
-		CHECK_INFO(ppc, "checking BTT map and flog");
-
 	if (ppc->pool->blk_no_layout)
 		return NULL;
 
-	if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
-		LOG(2, "checking BTT map and flog");
+	if (!loc->arenap && loc->narena == 0 &&
+		ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+		CHECK_INFO(ppc, "checking BTT map and flog");
 		loc->arenap = TAILQ_FIRST(&ppc->pool->arenas);
 		loc->narena = 0;
 	}

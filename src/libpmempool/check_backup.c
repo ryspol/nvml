@@ -51,7 +51,7 @@
 static int
 backup_create(PMEMpoolcheck *ppc)
 {
-	LOG(1, "creating backup file: %s", ppc->backup_path);
+	CHECK_INFO(ppc, "creating backup file: %s", ppc->backup_path);
 
 	struct pool_set_file *file = ppc->pool->set_file;
 	int dfd = util_file_create(ppc->backup_path, file->size, 0);
@@ -82,7 +82,7 @@ check_backup(PMEMpoolcheck *ppc)
 {
 	if (ppc->args.repair && ppc->backup_path != NULL &&
 		!ppc->args.dry_run) {
-		if (!backup_create(ppc)) {
+		if (backup_create(ppc)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 			return CHECK_ERR(ppc, "unable to create backup file");
 		}

@@ -35,6 +35,9 @@
  */
 
 #define	CHECK_STEP_COMPLETE	UINT32_MAX
+#define	CHECK_INVALID_QUESTION	UINT32_MAX
+
+#define	min(a, b) ((a) < (b) ? (a) : (b))
 
 /* check control context */
 struct check_data;

@@ -436,6 +436,19 @@ pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
 	return 0;
 }
 
+unsigned
+pool_set_files_count(struct pool_set_file *file)
+{
+	unsigned ret = 0;
+	unsigned nreplicas = file->poolset->nreplicas;
+	for (unsigned r = 0; r < nreplicas; r++) {
+		struct pool_replica *rep = file->poolset->replica[r];
+		ret += rep->nparts;
+	}
+
+	return ret;
+}
+
 /*
  * pool_set_file_map_headers -- map headers of each pool set part file
  */
@@ -627,7 +640,7 @@ pool_btt_info_valid(struct btt_info *infop)
 		return util_checksum(infop, sizeof (*infop), &infop->checksum,
 			0);
 	else
-		return -1;
+		return 0;
 }
 
 /*
@@ -683,22 +696,15 @@ pool_get_first_valid_arena(struct pool_set_file *file, struct arena *arenap)
  * - Return the BTT Info header by pointer.
  */
 uint64_t
-pool_get_first_valid_btt(struct pmempool_check *ppc, struct btt_info
-	*infop, uint64_t offset)
+pool_get_valid_btt(struct pmempool_check *ppc, struct btt_info *infop,
+	uint64_t offset)
 {
-	/*
-	 * Starting at offset, read every page and check for
-	 * valid BTT Info Header. Check signature and checksum.
-	 */
-	while (!pool_read(ppc->pool->set_file, infop, sizeof (*infop),
-		offset)) {
-
+	if (pool_read(ppc->pool->set_file, infop, sizeof (*infop), offset) ==
+		0) {
 		if (pool_btt_info_valid(infop)) {
 			pool_btt_info_convert2h(infop);
 			return offset;
 		}
-
-		offset += BTT_ALIGNMENT;
 	}
 
 	return 0;

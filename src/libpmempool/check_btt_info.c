@@ -105,7 +105,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	if (check_memory((const uint8_t *)&loc->arena->btt_info,
 		sizeof (loc->arena->btt_info), 0) == 0) {
-		LOG(2, "BTT Layout not written");
+		CHECK_INFO(ppc, "BTT Layout not written");
 		ppc->pool->blk_no_layout = 1;
 		loc->step = CHECK_STEP_COMPLETE;
 		goto cleanup;
@@ -154,29 +154,31 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 	 * backup first.
 	 *
 	 * BTT Info header backup is in the last page of arena,
-	 * we know the BTT Info size and arena minimum size so
-	 * we can start searching at some higher offset.
+	 * we know the BTT Info size and arena maximum size so
+	 * we can calculate theoretical backup offset.
 	 */
-	uint64_t search_off = loc->offset + BTT_MIN_SIZE -
-		sizeof (struct btt_info);
+	uint64_t endoff = (ppc->pool->set_file->size & ~(BTT_ALIGNMENT - 1));
+	endoff = min(loc->offset + BTT_MAX_ARENA, endoff);
+	loc->offset2 = endoff - sizeof (struct btt_info);
 
 	/*
 	 * Read first valid BTT Info to bttc buffer
 	 * check whether this BTT Info header is the
 	 * backup by checking offset value.
 	 */
-	if ((loc->offset2 = pool_get_first_valid_btt(ppc,
-		&ppc->pool->bttc.btt_info, search_off)) && loc->offset +
+	if ((loc->offset2 = pool_get_valid_btt(ppc, &ppc->pool->bttc.btt_info,
+		loc->offset2)) && loc->offset +
 		ppc->pool->bttc.btt_info.infooff == loc->offset2) {
 		/*
 		 * Here we have valid BTT Info backup
 		 * so we can restore it.
 		 */
 		CHECK_ASK(ppc, Q_RESTORE_BACKUP,
-			"arena %u: BTT Info header checksum incorrect. "
+			"arena %u: BTT Info header checksum incorrect.|"
 			"Restore BTT Info from backup?", loc->arena->id);
 	} else {
 		loc->advanced_repair = true;
+		loc->offset2 = endoff;
 	}
 
 	return check_questions_sequence_validate(ppc);
@@ -186,8 +188,8 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
  * btt_info_backup_fix -- fix BTT Info using its backup
  */
 static struct check_status *
-btt_info_backup_fix(PMEMpoolcheck *ppc,
-	struct check_instep_location *location, uint32_t question, void *ctx)
+btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
+	uint32_t question, void *ctx)
 {
 	ASSERTeq(ctx, NULL);
 
@@ -195,7 +197,8 @@ btt_info_backup_fix(PMEMpoolcheck *ppc,
 
 	switch (question) {
 	case Q_RESTORE_BACKUP:
-		LOG(1, "arena %u: restoring BTT Info header from backup\n",
+		CHECK_INFO(ppc,
+			"arena %u: restoring BTT Info header from backup",
 			loc->arena->id);
 
 		memcpy(&loc->arena->btt_info, &ppc->pool->bttc.btt_info,
@@ -203,7 +206,7 @@ btt_info_backup_fix(PMEMpoolcheck *ppc,
 		loc->advanced_repair = false;
 		break;
 	default:
-		FATAL("not implemented");
+		ERR("not implemented question id: %u", question);
 	}
 
 	return NULL;
@@ -215,9 +218,9 @@ btt_info_backup_fix(PMEMpoolcheck *ppc,
 static struct check_status *
 btt_info_gen(PMEMpoolcheck *ppc, union location *loc)
 {
-	CHECK_ASK(ppc, Q_REGENERATE, "arena %u: BTT Info header checksum "
-		"incorrect. Do you want to restore BTT layout?",
-		loc->arena->id);
+	CHECK_ASK(ppc, Q_REGENERATE,
+		"arena %u: BTT Info header checksum incorrect.|Do you want to "
+		"restore BTT layout?", loc->arena->id);
 
 	return check_questions_sequence_validate(ppc);
 }
@@ -226,8 +229,7 @@ btt_info_gen(PMEMpoolcheck *ppc, union location *loc)
  * ns_read -- btt callback for reading
  */
 static int
-ns_read(void *ns, unsigned lane, void *buf, size_t count,
-		uint64_t off)
+ns_read(void *ns, unsigned lane, void *buf, size_t count, uint64_t off)
 {
 	struct btt_context *nsc = (struct btt_context *)ns;
 
@@ -245,8 +247,7 @@ ns_read(void *ns, unsigned lane, void *buf, size_t count,
  * ns_write -- btt callback for writing
  */
 static int
-ns_write(void *ns, unsigned lane, const void *buf,
-		size_t count, uint64_t off)
+ns_write(void *ns, unsigned lane, const void *buf, size_t count, uint64_t off)
 {
 	struct btt_context *nsc = (struct btt_context *)ns;
 
@@ -264,8 +265,7 @@ ns_write(void *ns, unsigned lane, const void *buf,
  * ns_map -- btt callback for memory mapping
  */
 static ssize_t
-ns_map(void *ns, unsigned lane, void **addrp, size_t len,
-		uint64_t off)
+ns_map(void *ns, unsigned lane, void **addrp, size_t len, uint64_t off)
 {
 	struct btt_context *nsc = (struct btt_context *)ns;
 
@@ -337,7 +337,7 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 		eof = true;
 	}
 
-	LOG(1, "generating BTT Info headers at 0x%lx-0x%lx\n", startoff,
+	CHECK_INFO(ppc, "generating BTT Info headers at 0x%lx-0x%lx", startoff,
 		endoff);
 	uint64_t rawsize = endoff - startoff;
 
@@ -362,8 +362,8 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 	uint32_t lbasize = ppc->pool->hdr.blk.bsize;
 
 	/* init btt in requested area */
-	struct btt *bttp = btt_init(rawsize,
-		lbasize, ppc->pool->hdr.pool.poolset_uuid, BTT_DEFAULT_NFREE,
+	struct btt *bttp = btt_init(rawsize, lbasize,
+		ppc->pool->hdr.pool.poolset_uuid, BTT_DEFAULT_NFREE,
 		(void *)&btt_context, &ns_callbacks);
 
 	if (!bttp) {
@@ -425,13 +425,15 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 
 	}
 
+	btt_fini(bttp);
+	return status;
+
 error_btt:
 	btt_fini(bttp);
 error_unmap:
 	munmap(addr, rawsize);
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-	free(loc->arena);
 	return status;
 }
 
@@ -439,8 +441,8 @@ error:
  * check_btt_info_gen_fix -- fix by regenerating BTT Info
  */
 static struct check_status *
-btt_info_gen_fix(PMEMpoolcheck *ppc,
-	struct check_instep_location *location, uint32_t question, void *ctx)
+btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
+	uint32_t question, void *ctx)
 {
 	ASSERTeq(ctx, NULL);
 
@@ -456,7 +458,7 @@ btt_info_gen_fix(PMEMpoolcheck *ppc,
 		result = btt_info_gen_fix_exe(ppc, loc);
 		break;
 	default:
-		FATAL("not implemented");
+		ERR("not implemented question id: %u", question);
 	}
 
 	return result;
@@ -535,11 +537,11 @@ check_btt_info_step(PMEMpoolcheck *ppc, union location *loc)
 			loc, NULL, step->fix);
 
 		if (check_status_is(status, PMEMPOOL_CHECK_MSG_TYPE_ERROR)) {
-			location_release(loc);
 			check_status_release(ppc, status);
 			status = CHECK_ERR(ppc,
-				"arena %u: cannot repair BTT Info header\n",
+				"arena %u: cannot repair BTT Info header",
 				loc->arena->id);
+			location_release(loc);
 		}
 	} else
 		status = step->check(ppc, loc);
@@ -560,10 +562,8 @@ check_btt_info(PMEMpoolcheck *ppc)
 		(union location *)check_step_location_get(ppc->data);
 	struct check_status *status = NULL;
 
-	if (!loc->offset)
+	if (!loc->offset) {
 		CHECK_INFO(ppc, "checking BTT Info headers");
-
-	if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
 		loc->offset = 2 * BTT_ALIGNMENT;
 		loc->nextoff = 0;
 	}
