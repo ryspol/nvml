@@ -1,0 +1,13 @@
+libpmempool_btt/TEST1: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Do you want to restore BTT layout?
+
+generating BTT Info headers at 0x1000-0x1400000
+
+arena 0: cannot read BTT Info header
+
+status = fatal
+
+libpmempool_btt/TEST1: Done
