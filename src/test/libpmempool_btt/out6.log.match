@@ -1,0 +1,35 @@
+libpmempool_btt/TEST6: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 0: map entry 1 duplicated at 1
+
+arena 0: invalid flog entry at 0
+
+arena 0: unmapped block 0
+
+arena 0: unmapped block 40322
+
+arena 0: number of unmapped blocks: 2
+
+arena 0: number of invalid map entries: 1
+
+arena 0: number of invalid flog entries: 1
+
+Do you want repair invalid map entries?
+
+Do you want to repair invalid flog entries?
+
+arena 0: storing 0x40009d82 at 1 entry
+
+arena 0: repairing flog at 0 with free block entry 0x40000000
+
+status = repaired
+
+libpmempool_btt/TEST6: Done
