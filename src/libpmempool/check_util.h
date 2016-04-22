@@ -54,7 +54,6 @@ struct check_instep_location {
 
 struct check_data *check_data_alloc(void);
 void check_data_free(struct check_data *data);
-char *check_msg_alloc(void);
 
 uint32_t check_step_get(struct check_data *data);
 void check_step_inc(struct check_data *data);
@@ -71,7 +70,6 @@ void check_clear_status_cache(struct check_data *data);
 struct check_status *check_pop_question(struct check_data *data);
 struct check_status *check_pop_error(struct check_data *data);
 struct check_status *check_pop_info(struct check_data *data);
-bool check_has_info(struct check_data *data);
 bool check_has_answer(struct check_data *data);
 int check_push_answer(PMEMpoolcheck *ppc);
 

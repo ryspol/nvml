@@ -114,7 +114,9 @@ static void
 pmempool_ppc_set_default(PMEMpoolcheck *ppc)
 {
 	const PMEMpoolcheck ppc_default = {
-		.result	= PMEMPOOL_CHECK_RESULT_CONSISTENT,
+		.path		= NULL,
+		.backup_path	= NULL,
+		.result		= PMEMPOOL_CHECK_RESULT_CONSISTENT,
 	};
 	*ppc = ppc_default;
 }
@@ -196,6 +198,10 @@ pmempool_check_init(struct pmempool_check_args *args)
 	return ppc;
 
 error_check_init:
+	/* in case errno not set by any of the used functions set its value */
+	if (errno == 0)
+		errno = EINVAL;
+
 	free(ppc->backup_path);
 error_backup_path_malloc:
 	free(ppc->path);

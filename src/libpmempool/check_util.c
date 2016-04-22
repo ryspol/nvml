@@ -67,6 +67,9 @@ struct check_data {
 	struct check_status *check_status_cache;
 };
 
+/*
+ * check_data_alloc --  allocate and initialize check_data structure
+ */
 struct check_data *
 check_data_alloc()
 {
@@ -87,6 +90,9 @@ check_data_alloc()
 	return data;
 }
 
+/*
+ * check_data_free -- clean and deallocate check_data
+ */
 void
 check_data_free(struct check_data *data)
 {
@@ -121,12 +127,18 @@ check_data_free(struct check_data *data)
 	free(data);
 }
 
+/*
+ * check_step_get - return current check step number
+ */
 uint32_t
 check_step_get(struct check_data *data)
 {
 	return data->step;
 }
 
+/*
+ * check_step_inc -- move to next step number
+ */
 void
 check_step_inc(struct check_data *data)
 {
@@ -135,6 +147,9 @@ check_step_inc(struct check_data *data)
 		sizeof (struct check_instep_location));
 }
 
+/*
+ * check_step_location_get -- return pointer to structure describing step status
+ */
 struct check_instep_location *
 check_step_location_get(struct check_data *data)
 {
@@ -143,23 +158,34 @@ check_step_location_get(struct check_data *data)
 
 #define	CHECK_END UINT32_MAX
 
-void
+/*
+ * check_end -- mark check as ended
+ */
+inline void
 check_end(struct check_data *data)
 {
 	// ASSERT(data->step != CHECK_END);
 	data->step = CHECK_END;
 }
 
-int
+/*
+ * check_ended -- return if check has ended
+ */
+inline int
 check_ended(struct check_data *data)
 {
 	return data->step == CHECK_END;
 }
 
+/* separate info part of message from question part of message */
 #define	MSG_SEPARATOR	'|'
+/* error part of message must have '.' at the end */
 #define	MSG_PLACE_OF_SEPARATION	'.'
 #define	MAX_MSG_STR_SIZE 8192
 
+/*
+ * status_alloc -- allocate and initialize check_status
+ */
 static inline struct check_status *
 status_alloc()
 {
@@ -177,6 +203,9 @@ status_alloc()
 	return status;
 }
 
+/*
+ * status_release -- release check_status
+ */
 static void
 status_release(struct check_status *status)
 {
@@ -184,6 +213,10 @@ status_release(struct check_status *status)
 	free(status);
 }
 
+/*
+ * status_msg_trim -- try to separate info part of the message. If message is in
+ *	form of "info.|question" it modifies it as follows "info\0|question"
+ */
 static inline int
 status_msg_trim(const char *msg)
 {
@@ -198,6 +231,10 @@ status_msg_trim(const char *msg)
 	return 1;
 }
 
+/*
+ * status_msg_prepare -- if message is in form "info.|question" it will replace
+ *	MSG_SEPARATOR '|' with space to get "info. question"
+ */
 static inline int
 status_msg_prepare(const char *msg)
 {
@@ -221,6 +258,9 @@ struct check_status *
 check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	uint32_t question, const char *fmt, ...)
 {
+	if (!ppc->args.verbose && type == PMEMPOOL_CHECK_MSG_TYPE_INFO)
+		return NULL;
+
 	struct check_status *st = status_alloc();
 	struct check_status *info = NULL;
 
@@ -230,6 +270,7 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 		int p = vsnprintf(st->msg, MAX_MSG_STR_SIZE, fmt, ap);
 		va_end(ap);
 
+		/* concat possible strerror at the end of the message */
 		if (type != PMEMPOOL_CHECK_MSG_TYPE_QUESTION && errno &&
 			p > 0) {
 			snprintf(st->msg + p, MAX_MSG_STR_SIZE - (size_t)p,
@@ -245,18 +286,30 @@ reprocess:
 		ASSERTeq(ppc->data->error, NULL);
 		ppc->data->error = st;
 		return st;
-		break;
+
 	case PMEMPOOL_CHECK_MSG_TYPE_INFO:
-		TAILQ_INSERT_TAIL(&ppc->data->infos, st, next);
+		if (ppc->args.verbose)
+			TAILQ_INSERT_TAIL(&ppc->data->infos, st, next);
+		else
+			check_status_release(ppc, st);
 		break;
 	case PMEMPOOL_CHECK_MSG_TYPE_QUESTION:
 
 		if (!ppc->args.repair) {
-			status_msg_trim(st->msg);
+			/* check found issue but cannot perform any repairs */
+			if (status_msg_trim(st->msg)) {
+				ERR("no error message for the user");
+				st->msg[0] = '\0';
+			}
 			st->status.type = PMEMPOOL_CHECK_MSG_TYPE_ERROR;
 			goto reprocess;
 		} else if (ppc->args.always_yes) {
 			if (!status_msg_trim(st->msg)) {
+				/*
+				 * have to create two check_statuses
+				 * one with information for the user and one
+				 * with "yes" answer for further processing
+				 */
 				info = st;
 				info->status.type =
 					PMEMPOOL_CHECK_MSG_TYPE_INFO;
@@ -266,7 +319,14 @@ reprocess:
 			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_YES;
 			TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
+
+			if (info) {
+				st = info;
+				info = NULL;
+				goto reprocess;
+			}
 		} else {
+			/* create simple question message */
 			status_msg_prepare(st->msg);
 			st->status.question = question;
 			ppc->result = PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS;
@@ -274,12 +334,6 @@ reprocess:
 			TAILQ_INSERT_TAIL(&ppc->data->questions, st, next);
 		}
 		break;
-	}
-
-	if (info) {
-		st = info;
-		info = NULL;
-		goto reprocess;
 	}
 
 	return NULL;
@@ -297,6 +351,9 @@ check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
 	status_release(status);
 }
 
+/*
+ * check_pop_status -- pop single message from check_status queue
+ */
 static struct check_status *
 check_pop_status(struct check_data *data, struct check_status_head *queue)
 {
@@ -339,6 +396,9 @@ check_pop_error(struct check_data *data)
 	return data->check_status_cache;
 }
 
+/*
+ * check_clear_status_cache -- release check_status from cache
+ */
 void
 check_clear_status_cache(struct check_data *data)
 {
@@ -401,15 +461,6 @@ check_push_answer(PMEMpoolcheck *ppc)
 }
 
 /*
- * check_has_info - check if any info exists
- */
-bool
-check_has_info(struct check_data *data)
-{
-	return !TAILQ_EMPTY(&data->infos);
-}
-
-/*
  * check_has_answer - check if any answer exists
  */
 bool
@@ -432,12 +483,18 @@ pop_answer(struct check_data *data)
 	return ret;
 }
 
+/*
+ * check_status_get -- extract pmempool_check_status from check_status
+ */
 struct pmempool_check_status *
 check_status_get(struct check_status *status)
 {
 	return &status->status;
 }
 
+/*
+ * check_status_is -- check if status is of provided pmempool_check_msg_type
+ */
 int
 check_status_is(struct check_status *status, enum pmempool_check_msg_type type)
 {
@@ -445,7 +502,7 @@ check_status_is(struct check_status *status, enum pmempool_check_msg_type type)
 }
 
 /*
- * check_answer_loop -- loop through all available answers
+ * check_answer_loop -- loop through all available answers and process them
  */
 struct check_status *
 check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
@@ -483,6 +540,10 @@ cannot_repair:
 	return result;
 }
 
+/*
+ * check_questions_sequence_validate -- check if sequence of questions resulted
+ *	in expected result value and returns check
+ */
 struct check_status *
 check_questions_sequence_validate(PMEMpoolcheck *ppc)
 {
@@ -490,9 +551,10 @@ check_questions_sequence_validate(PMEMpoolcheck *ppc)
 		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
 		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS ||
 		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED);
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
+	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
+		ASSERT(!TAILQ_EMPTY(&ppc->data->questions));
 		return ppc->data->questions.tqh_first;
-	else
+	} else
 		return NULL;
 }
 

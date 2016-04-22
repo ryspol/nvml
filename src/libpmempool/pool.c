@@ -112,8 +112,7 @@ pool_set_map(const char *fname, struct pool_set **poolset, int rdonly)
 
 	struct pool_hdr hdr;
 	/* read the pool header from first pool set file */
-	if (pread(fdp, &hdr, sizeof (hdr), 0)
-			!= sizeof (hdr)) {
+	if (pread(fdp, &hdr, sizeof (hdr), 0) != sizeof (hdr)) {
 		ERR("cannot read pool header from poolset");
 		ret = -1;
 		goto err_close_part;
@@ -140,12 +139,10 @@ pool_set_map(const char *fname, struct pool_set **poolset, int rdonly)
 	 * from the first poolset file, these values are then compared with
 	 * the values from all headers of poolset files.
 	 */
-	if (util_pool_open(poolset, fname, rdonly, minsize,
-			hdr.signature, hdr.major,
-			hdr.compat_features,
-			hdr.incompat_features,
-			hdr.ro_compat_features)) {
-		ERR("openning poolset failed\n");
+	if (util_pool_open(poolset, fname, rdonly, minsize, hdr.signature,
+		hdr.major, hdr.compat_features, hdr.incompat_features,
+		hdr.ro_compat_features)) {
+		ERR("openning poolset failed");
 		return -1;
 	}
 
@@ -205,8 +202,8 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 		params->size = set->poolsize;
 		addr = set->replica[0]->part[0].addr;
 	} else {
-		addr = mmap(NULL, (uint64_t)stat_buf.st_size,
-				PROT_READ, MAP_PRIVATE, fd, 0);
+		addr = mmap(NULL, (uint64_t)stat_buf.st_size, PROT_READ,
+			MAP_PRIVATE, fd, 0);
 		if (addr == MAP_FAILED) {
 			ret = -1;
 			goto out_close;
@@ -227,16 +224,15 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 		 * the UUID with the next part UUID. If it is the same
 		 * it means the pool consist of a single file.
 		 */
-		params->is_part = !params->is_poolset &&
-			(memcmp(hdr.uuid, hdr.next_part_uuid,
-			POOL_HDR_UUID_LEN) || memcmp(hdr.uuid,
-			hdr.prev_part_uuid, POOL_HDR_UUID_LEN));
+		params->is_part = !params->is_poolset && (memcmp(hdr.uuid,
+			hdr.next_part_uuid, POOL_HDR_UUID_LEN) ||
+			memcmp(hdr.uuid, hdr.prev_part_uuid,
+			POOL_HDR_UUID_LEN));
 
 		params->type = pool_hdr_get_type(&hdr);
 
 		if (ppc->args.pool_type != PMEMPOOL_POOL_TYPE_DETECT) {
-			enum pool_type declared_type =
-				1 << ppc->args.pool_type;
+			enum pool_type declared_type = 1 << ppc->args.pool_type;
 			if ((params->type & ~declared_type) != 0) {
 				ERR("declared pool type does not match");
 				ret = -1;
@@ -288,12 +284,10 @@ pool_set_file_open(const char *fname, int rdonly, int check)
 	 * set file part should be checked for valid values.
 	 */
 	if (check) {
-		if (pool_set_map(file->fname,
-				&file->poolset, rdonly))
+		if (pool_set_map(file->fname, &file->poolset, rdonly))
 			goto err_free_fname;
 	} else {
-		if (util_pool_open_nocheck(&file->poolset, file->fname,
-				rdonly))
+		if (util_pool_open_nocheck(&file->poolset, file->fname, rdonly))
 			goto err_free_fname;
 	}
 
@@ -337,18 +331,12 @@ pool_data_alloc(PMEMpoolcheck *ppc)
 	pool->narenas = 0;
 
 	if (pool_params_parse(ppc, &pool->params, 0)) {
-		if (errno)
-			perror(ppc->path);
-		else
-			ERR("%s: cannot determine type of pool\n",
-				ppc->path);
 		goto error;
 	}
 
 	int rdonly = !ppc->args.repair || ppc->args.dry_run;
 	pool->set_file = pool_set_file_open(ppc->path, rdonly, 0);
 	if (!pool->set_file) {
-		perror(ppc->path);
 		goto error;
 	}
 
@@ -435,7 +423,9 @@ pool_write(struct pool_set_file *file, void *buff, size_t nbytes, uint64_t off)
 
 	return 0;
 }
-
+/*
+ * pool_set_files_count -- get total number of parts of all replicas
+ */
 unsigned
 pool_set_files_count(struct pool_set_file *file)
 {
@@ -688,10 +678,10 @@ pool_get_first_valid_arena(struct pool_set_file *file, struct arena *arenap)
 }
 
 /*
- * pool_get_first_valid_btt -- return offset to first valid BTT Info
+ * pool_get_valid_btt -- return offset to valid BTT Info
  *
- * - Return offset to first valid BTT Info header in pool file.
- * - Start at specific offset.
+ * - Return offset to valid BTT Info header in pool file.
+ * - Read at given offset.
  * - Convert BTT Info header to host endianness.
  * - Return the BTT Info header by pointer.
  */
