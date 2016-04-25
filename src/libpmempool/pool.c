@@ -250,6 +250,19 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 			memcpy(params->obj.layout, pop.layout,
 				PMEMOBJ_MAX_LAYOUT);
 		}
+	} else {
+		struct pool_hdr hdr;
+		memcpy(&hdr, addr, sizeof (hdr));
+
+		if (check_memory((const uint8_t *)&hdr, sizeof (hdr), 0)) {
+			ERR("BTT padding not zeroed");
+			ret = -1;
+			goto out_close;
+		}
+
+		params->type = POOL_TYPE_NONE;
+		params->is_part = false;
+		params->is_btt_dev = true;
 	}
 
 	if (params->is_poolset)
