@@ -53,41 +53,47 @@ struct check_step {
 	struct check_status *(*func)(PMEMpoolcheck *);
 	enum pool_type type;
 	bool part;
+	bool btt_dev;
 };
 
 static const struct check_step check_steps[] = {
 	{
-		.type	= POOL_TYPE_ALL | POOL_TYPE_UNKNOWN,
-		.func	= check_backup,
-		.part	= true,
+		.type		= POOL_TYPE_ALL | POOL_TYPE_UNKNOWN,
+		.func		= check_backup,
+		.part		= true,
+		.btt_dev	= true
 	},
 	{
-		.type	= POOL_TYPE_BLK | POOL_TYPE_LOG | POOL_TYPE_UNKNOWN,
-		.func	= check_pool_hdr,
-		.part	= true,
+		.type		= POOL_TYPE_BLK | POOL_TYPE_LOG |
+					POOL_TYPE_UNKNOWN,
+		.func		= check_pool_hdr,
+		.part		= true,
 	},
 	{
-		.type	= POOL_TYPE_BLK | POOL_TYPE_LOG,
-		.func	= check_pmemx,
-		.part	= false,
+		.type		= POOL_TYPE_BLK | POOL_TYPE_LOG,
+		.func		= check_pmemx,
+		.part		= false,
 	},
 	{
-		.type	= POOL_TYPE_BLK,
-		.func	= check_btt_info,
-		.part	= false,
+		.type		= POOL_TYPE_BLK,
+		.func		= check_btt_info,
+		.part		= false,
+		.btt_dev	= true
 	},
 	{
-		.type	= POOL_TYPE_BLK,
-		.func	= check_btt_map_flog,
-		.part	= false,
+		.type		= POOL_TYPE_BLK,
+		.func		= check_btt_map_flog,
+		.part		= false,
+		.btt_dev	= true
 	},
 	{
-		.type	= POOL_TYPE_BLK | POOL_TYPE_LOG,
-		.func	= check_write,
-		.part	= false,
+		.type		= POOL_TYPE_BLK | POOL_TYPE_LOG,
+		.func		= check_write,
+		.part		= false,
+		.btt_dev	= true
 	},
 	{
-		.func	= NULL,
+		.func		= NULL,
 	},
 };
 
@@ -182,12 +188,14 @@ check_step(PMEMpoolcheck *ppc)
 		return status;
 	}
 
-	/* check if required conditions are met */
-	if (!(step->type & ppc->pool->params.type) ||
-		(ppc->pool->params.is_part && !step->part)) {
-		/* skip test */
-		check_step_inc(ppc->data);
-		return NULL;
+	if (!(step->btt_dev && ppc->pool->params.is_btt_dev)) {
+		/* check if required conditions are met */
+		if (!(step->type & ppc->pool->params.type) ||
+			(ppc->pool->params.is_part && !step->part)) {
+			/* skip test */
+			check_step_inc(ppc->data);
+			return NULL;
+		}
 	}
 
 	/* perform step */

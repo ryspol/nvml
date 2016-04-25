@@ -200,11 +200,19 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.blk,
 		sizeof (ppc->pool->hdr.blk), 0)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
-		status = CHECK_ERR(ppc, "writing pmemblk structure failed");
-		goto error;
+		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		return CHECK_ERR(ppc, "writing pmemblk structure failed");
 	}
 
+	return status;
+}
+
+static struct check_status *
+btt_data_write(PMEMpoolcheck *ppc, union location *loc)
+{
+	struct check_status *status = NULL;
 	struct arena *arenap;
+
 	TAILQ_FOREACH(arenap, &ppc->pool->arenas, next) {
 
 		btt_info_convert2le(&arenap->btt_info);
@@ -254,6 +262,7 @@ error:
 struct step {
 	struct check_status *(*func)(PMEMpoolcheck *, union location *loc);
 	enum pool_type type;
+	int btt_dev;
 };
 
 static const struct step steps[] = {
@@ -265,6 +274,12 @@ static const struct step steps[] = {
 	{
 		.func		= blk_write,
 		.type		= POOL_TYPE_BLK,
+	},
+	{
+		.func		= btt_data_write,
+		.type		= POOL_TYPE_BLK,
+		.btt_dev	= true
+
 	},
 	{
 		.func		= NULL,
@@ -281,8 +296,12 @@ step(PMEMpoolcheck *ppc, union location *loc)
 	const struct step *step = &steps[loc->step++];
 
 	struct check_status *status = NULL;
-	if (step->type & ppc->pool->params.type)
-		status = step->func(ppc, loc);
+
+	if (!(step->btt_dev && ppc->pool->params.is_btt_dev))
+		if (!(step->type & ppc->pool->params.type))
+			return NULL;
+
+	status = step->func(ppc, loc);
 
 	return status;
 }

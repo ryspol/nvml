@@ -564,7 +564,9 @@ check_btt_info(PMEMpoolcheck *ppc)
 
 	if (!loc->offset) {
 		CHECK_INFO(ppc, "checking BTT Info headers");
-		loc->offset = 2 * BTT_ALIGNMENT;
+		loc->offset = BTT_ALIGNMENT;
+		if (!ppc->pool->params.is_btt_dev)
+			loc->offset += BTT_ALIGNMENT;
 		loc->nextoff = 0;
 	}
 

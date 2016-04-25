@@ -48,7 +48,8 @@ enum pool_type {
 	POOL_TYPE_BLK		= 0x02,
 	POOL_TYPE_OBJ		= 0x04,
 	POOL_TYPE_ALL		= 0x0f,
-	POOL_TYPE_UNKNOWN	= 0x80,
+	POOL_TYPE_UNKNOWN	= 0x0f,
+	POOL_TYPE_NONE		= 0x10,
 };
 
 struct pool_params {
@@ -58,6 +59,7 @@ struct pool_params {
 	mode_t mode;
 	int is_poolset;
 	int is_part;
+	int is_btt_dev;
 	union {
 		struct {
 			uint64_t bsize;
