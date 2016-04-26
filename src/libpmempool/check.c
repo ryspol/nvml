@@ -49,14 +49,14 @@
 #include "check_btt_map_flog.h"
 #include "check_write.h"
 
-struct check_step {
-	struct check_status *(*func)(PMEMpoolcheck *);
+struct step {
+	void (*func)(PMEMpoolcheck *);
 	enum pool_type type;
 	bool part;
 	bool btt_dev;
 };
 
-static const struct check_step check_steps[] = {
+static const struct step steps[] = {
 	{
 		.type		= POOL_TYPE_ALL | POOL_TYPE_UNKNOWN,
 		.func		= check_backup,
@@ -182,7 +182,7 @@ check_step(PMEMpoolcheck *ppc)
 		return status;
 
 	/* get next step and check if exists */
-	const struct check_step *step = &check_steps[check_step_get(ppc->data)];
+	const struct step *step = &steps[check_step_get(ppc->data)];
 	if (step->func == NULL) {
 		check_end(ppc->data);
 		return status;
@@ -199,7 +199,7 @@ check_step(PMEMpoolcheck *ppc)
 	}
 
 	/* perform step */
-	status = step->func(ppc);
+	step->func(ppc);
 
 	/* move on to next step if no questions was generated */
 	if (ppc->result != PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {

@@ -59,7 +59,7 @@ union location {
 
 		uint32_t step;
 	};
-	struct check_instep_location instep;
+	struct check_instep instep;
 };
 
 enum questions {
@@ -285,7 +285,7 @@ flog_get_valid(struct btt_flog *flog_alpha, struct btt_flog *flog_beta)
 /*
  * check_prepare -- prepare resources for map and flog check
  */
-static struct check_status *
+static int
 check_cleanup(PMEMpoolcheck *ppc, union location *loc)
 {
 	if (loc->list_unmap)
@@ -299,26 +299,25 @@ check_cleanup(PMEMpoolcheck *ppc, union location *loc)
 	if (loc->bitmap)
 		free(loc->bitmap);
 
-	return NULL;
+	return 0;
 }
 
 /*
  * check_prepare -- prepare resources for map and flog check
  */
-static struct check_status *
+static int
 check_prepare(PMEMpoolcheck *ppc, union location *loc)
 {
-	struct check_status *status = NULL;
 	struct arena *arenap = loc->arenap;
 
 	/* read flog and map entries */
 	if (flog_read(ppc, arenap)) {
-		status = CHECK_ERR(ppc, "Cannot read flog");
+		CHECK_ERR(ppc, "Cannot read flog");
 		goto error;
 	}
 
 	if (map_read(ppc, arenap)) {
-		status = CHECK_ERR(ppc, "Cannot read map");
+		CHECK_ERR(ppc, "Cannot read map");
 		goto error;
 	}
 
@@ -326,22 +325,20 @@ check_prepare(PMEMpoolcheck *ppc, union location *loc)
 	uint32_t bitmapsize = howmany(arenap->btt_info.internal_nlba, 8);
 	loc->bitmap = calloc(bitmapsize, 1);
 	if (!loc->bitmap) {
-		status = CHECK_ERR(ppc,
-			"Cannot allocate memory for blocks bitmap");
+		CHECK_ERR(ppc, "Cannot allocate memory for blocks bitmap");
 		goto error;
 	}
 
 	loc->fbitmap = calloc(bitmapsize, 1);
 	if (!loc->fbitmap) {
-		status = CHECK_ERR(ppc,
-			"Cannot allocate memory for flog bitmap");
+		CHECK_ERR(ppc, "Cannot allocate memory for flog bitmap");
 		goto error;
 	}
 
 	/* list of invalid map entries */
 	loc->list_inval = list_alloc();
 	if (!loc->list_inval) {
-		status = CHECK_ERR(ppc,
+		CHECK_ERR(ppc,
 			"Cannot allocate memory for invalid map entries list");
 		goto error;
 	}
@@ -349,7 +346,7 @@ check_prepare(PMEMpoolcheck *ppc, union location *loc)
 	/* list of invalid flog entries */
 	loc->list_flog_inval = list_alloc();
 	if (!loc->list_flog_inval) {
-		status = CHECK_ERR(ppc,
+		CHECK_ERR(ppc,
 			"Cannot allocate memory for invalid flog entries list");
 		goto error;
 	}
@@ -357,17 +354,17 @@ check_prepare(PMEMpoolcheck *ppc, union location *loc)
 	/* list of unmapped blocks */
 	loc->list_unmap = list_alloc();
 	if (!loc->list_unmap) {
-		status = CHECK_ERR(ppc,
+		CHECK_ERR(ppc,
 			"Cannot allocate memory for unmaped blocks list");
 		goto error;
 	}
 
-	return status;
+	return 0;
 
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 	check_cleanup(ppc, loc);
-	return status;
+	return -1;
 }
 
 /*
@@ -485,10 +482,9 @@ next:
 /*
  * check_arena_map_flog -- check map and flog
  */
-static struct check_status *
+static int
 check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 {
-	struct check_status *status = NULL;
 	struct arena *arenap = loc->arenap;
 
 	/* check map entries */
@@ -527,7 +523,7 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 
 	if (!ppc->args.repair && loc->list_unmap->count > 0) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
-		return NULL;
+		return 0;
 	}
 
 	/*
@@ -537,9 +533,9 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 	if (loc->list_unmap->count != (loc->list_inval->count +
 		loc->list_flog_inval->count)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-		status = CHECK_ERR(ppc, "arena %u: cannot repair map and flog",
+		CHECK_ERR(ppc, "arena %u: cannot repair map and flog",
 			arenap->id);
-		return status;
+		return -1;
 	}
 
 	if (loc->list_inval->count > 0) {
@@ -555,20 +551,21 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 	return check_questions_sequence_validate(ppc);
 
 error_push:
-	status = CHECK_ERR(ppc, "Cannot allocate momory for list item");
+	CHECK_ERR(ppc, "Cannot allocate momory for list item");
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 	check_cleanup(ppc, loc);
-	return status;
+	return -1;
 }
 
 /*
  * check_arena_map_flog_fix -- fix map and flog
  */
-static struct check_status *
-check_arena_map_flog_fix(PMEMpoolcheck *ppc,
-	struct check_instep_location *location, uint32_t question, void *ctx)
+static int
+check_arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
+	uint32_t question, void *ctx)
 {
 	ASSERTeq(ctx, NULL);
+	ASSERTne(location, NULL);
 	union location *loc = (union location *)location;
 
 	uint32_t inval;
@@ -582,7 +579,7 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 		while (list_pop(loc->list_inval, &inval)) {
 			if (!list_pop(loc->list_unmap, &unmap)) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-				return NULL;
+				return -1;
 			}
 			loc->arenap->map[inval] = unmap | BTT_MAP_ENTRY_ERROR;
 			CHECK_INFO(ppc, "arena %u: storing 0x%x at %u entry",
@@ -595,7 +592,7 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 		while (list_pop(loc->list_flog_inval, &inval)) {
 			if (!list_pop(loc->list_unmap, &unmap)) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-				return NULL;
+				return -1;
 			}
 
 			struct btt_flog *flog_alpha = (struct btt_flog *)
@@ -621,14 +618,13 @@ check_arena_map_flog_fix(PMEMpoolcheck *ppc,
 		ERR("not implemented question id: %u", question);
 	}
 
-	return NULL;
+	return 0;
 }
 
 struct step {
-	struct check_status *(*check)(PMEMpoolcheck *, union location *loc);
-	struct check_status *(*fix)(PMEMpoolcheck *ppc,
-		struct check_instep_location *location, uint32_t question,
-		void *ctx);
+	int (*check)(PMEMpoolcheck *, union location *loc);
+	int  (*fix)(PMEMpoolcheck *ppc, struct check_instep *location,
+		uint32_t question, void *ctx);
 };
 
 static const struct step steps[] = {
@@ -657,15 +653,15 @@ static const struct step steps[] = {
 /*
  * step -- perform single step according to its parameters
  */
-static inline struct check_status *
+static inline int
 step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
-	struct check_status *status = NULL;
+	int status = 0;
 	if (step->fix != NULL) {
 		if (!check_has_answer(ppc->data))
-			return NULL;
+			return 0;
 
 		status = check_answer_loop(ppc, &loc->instep, NULL, step->fix);
 	} else
@@ -677,18 +673,17 @@ step(PMEMpoolcheck *ppc, union location *loc)
 /*
  * check_btt_map_flog -- perform check and fixing of map and flog
  */
-struct check_status *
+void
 check_btt_map_flog(PMEMpoolcheck *ppc)
 {
 	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep_location));
+		sizeof (struct check_instep));
 
 	union location *loc =
 		(union location *)check_step_location_get(ppc->data);
-	struct check_status *status = NULL;
 
 	if (ppc->pool->blk_no_layout)
-		return NULL;
+		return;
 
 	if (!loc->arenap && loc->narena == 0 &&
 		ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
@@ -708,15 +703,11 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 			(steps[loc->step].check != NULL ||
 			steps[loc->step].fix != NULL)) {
 
-			status = step(ppc, loc);
-			if (status != NULL)
-				goto cleanup;
+			if (step(ppc, loc))
+				return;
 		}
 		loc->arenap = TAILQ_NEXT(loc->arenap, next);
 		loc->narena++;
 		loc->step = 0;
 	}
-
-cleanup:
-	return status;
 }

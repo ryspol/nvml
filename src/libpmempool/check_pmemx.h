@@ -34,4 +34,4 @@
  * check_pmemx.h -- internal definitions for pmemlog and pmemblk checks
  */
 
-struct check_status *check_pmemx(PMEMpoolcheck *ppc);
+void check_pmemx(PMEMpoolcheck *ppc);

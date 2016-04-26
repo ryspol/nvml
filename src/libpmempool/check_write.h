@@ -34,4 +34,4 @@
  * check_write.h -- internal definitions for writing changes made to log and blk
  */
 
-struct check_status *check_write(PMEMpoolcheck *ppc);
+void check_write(PMEMpoolcheck *ppc);

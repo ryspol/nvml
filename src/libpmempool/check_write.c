@@ -52,7 +52,7 @@ union location {
 
 		uint32_t step;
 	};
-	struct check_instep_location instep;
+	struct check_instep instep;
 };
 
 enum questions {
@@ -63,11 +63,11 @@ enum questions {
 /*
  * log_write -- write all structures for log pool
  */
-static struct check_status *
+static int
 log_write(PMEMpoolcheck *ppc, union location *loc)
 {
 	if (!ppc->args.repair || ppc->args.dry_run)
-		return NULL;
+		return 0;
 
 	/* endianness conversion */
 	struct pmemlog *log = &ppc->pool->hdr.log;
@@ -81,7 +81,7 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 		return CHECK_ERR(ppc, "writing pmemlog structure failed");
 	}
 
-	return NULL;
+	return 0;
 }
 
 /*
@@ -99,7 +99,7 @@ btt_flog_convert2le(struct btt_flog *flogp)
 /*
  * blk_write_flog -- convert and write flog to file
  */
-static struct check_status *
+static int
 blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	if (!arenap->flog) {
@@ -130,13 +130,13 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 			arenap->id);
 	}
 
-	return NULL;
+	return 0;
 }
 
 /*
  * blk_write_map -- convert and write map to file
  */
-static struct check_status *
+static int
 blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	if (!arenap->map) {
@@ -158,7 +158,7 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 			arenap->id);
 	}
 
-	return NULL;
+	return 0;
 }
 
 /*
@@ -186,13 +186,11 @@ btt_info_convert2le(struct btt_info *infop)
 /*
  * blk_write -- write all structures for blk pool
  */
-static struct check_status *
+static int
 blk_write(PMEMpoolcheck *ppc, union location *loc)
 {
 	if (!ppc->args.repair || ppc->args.dry_run)
-		return NULL;
-
-	struct check_status *status = NULL;
+		return 0;
 
 	/* endianness conversion */
 	ppc->pool->hdr.blk.bsize = htole32(ppc->pool->hdr.blk.bsize);
@@ -204,13 +202,12 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 		return CHECK_ERR(ppc, "writing pmemblk structure failed");
 	}
 
-	return status;
+	return 0;
 }
 
-static struct check_status *
+static int
 btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 {
-	struct check_status *status = NULL;
 	struct arena *arenap;
 
 	TAILQ_FOREACH(arenap, &ppc->pool->arenas, next) {
@@ -229,7 +226,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 
 		if (pool_write(ppc->pool->set_file, &arenap->btt_info,
 			sizeof (arenap->btt_info), arenap->offset)) {
-			status = CHECK_ERR(ppc, "%s", ppc->path);
+			CHECK_INFO(ppc, "%s", ppc->path);
 			CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
 				arenap->id);
 			goto error;
@@ -239,28 +236,28 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 			sizeof (arenap->btt_info), arenap->offset +
 				le64toh(arenap->btt_info.infooff))) {
 			CHECK_INFO(ppc, "%s", ppc->path);
-			status = CHECK_ERR(ppc,
+			CHECK_ERR(ppc,
 				"arena %u: writing BTT Info backup failed",
 				arenap->id);
 			goto error;
 		}
 
-		if ((status = blk_write_flog(ppc, arenap)))
+		if (blk_write_flog(ppc, arenap))
 			goto error;
 
-		if ((status = blk_write_map(ppc, arenap)))
+		if (blk_write_map(ppc, arenap))
 			goto error;
 	}
 
-	return NULL;
+	return 0;
 
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-	return status;
+	return -1;
 }
 
 struct step {
-	struct check_status *(*func)(PMEMpoolcheck *, union location *loc);
+	int (*func)(PMEMpoolcheck *, union location *loc);
 	enum pool_type type;
 	int btt_dev;
 };
@@ -290,42 +287,33 @@ static const struct step steps[] = {
 /*
  * step -- perform single step according to its parameters
  */
-static inline struct check_status *
+static inline int
 step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
-
-	struct check_status *status = NULL;
-
 	if (!(step->btt_dev && ppc->pool->params.is_btt_dev))
 		if (!(step->type & ppc->pool->params.type))
-			return NULL;
+			return 0;
 
-	status = step->func(ppc, loc);
-
-	return status;
+	return step->func(ppc, loc);
 }
 
 /*
  * check_write --
  */
-struct check_status *
+void
 check_write(PMEMpoolcheck *ppc)
 {
 	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep_location));
+		sizeof (struct check_instep));
 
 	union location *loc =
 		(union location *)check_step_location_get(ppc->data);
-	struct check_status *status = NULL;
 
 	while (loc->step != CHECK_STEP_COMPLETE &&
 		steps[loc->step].func != NULL) {
 
-		status = step(ppc, loc);
-		if (status != NULL)
-			goto cleanup;
+		if (step(ppc, loc))
+			return;
 	}
-cleanup:
-	return status;
 }

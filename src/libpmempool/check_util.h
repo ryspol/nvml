@@ -48,8 +48,8 @@ struct check_status;
 /* container for storing instep location size */
 #define	CHECK_INSTEP_LOCATION_NUM	8
 
-struct check_instep_location {
-	uint64_t instep_location[CHECK_INSTEP_LOCATION_NUM];
+struct check_instep {
+	uint64_t location[CHECK_INSTEP_LOCATION_NUM];
 };
 
 struct check_data *check_data_alloc(void);
@@ -57,12 +57,12 @@ void check_data_free(struct check_data *data);
 
 uint32_t check_step_get(struct check_data *data);
 void check_step_inc(struct check_data *data);
-struct check_instep_location *check_step_location_get(struct check_data *data);
+struct check_instep *check_step_location_get(struct check_data *data);
 
 void check_end(struct check_data *data);
 int check_ended(struct check_data *data);
 
-struct check_status *
+int
 check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	uint32_t question, const char *fmt, ...);
 void check_status_release(PMEMpoolcheck *ppc, struct check_status *status);
@@ -70,6 +70,7 @@ void check_clear_status_cache(struct check_data *data);
 struct check_status *check_pop_question(struct check_data *data);
 struct check_status *check_pop_error(struct check_data *data);
 struct check_status *check_pop_info(struct check_data *data);
+bool check_has_error(struct check_data *data);
 bool check_has_answer(struct check_data *data);
 int check_push_answer(PMEMpoolcheck *ppc);
 
@@ -90,11 +91,11 @@ int check_status_is(struct check_status *status,
 	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_QUESTION, question,\
 		__VA_ARGS__)
 
-struct check_status *
-check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
-	void *ctx, struct check_status *(*callback)(PMEMpoolcheck *,
-	struct check_instep_location *loc, uint32_t question, void *ctx));
-struct check_status *check_questions_sequence_validate(PMEMpoolcheck *ppc);
+int
+check_answer_loop(PMEMpoolcheck *ppc, struct check_instep *loc, void *ctx,
+	int (*callback)(PMEMpoolcheck *, struct check_instep *loc,
+	uint32_t question, void *ctx));
+int check_questions_sequence_validate(PMEMpoolcheck *ppc);
 
 int check_memory(const uint8_t *buff, size_t len, uint8_t val);
 

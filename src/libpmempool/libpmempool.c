@@ -145,8 +145,8 @@ pmempool_check_init(struct pmempool_check_args *args)
 	 * repair. aggresive allow to perform more complex repairs.
 	 * so dry run and aggresive can be set only if repair is set
 	 */
-	if (!args->repair && (args->dry_run || args->aggresive)) {
-		ERR("dry run and aggresive is applicable only if repair is "
+	if (!args->repair && (args->dry_run || args->advanced)) {
+		ERR("dry run and advanced is applicable only if repair is "
 			"set");
 		errno = EINVAL;
 		return NULL;

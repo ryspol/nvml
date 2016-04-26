@@ -57,7 +57,7 @@ TAILQ_HEAD(check_status_head, check_status);
 /* check control context */
 struct check_data {
 	uint32_t step;
-	struct check_instep_location instep_location;
+	struct check_instep location;
 
 	struct check_status *error;
 	struct check_status_head infos;
@@ -143,17 +143,17 @@ void
 check_step_inc(struct check_data *data)
 {
 	++data->step;
-	memset(&data->instep_location, 0,
-		sizeof (struct check_instep_location));
+	memset(&data->location, 0,
+		sizeof (struct check_instep));
 }
 
 /*
  * check_step_location_get -- return pointer to structure describing step status
  */
-struct check_instep_location *
+struct check_instep *
 check_step_location_get(struct check_data *data)
 {
-	return &data->instep_location;
+	return &data->location;
 }
 
 #define	CHECK_END UINT32_MAX
@@ -253,13 +253,14 @@ status_msg_prepare(const char *msg)
  *	(asking any question is pointless) it takes part of message before
  *	MSG_SEPARATOR character and use it to create error message. Character
  *	just before separator must be a MSG_PLACE_OF_SEPARATION character.
+ *	Return non 0 value if error status would be created.
  */
-struct check_status *
+int
 check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 	uint32_t question, const char *fmt, ...)
 {
 	if (!ppc->args.verbose && type == PMEMPOOL_CHECK_MSG_TYPE_INFO)
-		return NULL;
+		return 0;
 
 	struct check_status *st = status_alloc();
 	struct check_status *info = NULL;
@@ -285,7 +286,7 @@ reprocess:
 	case PMEMPOOL_CHECK_MSG_TYPE_ERROR:
 		ASSERTeq(ppc->data->error, NULL);
 		ppc->data->error = st;
-		return st;
+		return -1;
 
 	case PMEMPOOL_CHECK_MSG_TYPE_INFO:
 		if (ppc->args.verbose)
@@ -336,7 +337,7 @@ reprocess:
 		break;
 	}
 
-	return NULL;
+	return 0;
 }
 
 /*
@@ -459,6 +460,14 @@ check_push_answer(PMEMpoolcheck *ppc)
 
 	return 0;
 }
+/*
+ * check_has_error - check if error exists
+ */
+bool
+check_has_error(struct check_data *data)
+{
+	return data->error != NULL;
+}
 
 /*
  * check_has_answer - check if any answer exists
@@ -504,22 +513,20 @@ check_status_is(struct check_status *status, enum pmempool_check_msg_type type)
 /*
  * check_answer_loop -- loop through all available answers and process them
  */
-struct check_status *
-check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
-	void *ctx, struct check_status *(*callback)(PMEMpoolcheck *,
-	struct check_instep_location *loc, uint32_t question, void *ctx))
+int
+check_answer_loop(PMEMpoolcheck *ppc, struct check_instep *loc, void *ctx,
+	int (*callback)(PMEMpoolcheck *, struct check_instep *loc,
+	uint32_t question, void *ctx))
 {
 	struct check_status *answer;
-	struct check_status *result = NULL;
 
 	while ((answer = pop_answer(ppc->data)) != NULL) {
 		if (answer->status.answer != PMEMPOOL_CHECK_ANSWER_YES) {
-			result = CHECK_ERR(ppc, "");
+			CHECK_ERR(ppc, "");
 			goto cannot_repair;
 		}
 
-		result = callback(ppc, loc, answer->status.question, ctx);
-		if (result != NULL)
+		if (callback(ppc, loc, answer->status.question, ctx))
 			goto cannot_repair;
 		if (ppc->result == PMEMPOOL_CHECK_RESULT_ERROR)
 			goto error;
@@ -528,23 +535,23 @@ check_answer_loop(PMEMpoolcheck *ppc, struct check_instep_location *loc,
 		check_status_release(ppc, answer);
 	}
 
-	return result;
+	return 0;
 
 error:
 	check_status_release(ppc, answer);
-	return result;
+	return -1;
 
 cannot_repair:
 	check_status_release(ppc, answer);
 	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
-	return result;
+	return -1;
 }
 
 /*
  * check_questions_sequence_validate -- check if sequence of questions resulted
  *	in expected result value and returns check
  */
-struct check_status *
+int
 check_questions_sequence_validate(PMEMpoolcheck *ppc)
 {
 	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
@@ -553,9 +560,9 @@ check_questions_sequence_validate(PMEMpoolcheck *ppc)
 		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED);
 	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
 		ASSERT(!TAILQ_EMPTY(&ppc->data->questions));
-		return ppc->data->questions.tqh_first;
+		return -1;
 	} else
-		return NULL;
+		return 0;
 }
 
 /*

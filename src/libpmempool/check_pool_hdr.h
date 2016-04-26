@@ -34,4 +34,4 @@
  * check_hdr.h -- internal definitions for pool header check
  */
 
-struct check_status *check_pool_hdr(PMEMpoolcheck *ppc);
+void check_pool_hdr(PMEMpoolcheck *ppc);
