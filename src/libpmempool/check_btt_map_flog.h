@@ -34,4 +34,4 @@
  * check_btt_info.h -- internal definitions for btt map and flog
  */
 
-struct check_status *check_btt_map_flog(PMEMpoolcheck *ppc);
+void check_btt_map_flog(PMEMpoolcheck *ppc);

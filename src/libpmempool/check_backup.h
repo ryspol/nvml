@@ -34,4 +34,4 @@
  * check_backup.h -- internal definitions for pre-check backup
  */
 
-struct check_status *check_backup(PMEMpoolcheck *ppc);
+void check_backup(PMEMpoolcheck *ppc);

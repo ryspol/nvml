@@ -34,4 +34,4 @@
  * check_btt_info.h -- internal definitions for btt info check
  */
 
-struct check_status *check_btt_info(PMEMpoolcheck *ppc);
+void check_btt_info(PMEMpoolcheck *ppc);

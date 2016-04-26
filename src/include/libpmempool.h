@@ -63,7 +63,7 @@ struct pmempool_check_args {
 	enum pmempool_pool_type pool_type;
 	bool repair;
 	bool dry_run;
-	bool aggresive;
+	bool advanced;
 	bool always_yes;
 	bool verbose;
 	uint32_t flags;

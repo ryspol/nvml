@@ -55,7 +55,7 @@ union location {
 		bool advanced_repair;
 		uint32_t step;
 	};
-	struct check_instep_location instep;
+	struct check_instep instep;
 };
 
 enum question {
@@ -82,10 +82,10 @@ location_release(union location *loc)
 /*
  * btt_info_checksum -- check BTT Info checksum
  */
-static struct check_status *
+static int
 btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 {
-	struct check_status *status = NULL;
+	int status = 0;
 	loc->arena = calloc(1, sizeof (struct arena));
 	if (!loc->arena) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR;
@@ -132,7 +132,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 		 */
 	}
 
-	return NULL;
+	return 0;
 
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
@@ -144,7 +144,7 @@ cleanup:
 /*
  * btt_info_backup -- check BTT Info backup
  */
-static struct check_status *
+static int
 btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 {
 	ASSERT(ppc->args.repair);
@@ -187,12 +187,12 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 /*
  * btt_info_backup_fix -- fix BTT Info using its backup
  */
-static struct check_status *
-btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
+static int
+btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	uint32_t question, void *ctx)
 {
 	ASSERTeq(ctx, NULL);
-
+	ASSERTne(location, NULL);
 	union location *loc = (union location *)location;
 
 	switch (question) {
@@ -209,13 +209,13 @@ btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
 		ERR("not implemented question id: %u", question);
 	}
 
-	return NULL;
+	return 0;
 }
 
 /*
  * btt_info_gen -- ask whether try to regenerate BTT Info
  */
-static struct check_status *
+static int
 btt_info_gen(PMEMpoolcheck *ppc, union location *loc)
 {
 	CHECK_ASK(ppc, Q_REGENERATE,
@@ -325,13 +325,13 @@ static struct ns_callback ns_callbacks = {
 /*
  * check_btt_info_gen_fix_exe -- BTT Info regeneration
  */
-static struct check_status *
+static int
 btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 {
 	bool eof = false;
 	uint64_t startoff = loc->offset;
 	uint64_t endoff = loc->offset2;
-	struct check_status *status = NULL;
+	int status = 0;
 	if (!endoff) {
 		endoff = ppc->pool->set_file->size;
 		eof = true;
@@ -440,14 +440,14 @@ error:
 /*
  * check_btt_info_gen_fix -- fix by regenerating BTT Info
  */
-static struct check_status *
-btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep_location *location,
+static int
+btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	uint32_t question, void *ctx)
 {
 	ASSERTeq(ctx, NULL);
-
+	ASSERTne(location, NULL);
 	union location *loc = (union location *)location;
-	struct check_status *result = NULL;
+	int result = 0;
 
 	switch (question) {
 	case Q_REGENERATE:
@@ -486,10 +486,9 @@ btt_info_final(PMEMpoolcheck *ppc, union location *loc)
 }
 
 struct step {
-	struct check_status *(*check)(PMEMpoolcheck *, union location *loc);
-	struct check_status *(*fix)(PMEMpoolcheck *ppc,
-		struct check_instep_location *location, uint32_t question,
-		void *ctx);
+	int (*check)(PMEMpoolcheck *, union location *loc);
+	int (*fix)(PMEMpoolcheck *ppc, struct check_instep *location,
+		uint32_t question, void *ctx);
 	bool advanced;
 };
 
@@ -520,24 +519,25 @@ static const struct step steps[] = {
 /*
  * check_btt_info_step -- perform single step according to its parameters
  */
-static inline struct check_status *
+static inline int
 check_btt_info_step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
 	if (step->advanced && !loc->advanced_repair)
-		return NULL;
+		return 0;
 
-	struct check_status *status = NULL;
+	int status = 0;
 	if (step->fix != NULL) {
 		if (!check_has_answer(ppc->data))
-			return NULL;
+			return 0;
 
-		status = check_answer_loop(ppc, (struct check_instep_location *)
-			loc, NULL, step->fix);
+		status = check_answer_loop(ppc, (struct check_instep *)loc,
+			NULL, step->fix);
 
-		if (check_status_is(status, PMEMPOOL_CHECK_MSG_TYPE_ERROR)) {
-			check_status_release(ppc, status);
+		if (check_has_error(ppc->data)) {
+			struct check_status *err = check_pop_error(ppc->data);
+			check_status_release(ppc, err);
 			status = CHECK_ERR(ppc,
 				"arena %u: cannot repair BTT Info header",
 				loc->arena->id);
@@ -552,15 +552,14 @@ check_btt_info_step(PMEMpoolcheck *ppc, union location *loc)
 /*
  * check_btt_info -- entry point for btt info check
  */
-struct check_status *
+void
 check_btt_info(PMEMpoolcheck *ppc)
 {
 	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep_location));
+		sizeof (struct check_instep));
 
 	union location *loc =
 		(union location *)check_step_location_get(ppc->data);
-	struct check_status *status = NULL;
 
 	if (!loc->offset) {
 		CHECK_INFO(ppc, "checking BTT Info headers");
@@ -583,16 +582,11 @@ check_btt_info(PMEMpoolcheck *ppc)
 			(steps[loc->step].check != NULL ||
 			steps[loc->step].fix != NULL)) {
 
-			status = check_btt_info_step(ppc, loc);
-			if (status != NULL)
-				goto cleanup_return;
-			else if (ppc->pool->blk_no_layout == 1)
-				return NULL;
+			if (check_btt_info_step(ppc, loc) ||
+				ppc->pool->blk_no_layout == 1)
+				return;
 		}
 
 		btt_info_final(ppc, loc);
 	} while (loc->nextoff > 0);
-
-cleanup_return:
-	return status;
 }
