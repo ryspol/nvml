@@ -366,6 +366,8 @@ pool_set_file_open(const char *fname, struct pool_params *params, int rdonly)
 err_close_poolset:
 	if (!params->is_btt_dev)
 		util_poolset_close(file->poolset, 0);
+	else
+		close(file->fd);
 err_free_fname:
 	free(file->fname);
 err:
@@ -415,7 +417,8 @@ pool_set_file_close(struct pool_set_file *file)
 	else if (file->addr) {
 		munmap(file->addr, file->size);
 		close(file->fd);
-	}
+	} else if (file->fd)
+		close(file->fd);
 	free(file->fname);
 	free(file);
 }
