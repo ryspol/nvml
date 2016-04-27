@@ -142,12 +142,14 @@ pmempool_check_init(struct pmempool_check_args *args)
 
 	/*
 	 * dry run does not allow to made changes possibly performed during
-	 * repair. aggresive allow to perform more complex repairs.
-	 * so dry run and aggresive can be set only if repair is set
+	 * repair. advanced allow to perform more complex repairs. questions
+	 * are ask only if repairs are made. so dry run, advanced and always_yes
+	 * can be set only if repair is set.
 	 */
-	if (!args->repair && (args->dry_run || args->advanced)) {
-		ERR("dry run and advanced is applicable only if repair is "
-			"set");
+	if (!args->repair && (args->dry_run || args->advanced ||
+		args->always_yes)) {
+		ERR("dry run, advanced and alwyas_yes are applicable only if "
+			"repair is set");
 		errno = EINVAL;
 		return NULL;
 	}
