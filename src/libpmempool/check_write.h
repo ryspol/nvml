@@ -31,7 +31,7 @@
  */
 
 /*
- * check_write.h -- internal definitions for writing changes made to log and blk
+ * check_write.h -- internal definitions for writing changes back
  */
 
 void check_write(PMEMpoolcheck *ppc);

@@ -31,7 +31,7 @@
  */
 
 /*
- * check_btt_info.c -- check btt map and flog
+ * check_btt_map_flog.c -- check btt map and flog
  */
 
 #include <unistd.h>
@@ -68,7 +68,7 @@ enum questions {
 };
 
 /*
- * btt_flog_convert2h -- convert btt_flog to host byte order
+ * flog_convert2h -- (internal) convert btt_flog to host byte order
  */
 static void
 flog_convert2h(struct btt_flog *flogp)
@@ -80,7 +80,7 @@ flog_convert2h(struct btt_flog *flogp)
 }
 
 /*
- * flog_read -- read and convert flog from file
+ * flog_read -- (internal) read and convert flog from file
  */
 static int
 flog_read(PMEMpoolcheck *ppc, struct arena *arenap)
@@ -96,8 +96,7 @@ flog_read(PMEMpoolcheck *ppc, struct arena *arenap)
 		goto error_malloc;
 	}
 
-	if (pool_read(ppc->pool->set_file, arenap->flog, arenap->flogsize,
-		flogoff)) {
+	if (pool_read(ppc->pool, arenap->flog, arenap->flogsize, flogoff)) {
 		ERR("arena %u: cannot read BTT FLOG", arenap->id);
 		goto error_read;
 	}
@@ -126,7 +125,7 @@ error_malloc:
 }
 
 /*
- * map_read -- read and convert map from file
+ * map_read -- (internal) read and convert map from file
  */
 static int
 map_read(PMEMpoolcheck *ppc, struct arena *arenap)
@@ -141,8 +140,7 @@ map_read(PMEMpoolcheck *ppc, struct arena *arenap)
 		goto error_malloc;
 	}
 
-	if (pool_read(ppc->pool->set_file, arenap->map, arenap->mapsize,
-		mapoff)) {
+	if (pool_read(ppc->pool, arenap->map, arenap->mapsize, mapoff)) {
 		ERR("arena %u: cannot read BTT map", arenap->id);
 		goto error_read;
 	}
@@ -177,7 +175,7 @@ struct list {
 };
 
 /*
- * list_alloc -- allocate an empty list
+ * list_alloc -- (internal) allocate an empty list
  */
 static struct list *
 list_alloc(void)
@@ -193,7 +191,7 @@ list_alloc(void)
 }
 
 /*
- * list_push -- insert new element to the list
+ * list_push -- (internal) insert new element to the list
  */
 static struct list_item *
 list_push(struct list *list, uint32_t val)
@@ -210,7 +208,7 @@ list_push(struct list *list, uint32_t val)
 }
 
 /*
- * list_pop -- pop element from list head
+ * list_pop -- (internal) pop element from list head
  */
 static int
 list_pop(struct list *list, uint32_t *valp)
@@ -230,7 +228,7 @@ list_pop(struct list *list, uint32_t *valp)
 }
 
 /*
- * list_free -- free the list
+ * list_free -- (internal) free the list
  */
 static void
 list_free(struct list *list)
@@ -240,7 +238,7 @@ list_free(struct list *list)
 }
 
 /*
- * check_flog_seq -- check FLOG sequence number value
+ * flog_seq_check -- (internal) check FLOG sequence number value
  */
 static int
 flog_seq_check(uint32_t seq)
@@ -252,7 +250,7 @@ static const unsigned Nseq[] = { 0, 2, 3, 1 };
 #define	NSEQ(seq) (Nseq[(seq) & 3])
 
 /*
- * flog_get_valid -- return valid flog entry
+ * flog_get_valid -- (internal) return valid flog entry
  */
 static struct btt_flog *
 flog_get_valid(struct btt_flog *flog_alpha, struct btt_flog *flog_beta)
@@ -283,10 +281,10 @@ flog_get_valid(struct btt_flog *flog_alpha, struct btt_flog *flog_beta)
 }
 
 /*
- * check_prepare -- prepare resources for map and flog check
+ * cleanup -- (internal) prepare resources for map and flog check
  */
 static int
-check_cleanup(PMEMpoolcheck *ppc, union location *loc)
+cleanup(PMEMpoolcheck *ppc, union location *loc)
 {
 	if (loc->list_unmap)
 		list_free(loc->list_unmap);
@@ -303,10 +301,10 @@ check_cleanup(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * check_prepare -- prepare resources for map and flog check
+ * prepare -- (internal) prepare resources for map and flog check
  */
 static int
-check_prepare(PMEMpoolcheck *ppc, union location *loc)
+prepare(PMEMpoolcheck *ppc, union location *loc)
 {
 	struct arena *arenap = loc->arenap;
 
@@ -363,12 +361,12 @@ check_prepare(PMEMpoolcheck *ppc, union location *loc)
 
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-	check_cleanup(ppc, loc);
+	cleanup(ppc, loc);
 	return -1;
 }
 
 /*
- * map_entry_check -- check single map entry
+ * map_entry_check -- (internal) check single map entry
  */
 static int
 map_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i)
@@ -401,7 +399,7 @@ map_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i)
 }
 
 /*
- * flog_entry_check --  check single flog entry
+ * flog_entry_check -- (internal) check single flog entry
  */
 static int
 flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
@@ -480,10 +478,10 @@ next:
 }
 
 /*
- * check_arena_map_flog -- check map and flog
+ * arena_map_flog_check -- (internal) check map and flog
  */
 static int
-check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
+arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 {
 	struct arena *arenap = loc->arenap;
 
@@ -553,15 +551,15 @@ check_arena_map_flog(PMEMpoolcheck *ppc, union location *loc)
 error_push:
 	CHECK_ERR(ppc, "Cannot allocate momory for list item");
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-	check_cleanup(ppc, loc);
+	cleanup(ppc, loc);
 	return -1;
 }
 
 /*
- * check_arena_map_flog_fix -- fix map and flog
+ * arena_map_flog_fix -- (internal) fix map and flog
  */
 static int
-check_arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
+arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	uint32_t question, void *ctx)
 {
 	ASSERTeq(ctx, NULL);
@@ -629,19 +627,19 @@ struct step {
 
 static const struct step steps[] = {
 	{
-		.check	= check_prepare,
+		.check	= prepare,
 
 	},
 	{
-		.check	= check_arena_map_flog,
+		.check	= arena_map_flog_check,
 
 	},
 	{
-		.fix	= check_arena_map_flog_fix,
+		.fix	= arena_map_flog_fix,
 
 	},
 	{
-		.check	= check_cleanup,
+		.check	= cleanup,
 
 	},
 	{
@@ -651,7 +649,7 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- perform single step according to its parameters
+ * step -- (internal) perform single step according to its parameters
  */
 static inline int
 step(PMEMpoolcheck *ppc, union location *loc)

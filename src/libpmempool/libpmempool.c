@@ -108,7 +108,7 @@ pmempool_errormsg(void)
 }
 
 /*
- * pmempool_ppc_set_default -- set default values of check context
+ * pmempool_ppc_set_default -- (internal) set default values of check context
  */
 static void
 pmempool_ppc_set_default(PMEMpoolcheck *ppc)

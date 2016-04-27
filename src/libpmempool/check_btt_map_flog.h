@@ -31,7 +31,7 @@
  */
 
 /*
- * check_btt_info.h -- internal definitions for btt map and flog
+ * check_btt_map_flog.h -- internal definitions for btt map and flog
  */
 
 void check_btt_map_flog(PMEMpoolcheck *ppc);

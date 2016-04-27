@@ -31,7 +31,7 @@
  */
 
 /*
- * check_hdr.h -- internal definitions for pool header check
+ * check_pool_hdr.h -- internal definitions for pool header check
  */
 
 void check_pool_hdr(PMEMpoolcheck *ppc);

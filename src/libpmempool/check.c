@@ -116,6 +116,10 @@ error_data_malloc:
 	return -1;
 }
 
+/*
+ * status_get -- (internal) get next check_status which should be presented
+ *	to the user
+ */
 static inline struct check_status *
 status_get(PMEMpoolcheck *ppc)
 {

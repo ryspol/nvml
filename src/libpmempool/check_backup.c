@@ -46,35 +46,6 @@
 #include "check_backup.h"
 
 /*
- * backup_create -- create backup file
- */
-static int
-backup_create(PMEMpoolcheck *ppc)
-{
-	CHECK_INFO(ppc, "creating backup file: %s", ppc->backup_path);
-
-	struct pool_set_file *file = ppc->pool->set_file;
-	int dfd = util_file_create(ppc->backup_path, file->size, 0);
-	if (dfd < 0)
-		return -1;
-
-	void *daddr = mmap(NULL, file->size, PROT_READ | PROT_WRITE,
-		MAP_SHARED, dfd, 0);
-	if (daddr == MAP_FAILED) {
-		close(dfd);
-		return -1;
-	}
-
-	void *saddr = pool_set_file_map(file, 0);
-
-	memcpy(daddr, saddr, file->size);
-	munmap(daddr, file->size);
-	close(dfd);
-
-	return 0;
-}
-
-/*
  * check_backup -- perform backup if requested and needed
  */
 void
@@ -82,7 +53,8 @@ check_backup(PMEMpoolcheck *ppc)
 {
 	if (ppc->args.repair && ppc->backup_path != NULL &&
 		!ppc->args.dry_run) {
-		if (backup_create(ppc)) {
+		CHECK_INFO(ppc, "creating backup file: %s", ppc->backup_path);
+		if (pool_copy(ppc->pool, ppc->backup_path)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 			CHECK_ERR(ppc, "unable to create backup file");
 		}

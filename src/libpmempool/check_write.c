@@ -31,7 +31,7 @@
  */
 
 /*
- * check_btt_info.c -- check btt info
+ * check_write.c -- write fixed data back
  */
 
 #include <unistd.h>
@@ -61,7 +61,7 @@ enum questions {
 };
 
 /*
- * log_write -- write all structures for log pool
+ * log_write -- (internal) write all structures for log pool
  */
 static int
 log_write(PMEMpoolcheck *ppc, union location *loc)
@@ -76,7 +76,7 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 	log->write_offset = htole64(log->write_offset);
 
 
-	if (pool_write(ppc->pool->set_file, log, sizeof (*log), 0)) {
+	if (pool_write(ppc->pool, log, sizeof (*log), 0)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemlog structure failed");
 	}
@@ -85,7 +85,7 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * btt_flog_convert2le -- convert btt_flog to LE byte order
+ * btt_flog_convert2le -- (internal) convert btt_flog to LE byte order
  */
 static void
 btt_flog_convert2le(struct btt_flog *flogp)
@@ -97,7 +97,7 @@ btt_flog_convert2le(struct btt_flog *flogp)
 }
 
 /*
- * blk_write_flog -- convert and write flog to file
+ * blk_write_flog -- (internal) convert and write flog to file
  */
 static int
 blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
@@ -122,8 +122,7 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 		ptr += BTT_FLOG_PAIR_ALIGN;
 	}
 
-	if (pool_write(ppc->pool->set_file, arenap->flog, arenap->flogsize,
-		flogoff)) {
+	if (pool_write(ppc->pool, arenap->flog, arenap->flogsize, flogoff)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "arena %u: writing BTT FLOG failed\n",
@@ -134,7 +133,7 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 }
 
 /*
- * blk_write_map -- convert and write map to file
+ * blk_write_map -- (internal) convert and write map to file
  */
 static int
 blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
@@ -150,8 +149,7 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 	for (i = 0; i < arenap->btt_info.external_nlba; i++)
 		arenap->map[i] = htole32(arenap->map[i]);
 
-	if (pool_write(ppc->pool->set_file, arenap->map, arenap->mapsize,
-		mapoff)) {
+	if (pool_write(ppc->pool, arenap->map, arenap->mapsize, mapoff)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "arena %u: writing BTT map failed\n",
@@ -162,7 +160,7 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 }
 
 /*
- * btt_info_convert2le -- convert btt_info header to LE byte order
+ * btt_info_convert2le -- (internal) convert btt_info header to LE byte order
  */
 static void
 btt_info_convert2le(struct btt_info *infop)
@@ -184,7 +182,7 @@ btt_info_convert2le(struct btt_info *infop)
 }
 
 /*
- * blk_write -- write all structures for blk pool
+ * blk_write -- (internal) write all structures for blk pool
  */
 static int
 blk_write(PMEMpoolcheck *ppc, union location *loc)
@@ -195,7 +193,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	/* endianness conversion */
 	ppc->pool->hdr.blk.bsize = htole32(ppc->pool->hdr.blk.bsize);
 
-	if (pool_write(ppc->pool->set_file, &ppc->pool->hdr.blk,
+	if (pool_write(ppc->pool, &ppc->pool->hdr.blk,
 		sizeof (ppc->pool->hdr.blk), 0)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
@@ -205,6 +203,9 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	return 0;
 }
 
+/*
+ * btt_data_write -- (internal) write BTT data
+ */
 static int
 btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 {
@@ -224,7 +225,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 					&arenap->btt_info.checksum, 1);
 		}
 
-		if (pool_write(ppc->pool->set_file, &arenap->btt_info,
+		if (pool_write(ppc->pool, &arenap->btt_info,
 			sizeof (arenap->btt_info), arenap->offset)) {
 			CHECK_INFO(ppc, "%s", ppc->path);
 			CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
@@ -232,7 +233,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 			goto error;
 		}
 
-		if (pool_write(ppc->pool->set_file, &arenap->btt_info,
+		if (pool_write(ppc->pool, &arenap->btt_info,
 			sizeof (arenap->btt_info), arenap->offset +
 				le64toh(arenap->btt_info.infooff))) {
 			CHECK_INFO(ppc, "%s", ppc->path);
@@ -285,7 +286,7 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- perform single step according to its parameters
+ * step -- (internal) perform single step according to its parameters
  */
 static inline int
 step(PMEMpoolcheck *ppc, union location *loc)
@@ -299,7 +300,7 @@ step(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * check_write --
+ * check_write -- write fixed data back
  */
 void
 check_write(PMEMpoolcheck *ppc)

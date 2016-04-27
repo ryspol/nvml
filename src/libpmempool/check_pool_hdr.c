@@ -88,7 +88,7 @@ enum question {
 };
 
 /*
- * pool_hdr_possible_type -- return possible type of pool
+ * pool_hdr_possible_type -- (internal) return possible type of pool
  */
 static enum pool_type
 pool_hdr_possible_type(PMEMpoolcheck *ppc)
@@ -97,7 +97,7 @@ pool_hdr_possible_type(PMEMpoolcheck *ppc)
 	 * We can scan pool file for valid BTT Info header if found it means
 	 * this is pmem blk pool.
 	 */
-	if (pool_get_first_valid_arena(ppc->pool->set_file, &ppc->pool->bttc)) {
+	if (pool_get_first_valid_arena(ppc->pool, &ppc->pool->bttc)) {
 		return POOL_TYPE_BLK;
 	}
 
@@ -105,7 +105,7 @@ pool_hdr_possible_type(PMEMpoolcheck *ppc)
 }
 
 /*
- * pool_hdr_valid -- return true if pool header is valid
+ * pool_hdr_valid -- (internal) return true if pool header is valid
  */
 static int
 pool_hdr_valid(struct pool_hdr *hdrp)
@@ -115,7 +115,7 @@ pool_hdr_valid(struct pool_hdr *hdrp)
 }
 
 /*
- * pool_supported -- check if pool type is supported
+ * pool_supported -- (internal) check if pool type is supported
  */
 static int
 pool_supported(enum pool_type type)
@@ -132,7 +132,7 @@ pool_supported(enum pool_type type)
 }
 
 /*
- * pool_hdr_get -- get pool header from given location
+ * pool_hdr_get -- (internal) get pool header from given location
  */
 static void
 pool_hdr_get(PMEMpoolcheck *ppc, struct pool_hdr *hdr, struct pool_hdr **shdr,
@@ -148,7 +148,7 @@ pool_hdr_get(PMEMpoolcheck *ppc, struct pool_hdr *hdr, struct pool_hdr **shdr,
 }
 
 /*
- * pool_get_type_str -- return human-readable pool type string
+ * pool_get_type_str -- (internal) return human-readable pool type string
  */
 static const char *
 pool_type_get_str(enum pool_type type)
@@ -166,7 +166,7 @@ pool_type_get_str(enum pool_type type)
 }
 
 /*
- * pool_hdr_checksum -- check pool header by checksum
+ * pool_hdr_checksum -- (internal) check pool header by checksum
  */
 static int
 pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
@@ -237,7 +237,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * pool_hdr_default -- check some default values in pool header
+ * pool_hdr_default_check -- (internal) check some default values in pool header
  */
 static int
 pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
@@ -294,7 +294,7 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * pool_hdr_default_fix -- fix some default values in pool header
+ * pool_hdr_default_fix -- (internal) fix some default values in pool header
  */
 static int
 pool_hdr_default_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -342,7 +342,7 @@ pool_hdr_default_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * pool_get_valid_part -- returns valid part replica and part ids
+ * pool_get_valid_part -- (internal) returns valid part replica and part ids
  */
 static int
 pool_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
@@ -367,7 +367,7 @@ pool_get_valid_part(PMEMpoolcheck *ppc, unsigned rid, unsigned pid,
 }
 
 /*
- * pool_hdr_poolset_uuid -- check poolset_uuid field
+ * pool_hdr_poolset_uuid -- (internal) check poolset_uuid field
  */
 static int
 pool_hdr_poolset_uuid(PMEMpoolcheck *ppc, union location *loc)
@@ -415,7 +415,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * pool_hdr_poolset_uuid_fix -- fix poolset_uuid field
+ * pool_hdr_poolset_uuid_fix -- (internal) fix poolset_uuid field
  */
 static int
 pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -460,7 +460,8 @@ pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * pool_hdr_checksum_retry -- check if checksum match after all performed fixes
+ * pool_hdr_checksum_retry -- (internal) check if checksum match after all
+ *	performed fixes
  */
 static int
 pool_hdr_checksum_retry(PMEMpoolcheck *ppc,
@@ -476,7 +477,7 @@ pool_hdr_checksum_retry(PMEMpoolcheck *ppc,
 }
 
 /*
- * pool_hdr_gen -- generate pool hdr values
+ * pool_hdr_gen -- (internal) generate pool hdr values
  */
 static int
 pool_hdr_gen(PMEMpoolcheck *ppc, union location *loc)
@@ -498,7 +499,8 @@ pool_hdr_gen(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * pool_hdr_gen_fix -- fix pool hdr values by overwrite with generated values
+ * pool_hdr_gen_fix -- (internal) fix pool hdr values by overwrite with
+ *	generated values
  */
 static int
 pool_hdr_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -529,7 +531,7 @@ pool_hdr_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * pool_hdr_all_uuid_same -- check if all uuids are same and non-zero
+ * pool_hdr_all_uuid_same -- (internal) check if all uuids are same and non-zero
  */
 static int
 pool_hdr_all_uuid_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN], int n)
@@ -545,7 +547,7 @@ pool_hdr_all_uuid_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN], int n)
 }
 
 /*
- * uuid_get_max_same -- return indices of two the same uuids
+ * uuid_get_max_same -- (internal) return indices of two the same uuids
  */
 static int
 uuid_get_max_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
@@ -575,7 +577,7 @@ uuid_get_max_same(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
 }
 
 /*
- * pool_hdr_uuids_single -- check UUID values for a single pool file
+ * pool_hdr_uuids_single -- (internal) check UUID values for a single pool file
  */
 static int
 pool_hdr_uuids_single(PMEMpoolcheck *ppc, union location *loc)
@@ -607,7 +609,7 @@ pool_hdr_uuids_single(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * pool_hdr_set_all_uuids -- set all uuids to the specified one
+ * pool_hdr_set_all_uuids -- (internal) set all uuids to the specified one
  */
 static void
 pool_hdr_set_all_uuids(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
@@ -621,7 +623,8 @@ pool_hdr_set_all_uuids(unsigned char (*uuids)[POOL_HDR_UUID_LEN],
 }
 
 /*
- * check_pool_hdr_uuids_single_fix -- fix UUID values for a single pool file
+ * pool_hdr_uuids_single_fix -- (internal) fix UUID values for a single pool
+ *	file
  */
 static int
 pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -656,7 +659,7 @@ pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * pool_hdr_uuids_check -- check UUID values for pool file
+ * pool_hdr_uuids_check -- (internal) check UUID values for pool file
  */
 static int
 pool_hdr_uuids_check(PMEMpoolcheck *ppc, union location *loc)
@@ -733,7 +736,7 @@ pool_hdr_uuids_check(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * pool_hdr_uuids_fix -- fix UUID values for pool file
+ * pool_hdr_uuids_fix -- (internal) fix UUID values for pool file
  */
 static int
 pool_hdr_uuids_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -835,10 +838,10 @@ static const struct step steps[] = {
 };
 
 /*
- * check_pool_hdr_step -- perform single step according to its parameters
+ * step -- (internal) perform single step according to its parameters
  */
 static int
-check_pool_hdr_step(PMEMpoolcheck *ppc, union location *loc,
+step(PMEMpoolcheck *ppc, union location *loc,
 	struct pool_replica *rep, unsigned nreplicas)
 {
 	const struct step *step = &steps[loc->step++];
@@ -933,8 +936,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 				!= NULL || steps[loc->step].fix
 				!= NULL)) {
 
-				if (check_pool_hdr_step(ppc, loc, rep,
-					nreplicas))
+				if (step(ppc, loc, rep, nreplicas))
 					goto cleanup;
 			}
 		}
