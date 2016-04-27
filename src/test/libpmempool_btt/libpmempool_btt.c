@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 		.pool_type	= PMEMPOOL_POOL_TYPE_BTT_DEV,
 		.repair		= true,
 		.dry_run	= false,
-		.aggresive	= false,
+		.advanced	= false,
 		.always_yes	= false,
 		.flags		= PMEMPOOL_CHECK_FORMAT_STR,
 		.verbose	= true,
@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 			args.dry_run = (bool)strtoul(optarg, NULL, 0);
 			break;
 		case 'a':
-			args.aggresive = (bool)strtoul(optarg, NULL, 0);
+			args.advanced = (bool)strtoul(optarg, NULL, 0);
 			break;
 		case 'y':
 			args.always_yes = (bool)strtoul(optarg, NULL, 0);
