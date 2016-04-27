@@ -65,7 +65,7 @@ enum question {
 
 struct btt_context {
 	PMEMpoolcheck *ppc;
-	void *addr;
+	uint64_t base_off;
 	uint64_t len;
 };
 
@@ -178,7 +178,8 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 			"Restore BTT Info from backup?", loc->arena->id);
 	} else {
 		loc->advanced_repair = true;
-		loc->offset2 = endoff;
+		if (endoff < ppc->pool->set_file->size)
+			loc->offset2 = endoff;
 	}
 
 	return check_questions_sequence_validate(ppc);
@@ -237,8 +238,7 @@ ns_read(void *ns, unsigned lane, void *buf, size_t count, uint64_t off)
 		errno = EINVAL;
 		return -1;
 	}
-
-	memcpy(buf, (char *)nsc->addr + off, count);
+	pool_read(nsc->ppc->pool, buf, count, nsc->base_off + off);
 
 	return 0;
 }
@@ -255,8 +255,7 @@ ns_write(void *ns, unsigned lane, const void *buf, size_t count, uint64_t off)
 		errno = EINVAL;
 		return -1;
 	}
-
-	memcpy((char *)nsc->addr + off, buf, count);
+	pool_write(nsc->ppc->pool, buf, count, nsc->base_off + off);
 
 	return 0;
 }
@@ -278,9 +277,10 @@ ns_map(void *ns, unsigned lane, void **addrp, size_t len, uint64_t off)
 
 	/*
 	 * Since the entire file is memory-mapped, this callback can always
-	 * provide the entire length requested.
+	 * provide the entire length requested. For BTT device it is only an
+	 * offset calculation.
 	 */
-	*addrp = (char *)nsc->addr + off;
+	*addrp = (void *)(nsc->base_off + off);
 
 	return (ssize_t)len;
 }
@@ -306,7 +306,7 @@ ns_zero(void *ns, unsigned lane, size_t len, uint64_t off)
 		errno = EINVAL;
 		return -1;
 	}
-	memset((char *)nsc->addr + off, 0, len);
+	pool_memset(nsc->ppc->pool, nsc->base_off + off, 0, len);
 
 	return 0;
 }
@@ -355,7 +355,7 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 	/* setup btt context */
 	struct btt_context btt_context = {
 		.ppc = ppc,
-		.addr = addr,
+		.base_off = startoff,
 		.len = rawsize
 	};
 
@@ -383,10 +383,10 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 	uint64_t nextoff = 0;
 	do {
 		offset += nextoff;
-		struct btt_info *infop = (struct btt_info *)((uintptr_t)addr +
-			offset);
+		struct btt_info info;
+		pool_read(ppc->pool, &info, sizeof(info), startoff + offset);
 
-		if (pool_btt_info_valid(infop) != 1) {
+		if (pool_btt_info_valid(&info) != 1) {
 			status = CHECK_ERR(ppc, "writing layout failed");
 			goto error_btt;
 		}
@@ -400,11 +400,11 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 		arenap->offset = offset + startoff;
 		arenap->valid = true;
 		arenap->id = ppc->pool->narenas;
-		memcpy(&arenap->btt_info, infop, sizeof (arenap->btt_info));
+		memcpy(&arenap->btt_info, &info, sizeof (arenap->btt_info));
 
 		check_insert_arena(ppc, arenap);
 
-		nextoff = le64toh(infop->nextoff);
+		nextoff = le64toh(info.nextoff);
 	} while (nextoff > 0);
 
 	if (!eof) {
@@ -431,7 +431,8 @@ btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
 error_btt:
 	btt_fini(bttp);
 error_unmap:
-	munmap(addr, rawsize);
+	if (!ppc->pool->params.is_btt_dev)
+		munmap(addr, rawsize);
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 	return status;

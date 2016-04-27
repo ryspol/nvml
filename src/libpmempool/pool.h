@@ -43,8 +43,6 @@
 #include "btt_layout.h"
 #include "libpmemobj.h"
 
-#define	BTT_SEEK_SET	SEEK_SET
-
 enum pool_type {
 	POOL_TYPE_LOG		= 0x01,
 	POOL_TYPE_BLK		= 0x02,
@@ -121,9 +119,10 @@ void pool_data_free(struct pool_data *pool);
 void *pool_set_file_map(struct pool_set_file *file, uint64_t offset);
 int pool_read(struct pool_data *pool, void *buff, size_t nbytes,
 	uint64_t off);
-int pool_write(struct pool_data *pool, void *buff, size_t nbytes,
+int pool_write(struct pool_data *pool, const void *buff, size_t nbytes,
 	uint64_t off);
 int pool_copy(struct pool_data *pool, const char *dst_path);
+int pool_memset(struct pool_data *pool, uint64_t off, int c, size_t count);
 
 unsigned pool_set_files_count(struct pool_set_file *file);
 int pool_set_file_map_headers(struct pool_set_file *file, int rdonly,
