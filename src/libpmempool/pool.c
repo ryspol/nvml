@@ -92,7 +92,7 @@ btt_read(struct pool_data *pool, void *dst, size_t count)
  * btt_write -- perform write in BTT file mode
  */
 static inline ssize_t
-btt_write(struct pool_data *pool, void *src, size_t count)
+btt_write(struct pool_data *pool, const void *src, size_t count)
 {
 	ssize_t nwrite = 0;
 	size_t total = 0;
@@ -468,7 +468,7 @@ pool_read(struct pool_data *pool, void *buff, size_t nbytes, uint64_t off)
 	if (!pool->params.is_btt_dev)
 		memcpy(buff, (char *)pool->set_file->addr + off, nbytes);
 	else {
-		if (btt_lseek(pool, (off_t)off, BTT_SEEK_SET) == -1)
+		if (btt_lseek(pool, (off_t)off, SEEK_SET) == -1)
 			return -1;
 		if ((size_t)btt_read(pool, buff, nbytes) != nbytes)
 			return -1;
@@ -481,7 +481,7 @@ pool_read(struct pool_data *pool, void *buff, size_t nbytes, uint64_t off)
  * pool_write -- write to pool set file or regular file
  */
 int
-pool_write(struct pool_data *pool, void *buff, size_t nbytes, uint64_t off)
+pool_write(struct pool_data *pool, const void *buff, size_t nbytes, uint64_t off)
 {
 	if (off + nbytes > pool->set_file->size)
 		return -1;
@@ -489,7 +489,7 @@ pool_write(struct pool_data *pool, void *buff, size_t nbytes, uint64_t off)
 	if (!pool->params.is_btt_dev)
 		memcpy((char *)pool->set_file->addr + off, buff, nbytes);
 	else {
-		if (btt_lseek(pool, (off_t)off, BTT_SEEK_SET) == -1)
+		if (btt_lseek(pool, (off_t)off, SEEK_SET) == -1)
 			return -1;
 		if ((size_t)btt_write(pool, buff, nbytes) != nbytes)
 			return -1;
@@ -530,7 +530,7 @@ pool_copy(struct pool_data *pool, const char *dst_path)
 			result = -1;
 			goto error;
 		}
-		btt_lseek(pool, 0, BTT_SEEK_SET);
+		btt_lseek(pool, 0, SEEK_SET);
 		ssize_t buf_read = 0;
 		void *dst = daddr;
 		while ((buf_read =
@@ -548,6 +548,42 @@ error_read:
 
 error:
 	close(dfd);
+	return result;
+}
+
+/*
+ * pool_memset -- memset pool part described by off and count
+ */
+int
+pool_memset(struct pool_data *pool, uint64_t off, int c, size_t count)
+{
+	int result = 0;
+
+	if (!pool->params.is_btt_dev)
+		memset((char *)off, 0, count);
+	else {
+		btt_lseek(pool, (off_t)off, SEEK_SET);
+		size_t zero_size = min(count, BTT_DEV_BUFFER_SIZE);
+		void *buf = malloc(zero_size);
+		if (!buf) {
+			ERR("!malloc");
+			return -1;
+		}
+		memset(buf, c, zero_size);
+		ssize_t nwrite = 0;
+		do {
+			zero_size = min(zero_size, count);
+			nwrite = btt_write(pool, buf, zero_size);
+			if (nwrite < 0) {
+				result = -1;
+				goto error_write;
+			}
+			count -= (size_t)nwrite;
+		} while (count > 0);
+error_write:
+		free(buf);
+	}
+
 	return result;
 }
 
