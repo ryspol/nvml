@@ -227,6 +227,10 @@ EXAMPLES_TESTS = \
 CPP_EXAMPLE_TESTS = \
 	ex_libpmemobj_cpp
 
+LIBPMEMPOOL_TESTS = \
+       libpmempool_api\
+       libpmempool_btt\
+
 TESTS = \
        $(OBJ_TESTS)\
        $(BLK_TESTS)\
@@ -237,7 +241,8 @@ TESTS = \
        $(RPMEM_TESTS)\
        $(VMEM_TESTS)\
        $(VMMALLOC_TESTS)\
-       $(EXAMPLES_TESTS)
+       $(EXAMPLES_TESTS)\
+       $(LIBPMEMPOOL_TESTS)
 
 ifeq ($(call check_cxx_flags, -std=c++11), y)
 TESTS += $(OBJ_CPP_TESTS)
@@ -322,6 +327,10 @@ pcheck_pmem: $(PMEM_TESTS)
 pcheck_pmempool: TARGET = pcheck
 pcheck_pmempool: $(PMEMPOOL_TESTS)
 	@echo "No failures."
+	
+pcheck_libpmempool: TARGET = pcheck
+pcheck_libpmempool: $(LIBPMEMPOOL_TESTS)
+	@echo "No failures."
 
 pcheck_vmem: TARGET = pcheck
 pcheck_vmem: $(VMEM_TESTS)
@@ -332,5 +341,5 @@ pcheck_vmmalloc: $(VMMALLOC_TESTS)
 	@echo "No failures."
 
 .PHONY: all check clean clobber cstyle pcheck pcheck_blk pcheck_log pcheck_obj\
-        pcheck_other pcheck_pmem pcheck_pmempool pcheck_vmem pcheck_vmmalloc\
-        test unittest tools $(TESTS_BUILD)
+        pcheck_other pcheck_pmem pcheck_pmempool pcheck_libpmempool\
+        pcheck_vmem pcheck_vmmalloc test unittest tools $(TESTS_BUILD)
