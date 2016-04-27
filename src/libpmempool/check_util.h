@@ -31,7 +31,7 @@
  */
 
 /*
- * check_utils.h -- internal definitions check utils
+ * check_util.h -- internal definitions check util
  */
 
 #define	CHECK_STEP_COMPLETE	UINT32_MAX

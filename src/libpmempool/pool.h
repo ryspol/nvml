@@ -43,6 +43,8 @@
 #include "btt_layout.h"
 #include "libpmemobj.h"
 
+#define	BTT_SEEK_SET	SEEK_SET
+
 enum pool_type {
 	POOL_TYPE_LOG		= 0x01,
 	POOL_TYPE_BLK		= 0x02,
@@ -117,10 +119,11 @@ struct pool_data *pool_data_alloc(PMEMpoolcheck *ppc);
 void pool_data_free(struct pool_data *pool);
 
 void *pool_set_file_map(struct pool_set_file *file, uint64_t offset);
-int pool_read(struct pool_set_file *file, void *buff, size_t nbytes,
+int pool_read(struct pool_data *pool, void *buff, size_t nbytes,
 	uint64_t off);
-int pool_write(struct pool_set_file *file, void *buff, size_t nbytes,
+int pool_write(struct pool_data *pool, void *buff, size_t nbytes,
 	uint64_t off);
+int pool_copy(struct pool_data *pool, const char *dst_path);
 
 unsigned pool_set_files_count(struct pool_set_file *file);
 int pool_set_file_map_headers(struct pool_set_file *file, int rdonly,
@@ -135,7 +138,6 @@ enum pool_type pool_hdr_get_type(const struct pool_hdr *hdrp);
 void pool_btt_info_convert2h(struct btt_info *infop);
 int pool_btt_info_valid(struct btt_info *infop);
 
-int pool_get_first_valid_arena(struct pool_set_file *file,
-	struct arena *arenap);
+int pool_get_first_valid_arena(struct pool_data *pool, struct arena *arenap);
 uint64_t pool_get_valid_btt(struct pmempool_check *ppc, struct btt_info
 	*infop, uint64_t offset);

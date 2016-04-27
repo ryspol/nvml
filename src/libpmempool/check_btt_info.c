@@ -70,7 +70,7 @@ struct btt_context {
 };
 
 /*
- * location_release -- release check_btt_info_loc allocations
+ * location_release -- (internal) release check_btt_info_loc allocations
  */
 static void
 location_release(union location *loc)
@@ -80,7 +80,7 @@ location_release(union location *loc)
 }
 
 /*
- * btt_info_checksum -- check BTT Info checksum
+ * btt_info_checksum -- (internal) check BTT Info checksum
  */
 static int
 btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
@@ -94,7 +94,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 	}
 
 	/* read the BTT Info header at well known offset */
-	if (pool_read(ppc->pool->set_file, &loc->arena->btt_info,
+	if (pool_read(ppc->pool, &loc->arena->btt_info,
 		sizeof (loc->arena->btt_info), loc->offset) != 0) {
 		status = CHECK_ERR(ppc, "arena %u: cannot read BTT Info header",
 			loc->arena->id);
@@ -142,7 +142,7 @@ cleanup:
 }
 
 /*
- * btt_info_backup -- check BTT Info backup
+ * btt_info_backup -- (internal) check BTT Info backup
  */
 static int
 btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
@@ -185,7 +185,7 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * btt_info_backup_fix -- fix BTT Info using its backup
+ * btt_info_backup_fix -- (internal) fix BTT Info using its backup
  */
 static int
 btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -213,7 +213,7 @@ btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * btt_info_gen -- ask whether try to regenerate BTT Info
+ * btt_info_gen -- (internal) ask whether try to regenerate BTT Info
  */
 static int
 btt_info_gen(PMEMpoolcheck *ppc, union location *loc)
@@ -226,7 +226,7 @@ btt_info_gen(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * ns_read -- btt callback for reading
+ * ns_read -- (internal) btt callback for reading
  */
 static int
 ns_read(void *ns, unsigned lane, void *buf, size_t count, uint64_t off)
@@ -244,7 +244,7 @@ ns_read(void *ns, unsigned lane, void *buf, size_t count, uint64_t off)
 }
 
 /*
- * ns_write -- btt callback for writing
+ * ns_write -- (internal) btt callback for writing
  */
 static int
 ns_write(void *ns, unsigned lane, const void *buf, size_t count, uint64_t off)
@@ -262,7 +262,7 @@ ns_write(void *ns, unsigned lane, const void *buf, size_t count, uint64_t off)
 }
 
 /*
- * ns_map -- btt callback for memory mapping
+ * ns_map -- (internal) btt callback for memory mapping
  */
 static ssize_t
 ns_map(void *ns, unsigned lane, void **addrp, size_t len, uint64_t off)
@@ -286,7 +286,7 @@ ns_map(void *ns, unsigned lane, void **addrp, size_t len, uint64_t off)
 }
 
 /*
- * ns_sync -- btt callback for memory synchronization
+ * ns_sync -- (internal) btt callback for memory synchronization
  */
 static void
 ns_sync(void *ns, unsigned lane, void *addr, size_t len)
@@ -295,7 +295,7 @@ ns_sync(void *ns, unsigned lane, void *addr, size_t len)
 }
 
 /*
- * ns_zero -- btt callback for zeroing memory
+ * ns_zero -- (internal) btt callback for zeroing memory
  */
 static int
 ns_zero(void *ns, unsigned lane, size_t len, uint64_t off)
@@ -323,7 +323,7 @@ static struct ns_callback ns_callbacks = {
 };
 
 /*
- * check_btt_info_gen_fix_exe -- BTT Info regeneration
+ * btt_info_gen_fix_exe -- (internal) BTT Info regeneration
  */
 static int
 btt_info_gen_fix_exe(PMEMpoolcheck *ppc, union location *loc)
@@ -438,7 +438,7 @@ error:
 }
 
 /*
- * check_btt_info_gen_fix -- fix by regenerating BTT Info
+ * btt_info_gen_fix -- (internal) fix by regenerating BTT Info
  */
 static int
 btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -465,7 +465,7 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * check_btt_info_final -- finalize arena check and jump to next one
+ * btt_info_final -- (internal) finalize arena check and jump to next one
  */
 static void
 btt_info_final(PMEMpoolcheck *ppc, union location *loc)
@@ -517,10 +517,10 @@ static const struct step steps[] = {
 };
 
 /*
- * check_btt_info_step -- perform single step according to its parameters
+ * step -- (internal) perform single step according to its parameters
  */
 static inline int
-check_btt_info_step(PMEMpoolcheck *ppc, union location *loc)
+step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
@@ -582,8 +582,7 @@ check_btt_info(PMEMpoolcheck *ppc)
 			(steps[loc->step].check != NULL ||
 			steps[loc->step].fix != NULL)) {
 
-			if (check_btt_info_step(ppc, loc) ||
-				ppc->pool->blk_no_layout == 1)
+			if (step(ppc, loc) || ppc->pool->blk_no_layout == 1)
 				return;
 		}
 

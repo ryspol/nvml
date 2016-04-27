@@ -31,7 +31,7 @@
  */
 
 /*
- * check_utils.c -- check utility functions
+ * check_util.c -- check utility functions
  */
 
 #include <stdio.h>
@@ -184,7 +184,7 @@ check_ended(struct check_data *data)
 #define	MAX_MSG_STR_SIZE 8192
 
 /*
- * status_alloc -- allocate and initialize check_status
+ * status_alloc -- (internal) allocate and initialize check_status
  */
 static inline struct check_status *
 status_alloc()
@@ -204,7 +204,7 @@ status_alloc()
 }
 
 /*
- * status_release -- release check_status
+ * status_release -- (internal) release check_status
  */
 static void
 status_release(struct check_status *status)
@@ -214,8 +214,9 @@ status_release(struct check_status *status)
 }
 
 /*
- * status_msg_trim -- try to separate info part of the message. If message is in
- *	form of "info.|question" it modifies it as follows "info\0|question"
+ * status_msg_trim -- (internal) try to separate info part of the message.
+ *	If message is in form of "info.|question" it modifies it as follows
+ *	"info\0|question"
  */
 static inline int
 status_msg_trim(const char *msg)
@@ -232,8 +233,8 @@ status_msg_trim(const char *msg)
 }
 
 /*
- * status_msg_prepare -- if message is in form "info.|question" it will replace
- *	MSG_SEPARATOR '|' with space to get "info. question"
+ * status_msg_prepare -- (internal) if message is in form "info.|question" it
+ *	will replace MSG_SEPARATOR '|' with space to get "info. question"
  */
 static inline int
 status_msg_prepare(const char *msg)
@@ -353,10 +354,10 @@ check_status_release(PMEMpoolcheck *ppc, struct check_status *status)
 }
 
 /*
- * check_pop_status -- pop single message from check_status queue
+ * pop_status -- (internal) pop single message from check_status queue
  */
 static struct check_status *
-check_pop_status(struct check_data *data, struct check_status_head *queue)
+pop_status(struct check_data *data, struct check_status_head *queue)
 {
 	if (!TAILQ_EMPTY(queue)) {
 		ASSERTeq(data->check_status_cache, NULL);
@@ -374,7 +375,7 @@ check_pop_status(struct check_data *data, struct check_status_head *queue)
 struct check_status *
 check_pop_question(struct check_data *data)
 {
-	return check_pop_status(data, &data->questions);
+	return pop_status(data, &data->questions);
 }
 
 /*
@@ -383,7 +384,7 @@ check_pop_question(struct check_data *data)
 struct check_status *
 check_pop_info(struct check_data *data)
 {
-	return check_pop_status(data, &data->infos);
+	return pop_status(data, &data->infos);
 }
 
 /*
@@ -415,7 +416,7 @@ check_clear_status_cache(struct check_data *data)
 }
 
 /*
- * check_status_push -- push single answer to answers queue
+ * status_push -- (internal) push single answer to answers queue
  */
 static void
 status_push(struct check_data *data, struct check_status *st)
@@ -479,7 +480,7 @@ check_has_answer(struct check_data *data)
 }
 
 /*
- * pop_answer -- pop single answer from answers queue
+ * pop_answer -- (internal) pop single answer from answers queue
  */
 static struct check_status *
 pop_answer(struct check_data *data)
@@ -499,15 +500,6 @@ struct pmempool_check_status *
 check_status_get(struct check_status *status)
 {
 	return &status->status;
-}
-
-/*
- * check_status_is -- check if status is of provided pmempool_check_msg_type
- */
-int
-check_status_is(struct check_status *status, enum pmempool_check_msg_type type)
-{
-	return status != NULL && status->status.type == type;
 }
 
 /*

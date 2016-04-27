@@ -59,7 +59,7 @@ enum question {
 };
 
 /*
- * log_convert2h -- convert pmemlog structure to host byte order
+ * log_convert2h -- (internal) convert pmemlog structure to host byte order
  */
 static void
 log_convert2h(struct pmemlog *plp)
@@ -70,7 +70,7 @@ log_convert2h(struct pmemlog *plp)
 }
 
 /*
- * log_read -- read pmemlog header
+ * log_read -- (internal) read pmemlog header
  */
 static int
 log_read(PMEMpoolcheck *ppc)
@@ -90,7 +90,7 @@ log_read(PMEMpoolcheck *ppc)
 		sizeof (ppc->pool->hdr.log.hdr);
 	uint64_t offset = sizeof (ppc->pool->hdr.log.hdr);
 
-	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
+	if (pool_read(ppc->pool, ptr, size, offset)) {
 		return CHECK_ERR(ppc, "cannot read pmemlog structure");
 	}
 
@@ -100,7 +100,7 @@ log_read(PMEMpoolcheck *ppc)
 }
 
 /*
- * log_check -- check pmemlog header
+ * log_hdr_check -- (internal) check pmemlog header
  */
 static int
 log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
@@ -156,7 +156,7 @@ error:
 }
 
 /*
- * log_hdr_fix -- fix pmemlog header
+ * log_hdr_fix -- (internal) fix pmemlog header
  */
 static int
 log_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -191,7 +191,8 @@ log_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 }
 
 /*
- * blk_get_max_bsize -- return maximum size of block for given file size
+ * blk_get_max_bsize -- (internal) return maximum size of block for given file
+ *	size
  */
 static uint32_t
 blk_get_max_bsize(uint64_t fsize)
@@ -237,7 +238,7 @@ blk_get_max_bsize(uint64_t fsize)
 }
 
 /*
- * blk_read -- read pmemblk header
+ * blk_read -- (internal) read pmemblk header
  */
 static int
 blk_read(PMEMpoolcheck *ppc)
@@ -257,7 +258,7 @@ blk_read(PMEMpoolcheck *ppc)
 		sizeof (ppc->pool->hdr.blk.hdr);
 	uint64_t offset = sizeof (ppc->pool->hdr.blk.hdr);
 
-	if (pool_read(ppc->pool->set_file, ptr, size, offset)) {
+	if (pool_read(ppc->pool, ptr, size, offset)) {
 		return CHECK_ERR(ppc, "cannot read pmemblk structure");
 	}
 
@@ -268,7 +269,7 @@ blk_read(PMEMpoolcheck *ppc)
 }
 
 /*
- * check_pmemx_blk_bsize -- check if block size is valid for given file size
+ * blk_bsize -- (internal) check if block size is valid for given file size
  */
 static int
 blk_bsize(uint32_t bsize, uint64_t fsize)
@@ -278,7 +279,7 @@ blk_bsize(uint32_t bsize, uint64_t fsize)
 }
 
 /*
- * blk_hdr_check -- check pmemblk header
+ * blk_hdr_check -- (internal) check pmemblk header
  */
 static int
 blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
@@ -292,8 +293,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 	/* check for valid BTT Info arena as we can take bsize from it */
 	if (!ppc->pool->bttc.valid)
-		pool_get_first_valid_arena(ppc->pool->set_file,
-			&ppc->pool->bttc);
+		pool_get_first_valid_arena(ppc->pool, &ppc->pool->bttc);
 
 	if (ppc->pool->bttc.valid) {
 		const uint32_t btt_bsize =
@@ -324,7 +324,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 }
 
 /*
- * blk_hdr_fix -- fix pmemblk header
+ * blk_hdr_fix -- (internal) fix pmemblk header
  */
 static int
 blk_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
@@ -338,8 +338,7 @@ blk_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		 * check for valid BTT Info arena as we can take bsize from it
 		 */
 		if (!ppc->pool->bttc.valid)
-			pool_get_first_valid_arena(ppc->pool->set_file,
-				&ppc->pool->bttc);
+			pool_get_first_valid_arena(ppc->pool, &ppc->pool->bttc);
 		btt_bsize = ppc->pool->bttc.btt_info.external_lbasize;
 		CHECK_INFO(ppc, "setting pmemblk.b_size to 0x%" PRIx32,
 			btt_bsize);
@@ -382,10 +381,10 @@ static const struct step steps[] = {
 };
 
 /*
- * check_pmemx_step -- perform single step according to its parameters
+ * step -- (internal) perform single step according to its parameters
  */
 static inline int
-check_pmemx_step(PMEMpoolcheck *ppc, union location *loc)
+step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
@@ -436,7 +435,7 @@ check_pmemx(PMEMpoolcheck *ppc)
 		(steps[loc->step].check != NULL ||
 		steps[loc->step].fix != NULL)) {
 
-		if (check_pmemx_step(ppc, loc))
+		if (step(ppc, loc))
 			break;
 	}
 }
