@@ -31,10 +31,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# libpmempool_btt/TEST2 -- test for checking btt
+# libpmempool_btt/TEST8 -- test for checking btt
 #
-export UNITTEST_NAME=libpmempool_btt/TEST2
-export UNITTEST_NUM=2
+export UNITTEST_NAME=libpmempool_btt/TEST8
+export UNITTEST_NUM=8
 
 . ../unittest/unittest.sh
 
@@ -44,15 +44,31 @@ setup
 
 POOL=$DIR/file.pool
 LOG=out${UNITTEST_NUM}.log
+LOG_TEMP=out${UNITTEST_NUM}_part.log
 rm -rf $LOG && touch $LOG
+rm -rf $LOG_TEMP && touch $LOG_TEMP
 
+echo $BTTCREATE $POOL
 expect_normal_exit $BTTCREATE $POOL >> $LOG
 
-$PMEMSPOIL $POOL "bttdevice.arena(0).btt_info_backup.sig=ERROR"
-expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1 >> $LOG
+declare -A btt_info_dic_err=(["sig"]="ERROR" ["uuid"]="01-02"
+	["flags"]="7" ["major"]="7" ["minor"]="7"
+	["nfree"]="7" ["infosize"]="7" ["nextoff"]="7"
+	["dataoff"]="7" ["infooff"]="7" ["unused"]="7")
 
-$PMEMSPOIL $POOL "bttdevice.arena(0).btt_info.sig=ERROR"
-expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1 >> $LOG
+for field in "${!btt_info_dic_err[@]}"; 
+do
+	spcmd="bttdevice.arena(0).btt_info.$field=${btt_info_dic_err["$field"]}"
+
+	expect_normal_exit $BTTCREATE $POOL
+	$PMEMSPOIL -v $POOL $spcmd >> $LOG_TEMP
+	
+	expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1
+	cat $LOG >> $LOG_TEMP
+	rm -rf POOL
+
+done
+mv $LOG_TEMP $LOG
 
 check_file $POOL
 
