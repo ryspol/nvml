@@ -242,6 +242,11 @@ REMOTE_TESTS = \
 	remote_obj_basic\
 	$(RPMEM_TESTS)
 
+LIBPMEMPOOL_TESTS = \
+       libpmempool_api\
+       libpmempool_btt\
+       libpmempool_map_flog
+
 TESTS = \
 	$(OBJ_TESTS)\
 	$(BLK_TESTS)\
@@ -252,7 +257,8 @@ TESTS = \
 	$(PMEMPOOL_TESTS)\
 	$(VMEM_TESTS)\
 	$(VMMALLOC_TESTS)\
-	$(EXAMPLES_TESTS)
+	$(EXAMPLES_TESTS)\
+	$(LIBPMEMPOOL_TESTS)
 
 ifeq ($(call check_cxx_flags, -std=c++11), y)
 TESTS += $(OBJ_CPP_TESTS)
@@ -345,6 +351,10 @@ pcheck_rpmem: $(RPMEM_TESTS)
 pcheck_pmempool: TARGET = pcheck
 pcheck_pmempool: $(PMEMPOOL_TESTS)
 	@echo "No failures."
+	
+pcheck_libpmempool: TARGET = pcheck
+pcheck_libpmempool: $(LIBPMEMPOOL_TESTS)
+	@echo "No failures."
 
 pcheck_vmem: TARGET = pcheck
 pcheck_vmem: $(VMEM_TESTS)
@@ -356,4 +366,4 @@ pcheck_vmmalloc: $(VMMALLOC_TESTS)
 
 .PHONY: all check clean clobber cstyle pcheck pcheck_blk pcheck_log pcheck_obj\
 	 pcheck_other pcheck_pmem pcheck_pmempool pcheck_vmem pcheck_vmmalloc\
-	 test unittest tools check-remote $(TESTS_BUILD)
+	 test unittest tools check-remote pcheck_libpmempool $(TESTS_BUILD)
