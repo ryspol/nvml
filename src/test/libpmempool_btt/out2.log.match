@@ -1,5 +1,13 @@
-libpmempool_api/TEST2: START: libpmempool_api
- ./libpmempool_api$(nW) $(nW) -d 0 -a 1 -r 0
-Error: Invalid argument
+libpmempool_btt/TEST2: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
 
-libpmempool_api/TEST2: Done
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = consistent
+
+libpmempool_btt/TEST2: Done
