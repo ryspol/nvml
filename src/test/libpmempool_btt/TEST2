@@ -44,15 +44,21 @@ setup
 
 POOL=$DIR/file.pool
 LOG=out${UNITTEST_NUM}.log
+LOG_TEMP=out${UNITTEST_NUM}_part.log
 rm -rf $LOG && touch $LOG
+rm -rf $LOG_TEMP && touch $LOG_TEMP
 
 expect_normal_exit $BTTCREATE $POOL >> $LOG
 
 $PMEMSPOIL $POOL "bttdevice.arena(0).btt_info_backup.sig=ERROR"
 expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1 >> $LOG
+cat $LOG >> $LOG_TEMP
 
 $PMEMSPOIL $POOL "bttdevice.arena(0).btt_info.sig=ERROR"
 expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1 >> $LOG
+cat $LOG >> $LOG_TEMP
+
+mv $LOG_TEMP $LOG
 
 check_file $POOL
 
