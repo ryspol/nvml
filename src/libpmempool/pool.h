@@ -135,8 +135,10 @@ void pool_hdr_default(enum pool_type type, struct pool_hdr *hdrp);
 enum pool_type pool_hdr_get_type(const struct pool_hdr *hdrp);
 
 void pool_btt_info_convert2h(struct btt_info *infop);
+void pool_btt_info_convert2le(struct btt_info *infop);
 int pool_btt_info_valid(struct btt_info *infop);
 
 int pool_get_first_valid_arena(struct pool_data *pool, struct arena *arenap);
-uint64_t pool_get_valid_btt(struct pmempool_check *ppc, struct btt_info
-	*infop, uint64_t offset);
+uint64_t pool_next_arena_offset(PMEMpoolcheck *ppc, uint64_t header_offset);
+uint64_t pool_get_first_valid_btt(struct pmempool_check *ppc,
+	struct btt_info *infop, uint64_t offset);

@@ -160,28 +160,6 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 }
 
 /*
- * btt_info_convert2le -- (internal) convert btt_info header to LE byte order
- */
-static void
-btt_info_convert2le(struct btt_info *infop)
-{
-	infop->flags = htole64(infop->flags);
-	infop->minor = htole16(infop->minor);
-	infop->external_lbasize = htole32(infop->external_lbasize);
-	infop->external_nlba = htole32(infop->external_nlba);
-	infop->internal_lbasize = htole32(infop->internal_lbasize);
-	infop->internal_nlba = htole32(infop->internal_nlba);
-	infop->nfree = htole32(infop->nfree);
-	infop->infosize = htole32(infop->infosize);
-	infop->nextoff = htole64(infop->nextoff);
-	infop->dataoff = htole64(infop->dataoff);
-	infop->mapoff = htole64(infop->mapoff);
-	infop->flogoff = htole64(infop->flogoff);
-	infop->infooff = htole64(infop->infooff);
-	infop->checksum = htole64(infop->checksum);
-}
-
-/*
  * blk_write -- (internal) write all structures for blk pool
  */
 static int
@@ -213,7 +191,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 
 	TAILQ_FOREACH(arenap, &ppc->pool->arenas, next) {
 
-		btt_info_convert2le(&arenap->btt_info);
+		pool_btt_info_convert2le(&arenap->btt_info);
 
 		if (ppc->pool->uuid_op == UUID_REGENERATED) {
 			memcpy(arenap->btt_info.parent_uuid,

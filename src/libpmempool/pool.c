@@ -481,7 +481,8 @@ pool_read(struct pool_data *pool, void *buff, size_t nbytes, uint64_t off)
  * pool_write -- write to pool set file or regular file
  */
 int
-pool_write(struct pool_data *pool, const void *buff, size_t nbytes, uint64_t off)
+pool_write(struct pool_data *pool, const void *buff, size_t nbytes,
+	uint64_t off)
 {
 	if (off + nbytes > pool->set_file->size)
 		return -1;
@@ -782,6 +783,29 @@ pool_btt_info_convert2h(struct btt_info *infop)
 	infop->checksum = le64toh(infop->checksum);
 }
 
+/*
+ * pool_btt_info_convert2le -- (internal) convert btt_info header to LE byte
+ *	order
+ */
+void
+pool_btt_info_convert2le(struct btt_info *infop)
+{
+	infop->flags = htole64(infop->flags);
+	infop->minor = htole16(infop->minor);
+	infop->external_lbasize = htole32(infop->external_lbasize);
+	infop->external_nlba = htole32(infop->external_nlba);
+	infop->internal_lbasize = htole32(infop->internal_lbasize);
+	infop->internal_nlba = htole32(infop->internal_nlba);
+	infop->nfree = htole32(infop->nfree);
+	infop->infosize = htole32(infop->infosize);
+	infop->nextoff = htole64(infop->nextoff);
+	infop->dataoff = htole64(infop->dataoff);
+	infop->mapoff = htole64(infop->mapoff);
+	infop->flogoff = htole64(infop->flogoff);
+	infop->infooff = htole64(infop->infooff);
+	infop->checksum = htole64(infop->checksum);
+}
+
 #define	BTT_INFO_SIG	"BTT_ARENA_INFO\0"
 
 /*
@@ -842,23 +866,59 @@ pool_get_first_valid_arena(struct pool_data *pool, struct arena *arenap)
 }
 
 /*
- * pool_get_valid_btt -- return offset to valid BTT Info
+ * pool_next_arena_offset --  calculate theoretical offset of next arena. Do not
+ *	check if such arena can exist.
+ */
+uint64_t
+pool_next_arena_offset(PMEMpoolcheck *ppc, uint64_t offset)
+{
+	uint64_t lastoff = (ppc->pool->set_file->size & ~(BTT_ALIGNMENT - 1));
+	uint64_t nextoff = min(offset + BTT_MAX_ARENA, lastoff);
+	return nextoff;
+}
+
+/*
+ * pool_get_first_valid_btt -- return offset to first valid BTT Info
  *
  * - Return offset to valid BTT Info header in pool file.
- * - Read at given offset.
+ * - Start looking from given offset.
  * - Convert BTT Info header to host endianness.
  * - Return the BTT Info header by pointer.
  */
 uint64_t
-pool_get_valid_btt(struct pmempool_check *ppc, struct btt_info *infop,
+pool_get_first_valid_btt(PMEMpoolcheck *ppc, struct btt_info *infop,
 	uint64_t offset)
 {
-	if (pool_read(ppc->pool, infop, sizeof (*infop), offset) ==
-		0) {
-		if (pool_btt_info_valid(infop)) {
-			pool_btt_info_convert2h(infop);
-			return offset;
+	/* if we have valid arena get BTT Info header from it */
+	if (ppc->pool->narenas != 0) {
+		struct arena *arenap = TAILQ_FIRST(&ppc->pool->arenas);
+		memcpy(infop, &arenap->btt_info, sizeof (*infop));
+		return arenap->offset;
+	}
+
+	const size_t info_size = sizeof (*infop);
+
+	while (offset < ppc->pool->set_file->size) {
+		uint64_t bckoff = pool_next_arena_offset(ppc, offset) -
+			info_size;
+
+		/* check BTT Info header */
+		if (!pool_read(ppc->pool, infop, info_size, offset)) {
+			if (pool_btt_info_valid(infop)) {
+				pool_btt_info_convert2h(infop);
+				return offset;
+			}
 		}
+
+		/* check BTT Info backup */
+		if (!pool_read(ppc->pool, infop, info_size, bckoff)) {
+			if (pool_btt_info_valid(infop)) {
+				pool_btt_info_convert2h(infop);
+				return bckoff;
+			}
+		}
+
+		offset += BTT_MAX_ARENA;
 	}
 
 	return 0;

@@ -41,6 +41,7 @@
 #define	BTT_ALIGNMENT ((uintptr_t)4096)	/* alignment of all BTT structures */
 #define	BTTINFO_SIG_LEN 16
 #define	BTTINFO_UUID_LEN 16
+#define	BTTINFO_UNUSED_LEN 3968
 
 struct btt_info {
 	char sig[BTTINFO_SIG_LEN];	/* must be "BTT_ARENA_INFO\0\0" */
@@ -66,7 +67,7 @@ struct btt_info {
 	uint64_t flogoff;		/* offset to area flog */
 	uint64_t infooff;		/* offset to backup info block */
 
-	char unused[3968];		/* must be zero */
+	char unused[BTTINFO_UNUSED_LEN];	/* must be zero */
 
 	uint64_t checksum;		/* Fletcher64 of all fields */
 };
