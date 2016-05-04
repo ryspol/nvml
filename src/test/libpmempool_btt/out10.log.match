@@ -1,1 +1,13 @@
-what should be here???
+libpmempool_btt/TEST10: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
+
+arena 0: regenerating BTT Info header
+
+Can not find any valid BTT Info
+
+status = cannot repair
+
+libpmempool_btt/TEST10: Done
