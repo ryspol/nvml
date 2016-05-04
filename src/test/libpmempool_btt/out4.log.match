@@ -2,9 +2,11 @@ libpmempool_btt/TEST4: START: libpmempool_btt
  ./libpmempool_btt$(nW) $(nW) -r 1
 checking BTT Info headers
 
-arena 0: BTT Info header checksum incorrect. Do you want to restore BTT layout?
+arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
 
-generating BTT Info headers at $(nW)
+arena 0: regenerating BTT Info header
+
+arena 0: BTT Info header checksum correct
 
 arena 1: BTT Info header checksum incorrect. Restore BTT Info from backup?
 

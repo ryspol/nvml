@@ -11,3 +11,18 @@ arena 0: checking map and flog
 status = consistent
 
 libpmempool_btt/TEST2: Done
+libpmempool_btt/TEST2: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Restore BTT Info from backup?
+
+arena 0: restoring BTT Info header from backup
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = repaired
+
+libpmempool_btt/TEST2: Done

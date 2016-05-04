@@ -1,1 +1,15 @@
-what should be here???
+libpmempool_btt/TEST11: START: libpmempool_btt
+ ./libpmempool_btt$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+arena 1: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
+
+arena 1: regenerating BTT Info header
+
+arena 1: BTT Info header checksum incorrect
+
+status = fatal
+
+libpmempool_btt/TEST11: Done
