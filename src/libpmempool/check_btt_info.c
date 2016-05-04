@@ -227,6 +227,9 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 
 	switch (question) {
 	case Q_REGENERATE:
+		CHECK_INFO(ppc, "arena %u: regenerating BTT Info header",
+			loc->arena->id);
+
 		/*
 		 * We do not have valid BTT Info backup so we get first valid
 		 * BTT Info and try to calculate BTT Info for current arena
