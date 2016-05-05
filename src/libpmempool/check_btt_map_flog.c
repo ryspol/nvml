@@ -487,10 +487,12 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 		 */
 		if (entry == new_entry)
 			flog_valid = (flog_cur == flog_alpha) &&
-				flog_cur->lba == i && flog_cur->seq == 1 &&
-				entry == loc->arenap->btt_info.external_nlba + i
-				&& !check_memory((const uint8_t *)flog_beta,
-				sizeof (*flog_beta), 0);
+				(flog_cur->lba == i) &&
+				(flog_cur->seq == 1) &&
+				(entry == loc->arenap->btt_info.external_nlba
+				+ i) &&
+				(!check_memory((const uint8_t *)flog_beta,
+				sizeof (*flog_beta), 0));
 		else
 			flog_valid = (loc->arenap->map[flog_cur->lba] &
 				BTT_MAP_ENTRY_LBA_MASK) == new_entry;
