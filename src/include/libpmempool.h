@@ -102,14 +102,6 @@ struct pmempool_check_status {
 		const char *msg;
 		const char *answer;
 	} str;
-	struct {
-		/*
-		 * We would like to implement structure based
-		 * communication with user. But this may be implemented
-		 * in the future;
-		 */
-		uint32_t placeholder;
-	} data;
 };
 
 typedef struct pmempool_check PMEMpoolcheck;
