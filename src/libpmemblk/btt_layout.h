@@ -106,10 +106,11 @@ struct btt_flog {
  * Layout of a BTT "map" entry.  4-byte internal LBA offset, little-endian.
  */
 #define	BTT_MAP_ENTRY_SIZE 4
-#define	BTT_MAP_ENTRY_ERROR 0x40000000U
-#define	BTT_MAP_ENTRY_ZERO 0x80000000U
-#define	BTT_MAP_ENTRY_NORMAL 0xC0000000U
-#define	BTT_MAP_ENTRY_LBA_MASK 0x3fffffffU
+#define	BTT_MAP_ENTRY_ERROR		0x40000000U
+#define	BTT_MAP_ENTRY_ZERO		0x80000000U
+#define	BTT_MAP_ENTRY_NORMAL		0xC0000000U
+#define	BTT_DEV_MAP_ENTRY_INVALID	0xC0000000U
+#define	BTT_MAP_ENTRY_LBA_MASK		0x3fffffffU
 #define	BTT_MAP_LOCK_ALIGN ((uintptr_t)64)
 
 /*

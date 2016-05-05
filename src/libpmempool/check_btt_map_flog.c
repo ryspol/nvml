@@ -373,13 +373,18 @@ map_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i)
 {
 	struct arena *arenap = loc->arenap;
 	uint32_t entry = arenap->map[i];
-	if ((entry & ~BTT_MAP_ENTRY_LBA_MASK) == 0)
+	uint32_t flags = entry & ~BTT_MAP_ENTRY_LBA_MASK;
+	entry &= BTT_MAP_ENTRY_LBA_MASK;
+	int flags_valid = 1;
+
+	if (ppc->pool->params.is_btt_dev) {
+		flags_valid = (flags != BTT_DEV_MAP_ENTRY_INVALID);
+	}
+	if (flags == 0)
 		entry = i;
-	else
-		entry &= BTT_MAP_ENTRY_LBA_MASK;
 
 	/* add duplicated and invalid entries to list */
-	if (entry < arenap->btt_info.internal_nlba) {
+	if (entry < arenap->btt_info.internal_nlba && flags_valid) {
 		if (util_isset(loc->bitmap, entry)) {
 			CHECK_INFO(ppc, "arena %u: map entry %u duplicated at "
 				"%u", arenap->id, entry, i);
@@ -435,6 +440,7 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 	 * new_map are in internal_nlba range.
 	 */
 	if (flog_cur->lba >= arenap->btt_info.external_nlba ||
+		entry >= arenap->btt_info.internal_nlba ||
 		new_entry >= arenap->btt_info.internal_nlba) {
 		CHECK_INFO(ppc, "arena %u: invalid flog entry at %u",
 			arenap->id, entry);
@@ -467,9 +473,38 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 			util_setbit(loc->fbitmap, entry);
 		}
 	} else {
-		/* totally fine case */
-		util_setbit(loc->bitmap, entry);
-		util_setbit(loc->fbitmap, entry);
+		int flog_valid = 1;
+		/*
+		 * Either flog entry is in its initial state:
+		 * - current_btt_flog entry is first one in pair
+		 * - current_btt_flog.lba == i (index of pair in flog)
+		 * - current_btt_flog.old_map == current_btt_flog.new_map
+		 * - current_btt_flog.old_map == external_nlba + i
+		 * - current_btt_flog.seq == 0b01
+		 * - second flog entry in pair is zeroed
+		 * or
+		 * btt_map[current_btt_flog.lba] == current_btt_flog.new_map
+		 */
+		if (entry == new_entry)
+			flog_valid = (flog_cur == flog_alpha) &&
+				flog_cur->lba == i && flog_cur->seq == 1 &&
+				entry == loc->arenap->btt_info.external_nlba + i
+				&& !check_memory((const uint8_t *)flog_beta,
+				sizeof (*flog_beta), 0);
+		else
+			flog_valid = (loc->arenap->map[flog_cur->lba] &
+				BTT_MAP_ENTRY_LBA_MASK) == new_entry;
+
+		if (flog_valid) {
+			/* totally fine case */
+			util_setbit(loc->bitmap, entry);
+			util_setbit(loc->fbitmap, entry);
+		} else {
+			CHECK_INFO(ppc, "arena %u: invalid flog entry at %u",
+				arenap->id, entry);
+			if (!list_push(loc->list_flog_inval, i))
+				return 1;
+		}
 	}
 
 next:
@@ -602,7 +637,7 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 				sizeof (struct btt_flog));
 			memset(flog_beta, 0, sizeof (*flog_beta));
 			uint32_t entry = unmap | BTT_MAP_ENTRY_ERROR;
-			flog_alpha->lba = 0;
+			flog_alpha->lba = inval;
 			flog_alpha->new_map = entry;
 			flog_alpha->old_map = entry;
 			flog_alpha->seq = 1;
