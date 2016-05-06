@@ -440,6 +440,8 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 			arenap->id, i);
 		if (!list_push(loc->list_flog_inval, i))
 			return 1;
+
+		goto next;
 	}
 
 	if (util_isset(loc->fbitmap, entry)) {
