@@ -117,19 +117,7 @@ checking BTT map and flog
 
 arena 0: checking map and flog
 
-arena 0: invalid map entry at 0
-
-arena 0: unmapped block 0
-
-arena 0: number of unmapped blocks: 1
-
-arena 0: number of invalid map entries: 1
-
-Do you want repair invalid map entries?
-
-arena 0: storing 0x40000000 at 0 entry
-
-status = repaired
+status = consistent
 
 libpmempool_map_flog/TEST0: Done
 Normal: bttdevice.arena.btt_map(0)=0xC0000001
@@ -143,7 +131,7 @@ checking BTT map and flog
 
 arena 0: checking map and flog
 
-arena 0: invalid map entry at 0
+arena 0: map entry 1 duplicated at 1
 
 arena 0: unmapped block 0
 
@@ -153,7 +141,7 @@ arena 0: number of invalid map entries: 1
 
 Do you want repair invalid map entries?
 
-arena 0: storing 0x40000000 at 0 entry
+arena 0: storing 0x40000000 at 1 entry
 
 status = repaired
 
