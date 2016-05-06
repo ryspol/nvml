@@ -38,6 +38,7 @@
 #include <sys/param.h>
 
 #include "out.h"
+#include "btt.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"
@@ -76,12 +77,11 @@ static int
 log_read(PMEMpoolcheck *ppc)
 {
 	/*
-	 * Here we want to read the pmemlog header
-	 * without the pool_hdr as we've already done it
-	 * before.
+	 * Here we want to read the pmemlog header without the pool_hdr as we've
+	 * already done it before.
 	 *
-	 * Take the pointer to fields right after pool_hdr,
-	 * compute the size and offset of remaining fields.
+	 * Take the pointer to fields right after pool_hdr, compute the size and
+	 * offset of remaining fields.
 	 */
 	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.log;
 	ptr += sizeof (ppc->pool->hdr.log.hdr);
@@ -90,9 +90,8 @@ log_read(PMEMpoolcheck *ppc)
 		sizeof (ppc->pool->hdr.log.hdr);
 	uint64_t offset = sizeof (ppc->pool->hdr.log.hdr);
 
-	if (pool_read(ppc->pool, ptr, size, offset)) {
+	if (pool_read(ppc->pool, ptr, size, offset))
 		return CHECK_ERR(ppc, "cannot read pmemlog structure");
-	}
 
 	/* endianness conversion */
 	log_convert2h(&ppc->pool->hdr.log);
@@ -109,7 +108,7 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 	if (log_read(ppc)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-		return -1;
+		return 1;
 	}
 
 	/* determine constant values for pmemlog */
@@ -152,7 +151,7 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
-	return -1;
+	return 1;
 }
 
 /*
@@ -194,7 +193,7 @@ log_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
  * blk_get_max_bsize -- (internal) return maximum size of block for given file
  *	size
  */
-static uint32_t
+static inline uint32_t
 blk_get_max_bsize(uint64_t fsize)
 {
 	if (fsize == 0)
@@ -206,22 +205,12 @@ blk_get_max_bsize(uint64_t fsize)
 	/* number of blocks must be at least 2 * nfree */
 	uint32_t internal_nlba = 2 * nfree;
 
-	/* compute flog size */
-	uint32_t flog_size = nfree * (uint32_t)roundup(2 *
-		sizeof (struct btt_flog), BTT_FLOG_PAIR_ALIGN);
-	flog_size = (uint32_t)roundup(flog_size, BTT_ALIGNMENT);
-
-	/* compute arena size from file size */
-	uint64_t arena_size = fsize;
-	/* without pmemblk structure */
-	arena_size -= sizeof (struct pmemblk);
+	/* compute arena size from file size without pmemblk structure */
+	uint64_t arena_size = fsize - sizeof (struct pmemblk);
 	if (arena_size > BTT_MAX_ARENA) {
 		arena_size = BTT_MAX_ARENA;
 	}
-	/* without BTT Info header and backup */
-	arena_size -= 2 * sizeof (struct btt_info);
-	/* without BTT FLOG size */
-	arena_size -= flog_size;
+	arena_size = btt_arena_datasize(arena_size, nfree);
 
 	/* compute maximum internal LBA size */
 	uint64_t internal_lbasize = (arena_size - BTT_ALIGNMENT) /
@@ -244,12 +233,11 @@ static int
 blk_read(PMEMpoolcheck *ppc)
 {
 	/*
-	 * Here we want to read the pmemlog header
-	 * without the pool_hdr as we've already done it
-	 * before.
+	 * Here we want to read the pmemblk header without the pool_hdr as we've
+	 * already done it before.
 	 *
-	 * Take the pointer to fields right after pool_hdr,
-	 * compute the size and offset of remaining fields.
+	 * Take the pointer to fields right after pool_hdr, compute the size and
+	 * offset of remaining fields.
 	 */
 	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.blk;
 	ptr += sizeof (ppc->pool->hdr.blk.hdr);
@@ -269,10 +257,11 @@ blk_read(PMEMpoolcheck *ppc)
 }
 
 /*
- * blk_bsize -- (internal) check if block size is valid for given file size
+ * blk_bsize_valid -- (internal) check if block size is valid for given file
+ *	size
  */
 static int
-blk_bsize(uint32_t bsize, uint64_t fsize)
+blk_bsize_valid(uint32_t bsize, uint64_t fsize)
 {
 	uint32_t max_bsize = blk_get_max_bsize(fsize);
 	return !(bsize < max_bsize);
@@ -293,7 +282,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 	/* check for valid BTT Info arena as we can take bsize from it */
 	if (!ppc->pool->bttc.valid)
-		pool_get_first_valid_arena(ppc->pool, &ppc->pool->bttc);
+		pool_blk_get_first_valid_arena(ppc->pool, &ppc->pool->bttc);
 
 	if (ppc->pool->bttc.valid) {
 		const uint32_t btt_bsize =
@@ -305,11 +294,11 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 				"pmemblk.bsize to %lu from BTT Info?",
 				btt_bsize);
 		}
-	} else if (ppc->pool->bttc.zeroed) {
+	} else if (ppc->pool->bttc.zeroed)
 		CHECK_INFO(ppc, "no BTT layout");
-	} else {
+	else {
 		if (ppc->pool->hdr.blk.bsize < BTT_MIN_LBA_SIZE ||
-			blk_bsize(ppc->pool->hdr.blk.bsize,
+			blk_bsize_valid(ppc->pool->hdr.blk.bsize,
 			ppc->pool->set_file->size)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "invalid pmemblk.bsize");
@@ -338,7 +327,8 @@ blk_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		 * check for valid BTT Info arena as we can take bsize from it
 		 */
 		if (!ppc->pool->bttc.valid)
-			pool_get_first_valid_arena(ppc->pool, &ppc->pool->bttc);
+			pool_blk_get_first_valid_arena(ppc->pool,
+				&ppc->pool->bttc);
 		btt_bsize = ppc->pool->bttc.btt_info.external_lbasize;
 		CHECK_INFO(ppc, "setting pmemblk.b_size to 0x%" PRIx32,
 			btt_bsize);
@@ -391,32 +381,23 @@ step(PMEMpoolcheck *ppc, union location *loc)
 	if (!(step->type & ppc->pool->params.type))
 		return 0;
 
-	int status = 0;
 	if (step->fix != NULL) {
-		if (!check_has_answer(ppc->data))
-			return 0;
-
 		if (step->type == POOL_TYPE_LOG) {
 			if (log_read(ppc)) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return -1;
 			}
 		} else if (step->type == POOL_TYPE_BLK) {
-			/*
-			 * blk related questions require blk preparation
-			 */
 			if (blk_read(ppc)) {
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return -1;
 			}
 		}
 
-		status = check_answer_loop(ppc, (struct check_instep *)loc,
-			NULL, step->fix);
+		return check_answer_loop(ppc, (struct check_instep *)loc, NULL,
+			step->fix);
 	} else
-		status = step->check(ppc, loc);
-
-	return status;
+		return step->check(ppc, loc);
 }
 
 /*
@@ -428,13 +409,10 @@ check_pmemx(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep));
 
-	union location *loc =
-		(union location *)check_step_location_get(ppc->data);
+	union location *loc = (union location *)check_step_location(ppc->data);
 
-	while (loc->step != CHECK_STEP_COMPLETE &&
-		(steps[loc->step].check != NULL ||
-		steps[loc->step].fix != NULL)) {
-
+	/* do all checks */
+	while (CHECK_NOT_COMPLETE(loc, steps)) {
 		if (step(ppc, loc))
 			break;
 	}

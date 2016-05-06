@@ -118,7 +118,7 @@ error_data_malloc:
 
 /*
  * status_get -- (internal) get next check_status which should be presented
- *	to the user
+ *	to the user in assumed order: all info messages, error or question
  */
 static inline struct check_status *
 status_get(PMEMpoolcheck *ppc)
@@ -181,7 +181,7 @@ struct check_status *
 check_step(PMEMpoolcheck *ppc)
 {
 	struct check_status *status = NULL;
-	/* return if we have infos of questions to ask of check ended */
+	/* return if we have informations or questions to ask or check ended */
 	if ((status = status_get(ppc)) || check_ended(ppc->data))
 		return status;
 
@@ -192,8 +192,8 @@ check_step(PMEMpoolcheck *ppc)
 		return status;
 	}
 
+	/* check if required conditions are met */
 	if (!(step->btt_dev && ppc->pool->params.is_btt_dev)) {
-		/* check if required conditions are met */
 		if (!(step->type & ppc->pool->params.type) ||
 			(ppc->pool->params.is_part && !step->part)) {
 			/* skip test */

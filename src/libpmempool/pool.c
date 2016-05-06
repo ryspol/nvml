@@ -155,8 +155,8 @@ pool_set_map(const char *fname, struct pool_set **poolset, int rdonly)
 	}
 
 	/* open the first part set file to read the pool header values */
-	int fdp = util_file_open(set->replica[0]->part[0].path,
-			NULL, 0, O_RDONLY);
+	int fdp = util_file_open(set->replica[0]->part[0].path, NULL, 0,
+		O_RDONLY);
 	if (fdp < 0) {
 		ERR("cannot open poolset part file");
 		ret = -1;
@@ -217,8 +217,8 @@ static int
 pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 	int check)
 {
-	struct stat stat_buf;
 	int btt_dev = ppc->args.pool_type == PMEMPOOL_POOL_TYPE_BTT_DEV;
+	struct stat stat_buf;
 	int ret = 0;
 
 	params->type = POOL_TYPE_UNKNOWN;
@@ -274,9 +274,9 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 			sizeof (params->signature));
 
 		/*
-		 * Check if file is a part of pool set by comparing
-		 * the UUID with the next part UUID. If it is the same
-		 * it means the pool consist of a single file.
+		 * Check if file is a part of pool set by comparing the UUID
+		 * with the next part UUID. If it is the same it means the pool
+		 * consist of a single file.
 		 */
 		params->is_part = !params->is_poolset && (memcmp(hdr.uuid,
 			hdr.next_part_uuid, POOL_HDR_UUID_LEN) ||
@@ -335,7 +335,6 @@ pool_set_file_open(const char *fname, struct pool_params *params, int rdonly)
 	if (!file->fname)
 		goto err;
 
-	struct stat buf;
 	const char *path = file->fname;
 
 	if (!params->is_btt_dev) {
@@ -353,6 +352,7 @@ pool_set_file_open(const char *fname, struct pool_params *params, int rdonly)
 		file->size = params->size;
 	}
 
+	struct stat buf;
 	if (stat(path, &buf)) {
 		ERR("%s", path);
 		goto err_close_poolset;
@@ -360,7 +360,6 @@ pool_set_file_open(const char *fname, struct pool_params *params, int rdonly)
 
 	file->mtime = buf.st_mtime;
 	file->mode = buf.st_mode;
-
 	return file;
 
 err_close_poolset:
@@ -390,15 +389,14 @@ pool_data_alloc(PMEMpoolcheck *ppc)
 	TAILQ_INIT(&pool->arenas);
 	pool->narenas = 0;
 
-	if (pool_params_parse(ppc, &pool->params, 0)) {
+	if (pool_params_parse(ppc, &pool->params, 0))
 		goto error;
-	}
 
 	int rdonly = !ppc->args.repair || ppc->args.dry_run;
 	pool->set_file = pool_set_file_open(ppc->path, &pool->params, rdonly);
-	if (!pool->set_file) {
+	if (!pool->set_file)
 		goto error;
-	}
+
 	return pool;
 
 error:
@@ -419,6 +417,7 @@ pool_set_file_close(struct pool_set_file *file)
 		close(file->fd);
 	} else if (file->fd)
 		close(file->fd);
+
 	free(file->fname);
 	free(file);
 }
@@ -438,6 +437,7 @@ pool_data_free(struct pool_data *pool)
 			free(arenap->map);
 		if (arenap->flog)
 			free(arenap->flog);
+
 		TAILQ_REMOVE(&pool->arenas, arenap, next);
 		free(arenap);
 	}
@@ -453,6 +453,7 @@ pool_set_file_map(struct pool_set_file *file, uint64_t offset)
 {
 	if (file->addr == MAP_FAILED)
 		return NULL;
+
 	return (char *)file->addr + offset;
 }
 
@@ -502,7 +503,7 @@ pool_write(struct pool_data *pool, const void *buff, size_t nbytes,
 #define	BTT_DEV_BUFFER_SIZE	(100 * 1024 * 1024)
 
 /*
- * pool_copy -- make copy of the pool
+ * pool_copy -- make a copy of the pool
  */
 int
 pool_copy(struct pool_data *pool, const char *dst_path)
@@ -822,47 +823,15 @@ pool_btt_info_valid(struct btt_info *infop)
 }
 
 /*
- * pool_get_first_valid_arena -- get first valid BTT Info in arena
+ * pool_blk_get_first_valid_arena -- get first valid BTT Info in arena
  */
 int
-pool_get_first_valid_arena(struct pool_data *pool, struct arena *arenap)
+pool_blk_get_first_valid_arena(struct pool_data *pool, struct arena *arenap)
 {
-	uint64_t offset = 2 * BTT_ALIGNMENT;
-	int backup = 0;
-	struct btt_info *infop = &arenap->btt_info;
 	arenap->zeroed = true;
-
-	uint64_t last_offset = (pool->set_file->size & ~(BTT_ALIGNMENT - 1))
-			- BTT_ALIGNMENT;
-	/*
-	 * Starting at offset, read every page and check for
-	 * valid BTT Info Header. Check signature and checksum.
-	 */
-	while (!pool_read(pool, infop, sizeof (*infop), offset)) {
-		bool zeroed = !check_memory((const uint8_t *)infop,
-				sizeof (*infop), 0);
-		arenap->zeroed = arenap->zeroed && zeroed;
-
-		if (pool_btt_info_valid(infop)) {
-			pool_btt_info_convert2h(infop);
-			arenap->valid = true;
-			arenap->offset = offset;
-			return 1;
-		}
-
-		if (!backup) {
-			if (pool->set_file->size > BTT_MAX_ARENA)
-				offset += BTT_MAX_ARENA - BTT_ALIGNMENT;
-			else
-				offset = last_offset;
-		} else {
-			offset += BTT_ALIGNMENT;
-		}
-
-		backup = !backup;
-	}
-
-	return 0;
+	uint64_t offset = pool_get_first_valid_btt(pool, &arenap->btt_info,
+		2 * BTT_ALIGNMENT, &arenap->zeroed);
+	return offset != 0;
 }
 
 /*
@@ -870,9 +839,9 @@ pool_get_first_valid_arena(struct pool_data *pool, struct arena *arenap)
  *	check if such arena can exist.
  */
 uint64_t
-pool_next_arena_offset(PMEMpoolcheck *ppc, uint64_t offset)
+pool_next_arena_offset(struct pool_data *pool, uint64_t offset)
 {
-	uint64_t lastoff = (ppc->pool->set_file->size & ~(BTT_ALIGNMENT - 1));
+	uint64_t lastoff = (pool->set_file->size & ~(BTT_ALIGNMENT - 1));
 	uint64_t nextoff = min(offset + BTT_MAX_ARENA, lastoff);
 	return nextoff;
 }
@@ -884,41 +853,50 @@ pool_next_arena_offset(PMEMpoolcheck *ppc, uint64_t offset)
  * - Start looking from given offset.
  * - Convert BTT Info header to host endianness.
  * - Return the BTT Info header by pointer.
+ * - If zeroed pointer provided would check if all checked BTT Info are zeroed
+ *	which is useful for BLK pools
  */
 uint64_t
-pool_get_first_valid_btt(PMEMpoolcheck *ppc, struct btt_info *infop,
-	uint64_t offset)
+pool_get_first_valid_btt(struct pool_data *pool, struct btt_info *infop,
+	uint64_t offset, bool *zeroed)
 {
 	/* if we have valid arena get BTT Info header from it */
-	if (ppc->pool->narenas != 0) {
-		struct arena *arenap = TAILQ_FIRST(&ppc->pool->arenas);
+	if (pool->narenas != 0) {
+		struct arena *arenap = TAILQ_FIRST(&pool->arenas);
 		memcpy(infop, &arenap->btt_info, sizeof (*infop));
 		return arenap->offset;
 	}
 
 	const size_t info_size = sizeof (*infop);
 
-	while (offset < ppc->pool->set_file->size) {
-		uint64_t bckoff = pool_next_arena_offset(ppc, offset) -
+	/* theoretical offsets to BTT Info header and backup */
+	uint64_t offsets[2] = {offset, 0};
+
+	while (offsets[0] < pool->set_file->size) {
+		/* calculate backup offset */
+		offsets[1] = pool_next_arena_offset(pool, offsets[0]) -
 			info_size;
 
-		/* check BTT Info header */
-		if (!pool_read(ppc->pool, infop, info_size, offset)) {
-			if (pool_btt_info_valid(infop)) {
-				pool_btt_info_convert2h(infop);
-				return offset;
+		/* check both offsets: header and backup */
+		for (int i = 0; i < 2; ++i) {
+			if (!pool_read(pool, infop, info_size, offsets[i])) {
+				/* check if all possible BTT Info are zeroed */
+				if (zeroed) {
+					*zeroed &= !check_memory(
+						(const uint8_t *)infop,
+						info_size, 0);
+				}
+
+				/* check if read BTT Info is valid */
+				if (pool_btt_info_valid(infop)) {
+					pool_btt_info_convert2h(infop);
+					return offsets[i];
+				}
 			}
 		}
 
-		/* check BTT Info backup */
-		if (!pool_read(ppc->pool, infop, info_size, bckoff)) {
-			if (pool_btt_info_valid(infop)) {
-				pool_btt_info_convert2h(infop);
-				return bckoff;
-			}
-		}
-
-		offset += BTT_MAX_ARENA;
+		/* jump to next arena */
+		offsets[0] += BTT_MAX_ARENA;
 	}
 
 	return 0;

@@ -31,7 +31,7 @@
  */
 
 /*
- * check_btt_info.h -- internal definitions for btt info check
+ * check_btt_info.h -- internal definitions for BTT Info check
  */
 
 void check_btt_info(PMEMpoolcheck *ppc);

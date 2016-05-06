@@ -270,6 +270,8 @@ static inline int
 step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
+
+	/* check step conditions */
 	if (!(step->btt_dev && ppc->pool->params.is_btt_dev))
 		if (!(step->type & ppc->pool->params.type))
 			return 0;
@@ -286,9 +288,9 @@ check_write(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep));
 
-	union location *loc =
-		(union location *)check_step_location_get(ppc->data);
+	union location *loc = (union location *)check_step_location(ppc->data);
 
+	/* do all steps */
 	while (loc->step != CHECK_STEP_COMPLETE &&
 		steps[loc->step].func != NULL) {
 

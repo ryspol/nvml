@@ -93,11 +93,7 @@ enum question {
 static enum pool_type
 pool_hdr_possible_type(PMEMpoolcheck *ppc)
 {
-	/*
-	 * We can scan pool file for valid BTT Info header if found it means
-	 * this is pmem blk pool.
-	 */
-	if (pool_get_first_valid_arena(ppc->pool, &ppc->pool->bttc)) {
+	if (pool_blk_get_first_valid_arena(ppc->pool, &ppc->pool->bttc)) {
 		return POOL_TYPE_BLK;
 	}
 
@@ -177,7 +173,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	int cs_valid = pool_hdr_valid(&hdr);
 
-	if (check_memory((void *)&hdr, sizeof (hdr), 0) == 0) {
+	if (!check_memory((void *)&hdr, sizeof (hdr), 0)) {
 		if (!ppc->args.repair) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 			return CHECK_ERR(ppc, "empty pool hdr");
@@ -195,7 +191,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 					CHECK_INFO(ppc, "invalid signature");
 				}
 			} else {
-				// valid check sum
+				/* valid check sum */
 				CHECK_INFO(ppc,
 					"%spool header checksum correct",
 					loc->prefix);
@@ -845,7 +841,6 @@ step(PMEMpoolcheck *ppc, union location *loc,
 	struct pool_replica *rep, unsigned nreplicas)
 {
 	const struct step *step = &steps[loc->step++];
-	int status = 0;
 
 	if (step->single && (nreplicas != 1 || rep->nparts != 1))
 		return 0;
@@ -880,18 +875,16 @@ step(PMEMpoolcheck *ppc, union location *loc,
 			ctx.prev_repl_hdrp = prev_rep->part[0].hdr;
 		}
 
-		status = check_answer_loop(ppc, (struct check_instep *)loc,
-			&ctx, step->fix);
-
-		if (status == 0) {
+		if (!check_answer_loop(ppc, (struct check_instep *)loc,
+			&ctx, step->fix)) {
 			pool_hdr_convert2le(&ctx.hdr);
 			memcpy(ctx.hdrp, &ctx.hdr, sizeof (*ctx.hdrp));
 			msync(ctx.hdrp, sizeof (*ctx.hdrp), MS_SYNC);
-		}
+			return 0;
+		} else
+			return 1;
 	} else
-		status = step->check(ppc, loc);
-
-	return status;
+		return step->check(ppc, loc);
 }
 
 /*
@@ -911,8 +904,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 		return;
 	}
 
-	union location *loc =
-		(union location *)check_step_location_get(ppc->data);
+	union location *loc = (union location *)check_step_location(ppc->data);
 	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
 	unsigned nfiles = pool_set_files_count(ppc->pool->set_file);
 
@@ -920,6 +912,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 		struct pool_replica *rep =
 			ppc->pool->set_file->poolset->replica[loc->replica];
 		for (; loc->part < rep->nparts; loc->part++) {
+			/* prepare prefix for messages */
 			if (ppc->result !=
 				PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
 				if (nfiles > 1) {
@@ -931,11 +924,8 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 				loc->step = 0;
 			}
 
-			while (loc->step != CHECK_STEP_COMPLETE &&
-				(steps[loc->step].check
-				!= NULL || steps[loc->step].fix
-				!= NULL)) {
-
+			/* do all checks */
+			while (CHECK_NOT_COMPLETE(loc, steps)) {
 				if (step(ppc, loc, rep, nreplicas))
 					goto cleanup;
 			}

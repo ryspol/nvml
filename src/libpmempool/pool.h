@@ -138,7 +138,9 @@ void pool_btt_info_convert2h(struct btt_info *infop);
 void pool_btt_info_convert2le(struct btt_info *infop);
 int pool_btt_info_valid(struct btt_info *infop);
 
-int pool_get_first_valid_arena(struct pool_data *pool, struct arena *arenap);
-uint64_t pool_next_arena_offset(PMEMpoolcheck *ppc, uint64_t header_offset);
-uint64_t pool_get_first_valid_btt(struct pmempool_check *ppc,
-	struct btt_info *infop, uint64_t offset);
+int
+pool_blk_get_first_valid_arena(struct pool_data *pool, struct arena *arenap);
+uint64_t pool_next_arena_offset(struct pool_data *pool, uint64_t header_offset);
+uint64_t
+pool_get_first_valid_btt(struct pool_data *pool, struct btt_info *infop,
+	uint64_t offset, bool *zeroed);

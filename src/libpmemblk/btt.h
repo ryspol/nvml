@@ -61,6 +61,8 @@ int btt_set_error(struct btt *bttp, unsigned lane, uint64_t lba);
 int btt_check(struct btt *bttp);
 void btt_fini(struct btt *bttp);
 
-int
-btt_info_set(struct btt_info *info, uint32_t external_lbasize, uint32_t nfree,
-	uint64_t arena_size, uint64_t space_left);
+uint64_t btt_flog_size(uint32_t nfree);
+uint64_t btt_map_size(uint32_t external_nlba);
+uint64_t btt_arena_datasize(uint64_t arena_size, uint32_t nfree);
+int btt_info_set(struct btt_info *info, uint32_t external_lbasize,
+	uint32_t nfree, uint64_t arena_size, uint64_t space_left);

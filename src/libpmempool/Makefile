@@ -44,7 +44,7 @@ SOURCE = libpmempool.c check.c check_util.c check_backup.c check_pool_hdr.c\
 	check_pmemx.c check_btt_info.c check_btt_map_flog.c check_write.c\
 	pool.c $(COMMON)/util.c $(COMMON)/set.c $(COMMON)/out.c
 
-LIBPMEMBLK_PRIV=btt_init btt_write btt_fini btt_info_set
+LIBPMEMBLK_PRIV=btt_info_set btt_arena_datasize btt_flog_size btt_map_size
 
 include ../Makefile.inc
 

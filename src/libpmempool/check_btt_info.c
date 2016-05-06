@@ -31,7 +31,7 @@
  */
 
 /*
- * check_btt_info.c -- check btt info
+ * check_btt_info.c -- check BTT Info
  */
 
 #include <unistd.h>
@@ -63,12 +63,6 @@ enum question {
 	Q_REGENERATE_CHECKSUM,
 };
 
-struct btt_context {
-	PMEMpoolcheck *ppc;
-	uint64_t base_off;
-	uint64_t len;
-};
-
 /*
  * location_release -- (internal) release check_btt_info_loc allocations
  */
@@ -85,20 +79,18 @@ location_release(union location *loc)
 static int
 btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 {
-	int status = 0;
 	loc->arena = calloc(1, sizeof (struct arena));
 	if (!loc->arena) {
 		ERR("!calloc");
 		ppc->result = PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR;
-		status = CHECK_ERR(ppc, "cannot allocate memory for arena");
-		goto cleanup;
+		CHECK_ERR(ppc, "cannot allocate memory for arena");
+		goto error_cleanup;
 	}
 
 	/* read the BTT Info header at well known offset */
 	if (pool_read(ppc->pool, &loc->arena->btt_info,
 		sizeof (loc->arena->btt_info), loc->offset)) {
-		status = CHECK_ERR(ppc,
-			"arena %u: cannot read BTT Info header",
+		CHECK_ERR(ppc, "arena %u: cannot read BTT Info header",
 			loc->arena->id);
 		goto error;
 	}
@@ -106,12 +98,13 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 	loc->arena->id = ppc->pool->narenas;
 
 	/* BLK is consistent even without BTT Layout */
-	if (!ppc->pool->params.is_btt_dev && check_memory((const uint8_t *)
-		&loc->arena->btt_info, sizeof (loc->arena->btt_info), 0) == 0) {
+	if (!ppc->pool->params.is_btt_dev && !check_memory((const uint8_t *)
+		&loc->arena->btt_info, sizeof (loc->arena->btt_info), 0)) {
 		CHECK_INFO(ppc, "BTT Layout not written");
 		ppc->pool->blk_no_layout = 1;
 		loc->step = CHECK_STEP_COMPLETE;
-		goto cleanup;
+		location_release(loc);
+		return 0;
 	}
 
 	/* check consistency of BTT Info */
@@ -121,7 +114,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 		loc->step = CHECK_STEP_COMPLETE;
 	} else {
 		if (!ppc->args.repair) {
-			status = CHECK_ERR(ppc,
+			CHECK_ERR(ppc,
 				"arena %u: BTT Info header checksum incorrect",
 				loc->arena->id);
 			goto error;
@@ -132,9 +125,9 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
-cleanup:
+error_cleanup:
 	location_release(loc);
-	return status;
+	return 1;
 }
 
 /*
@@ -144,20 +137,20 @@ static int
 btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 {
 	ASSERT(ppc->args.repair);
-	int status = 0;
 
 	/* BTT Info header is not consistent, so try get BTT Info backup */
 	const size_t btt_info_size = sizeof (ppc->pool->bttc.btt_info);
-	loc->offset2 = pool_next_arena_offset(ppc, loc->offset) - btt_info_size;
+	loc->offset2 = pool_next_arena_offset(ppc->pool, loc->offset) -
+		btt_info_size;
 
 	if (pool_read(ppc->pool, &ppc->pool->bttc.btt_info, btt_info_size,
-		loc->offset2) != 0) {
-		status = CHECK_ERR(ppc, "arena %u: cannot read BTT Info backup",
+		loc->offset2)) {
+		CHECK_ERR(ppc, "arena %u: cannot read BTT Info backup",
 			loc->arena->id);
 		goto error;
 	}
 
-	/* Check whether this BTT Info backup is valid */
+	/* check whether this BTT Info backup is valid */
 	if (pool_btt_info_valid(&ppc->pool->bttc.btt_info)) {
 		/* Here we have valid BTT Info backup so we can restore it. */
 		CHECK_ASK(ppc, Q_RESTORE_FROM_BACKUP,
@@ -170,7 +163,7 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 	location_release(loc);
-	return status;
+	return 1;
 }
 
 /*
@@ -234,8 +227,9 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		 * We do not have valid BTT Info backup so we get first valid
 		 * BTT Info and try to calculate BTT Info for current arena
 		 */
-		loc->offset2 = pool_get_first_valid_btt(ppc,
-			&ppc->pool->bttc.btt_info, loc->offset + BTT_MAX_ARENA);
+		loc->offset2 = pool_get_first_valid_btt(ppc->pool,
+			&ppc->pool->bttc.btt_info, loc->offset + BTT_MAX_ARENA,
+			NULL);
 
 		if (loc->offset2 == 0) {
 			/* Without valid BTT Info we can not proceed */
@@ -254,18 +248,19 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		struct btt_info *btts = &ppc->pool->bttc.btt_info;
 
 		/*
-		 * All valid BTT Info structures have the same signature, UUID,
+		 * all valid BTT Info structures have the same signature, UUID,
 		 * parent UUID, flags, major, minor, external LBA size, internal
 		 * LBA size, nfree, info size and data offset
 		 */
 		memcpy(bttd->sig, btts->sig, BTTINFO_SIG_LEN);
 		memcpy(bttd->uuid, btts->uuid, BTTINFO_UUID_LEN);
 		memcpy(bttd->parent_uuid, btts->parent_uuid, BTTINFO_UUID_LEN);
+		memset(bttd->unused, 0, BTTINFO_UNUSED_LEN);
 		bttd->flags = btts->flags;
 		bttd->major = btts->major;
 		bttd->minor = btts->minor;
 
-		/* Other parameters can be calculated */
+		/* other parameters can be calculated */
 		if (btt_info_set(bttd, btts->external_lbasize, btts->nfree,
 			arena_size, space_left)) {
 			CHECK_ERR(ppc, "Can not restore BTT Info");
@@ -277,8 +272,6 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		ASSERTeq(bttd->nfree, btts->nfree);
 		ASSERTeq(bttd->infosize, btts->infosize);
 		ASSERTeq(bttd->dataoff, btts->dataoff);
-
-		memset(bttd->unused, 0, BTTINFO_UNUSED_LEN);
 		return 0;
 
 	default:
@@ -293,8 +286,6 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 static int
 btt_info_checksum_retry(PMEMpoolcheck *ppc, union location *loc)
 {
-	int status = 0;
-
 	pool_btt_info_convert2le(&loc->arena->btt_info);
 
 	/* check consistency of BTT Info */
@@ -302,14 +293,13 @@ btt_info_checksum_retry(PMEMpoolcheck *ppc, union location *loc)
 		CHECK_INFO(ppc, "arena %u: BTT Info header checksum correct",
 			loc->arena->id);
 		loc->step = CHECK_STEP_COMPLETE;
-		/* futher steps require BTT Info in host byte order */
+		/* further steps require BTT Info in host byte order */
 		pool_btt_info_convert2h(&loc->arena->btt_info);
 		return 0;
 	}
 
 	if (!ppc->args.advanced) {
-		status = CHECK_ERR(ppc,
-			"arena %u: BTT Info header checksum incorrect",
+		CHECK_ERR(ppc, "arena %u: BTT Info header checksum incorrect",
 			loc->arena->id);
 		goto error;
 	}
@@ -323,7 +313,7 @@ btt_info_checksum_retry(PMEMpoolcheck *ppc, union location *loc)
 error:
 	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 	location_release(loc);
-	return status;
+	return 1;
 }
 
 /*
@@ -341,12 +331,13 @@ btt_info_checksum_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	case Q_REGENERATE_CHECKSUM:
 		util_checksum(&loc->arena->btt_info, sizeof (struct btt_info),
 			&loc->arena->btt_info.checksum, 1);
-		return 0;
+		break;
 
 	default:
 		ERR("not implemented question id: %u", question);
-		return -1;
 	}
+
+	return 0;
 }
 
 struct step {
@@ -391,26 +382,25 @@ step(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
-	int status = 0;
 	if (step->fix != NULL) {
-		if (!check_has_answer(ppc->data))
-			return 0;
+		if (check_answer_loop(ppc, (struct check_instep *)loc, NULL,
+			step->fix)) {
 
-		status = check_answer_loop(ppc, (struct check_instep *)loc,
-			NULL, step->fix);
+			if (!check_has_error(ppc->data))
+				return 1;
 
-		if (check_has_error(ppc->data)) {
 			struct check_status *err = check_pop_error(ppc->data);
 			check_status_release(ppc, err);
-			status = CHECK_ERR(ppc,
+			CHECK_ERR(ppc,
 				"arena %u: cannot repair BTT Info header",
 				loc->arena->id);
 			location_release(loc);
+			return 1;
 		}
+		else
+			return 0;
 	} else
-		status = step->check(ppc, loc);
-
-	return status;
+		return step->check(ppc, loc);
 }
 
 /*
@@ -422,9 +412,9 @@ check_btt_info(PMEMpoolcheck *ppc)
 	COMPILE_ERROR_ON(sizeof (union location) !=
 		sizeof (struct check_instep));
 
-	union location *loc =
-		(union location *)check_step_location_get(ppc->data);
+	union location *loc = (union location *)check_step_location(ppc->data);
 
+	/* initialize check */
 	if (!loc->offset) {
 		CHECK_INFO(ppc, "checking BTT Info headers");
 		loc->offset = BTT_ALIGNMENT;
@@ -434,6 +424,7 @@ check_btt_info(PMEMpoolcheck *ppc)
 	}
 
 	do {
+		/* jump to next offset */
 		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
 			loc->offset += loc->nextoff;
 			loc->offset2 = 0;
@@ -441,10 +432,8 @@ check_btt_info(PMEMpoolcheck *ppc)
 			loc->step = 0;
 		}
 
-		while (loc->step != CHECK_STEP_COMPLETE &&
-			(steps[loc->step].check != NULL ||
-			steps[loc->step].fix != NULL)) {
-
+		/* do all checks */
+		while (CHECK_NOT_COMPLETE(loc, steps)) {
 			if (step(ppc, loc) || ppc->pool->blk_no_layout == 1)
 				return;
 		}
@@ -454,5 +443,6 @@ check_btt_info(PMEMpoolcheck *ppc)
 		loc->arena->valid = true;
 		check_insert_arena(ppc, loc->arena);
 		loc->nextoff = le64toh(loc->arena->btt_info.nextoff);
+
 	} while (loc->nextoff > 0);
 }

@@ -57,7 +57,7 @@ void check_data_free(struct check_data *data);
 
 uint32_t check_step_get(struct check_data *data);
 void check_step_inc(struct check_data *data);
-struct check_instep *check_step_location_get(struct check_data *data);
+struct check_instep *check_step_location(struct check_data *data);
 
 void check_end(struct check_data *data);
 int check_ended(struct check_data *data);
@@ -90,6 +90,11 @@ int check_status_is(struct check_status *status,
 #define	CHECK_ASK(ppc, question, ...)\
 	check_status_create(ppc, PMEMPOOL_CHECK_MSG_TYPE_QUESTION, question,\
 		__VA_ARGS__)
+
+#define	CHECK_NOT_COMPLETE(loc, steps)\
+	((loc)->step != CHECK_STEP_COMPLETE &&\
+		((steps)[(loc)->step].check != NULL ||\
+		(steps)[(loc)->step].fix != NULL))
 
 int
 check_answer_loop(PMEMpoolcheck *ppc, struct check_instep *loc, void *ctx,

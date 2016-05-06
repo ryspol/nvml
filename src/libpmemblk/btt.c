@@ -844,7 +844,7 @@ err:
 }
 
 /*
- * internal_lbasize -- calculate internal LBA size
+ * internal_lbasize -- (internal) calculate internal LBA size
  */
 static inline int64_t
 internal_lbasize(uint32_t external_lbasize)
@@ -865,10 +865,10 @@ internal_lbasize(uint32_t external_lbasize)
 }
 
 /*
- * flog_size -- calculate flog data size
+ * btt_flog_size -- (internal) calculate flog data size
  */
-static inline uint64_t
-flog_size(uint32_t nfree)
+uint64_t
+btt_flog_size(uint32_t nfree)
 {
 	uint64_t flog_size = nfree * roundup(2 * sizeof (struct btt_flog),
 		BTT_FLOG_PAIR_ALIGN);
@@ -876,25 +876,28 @@ flog_size(uint32_t nfree)
 }
 
 /*
- * map_size -- calculate map data size
+ * btt_map_size -- (internal) calculate map data size
  */
-static inline uint64_t
-map_size(uint32_t external_nlba)
+uint64_t
+btt_map_size(uint32_t external_nlba)
 {
 	return roundup(external_nlba * BTT_MAP_ENTRY_SIZE, BTT_ALIGNMENT);
 }
 
 /*
- * arena_datasize -- arena size - meta data size
+ * btt_arena_datasize -- (internal) whole arena size without BTT Info header,
+ *	backup and flog means size of blocks and map
  */
-static inline uint64_t
-arena_datasize(uint64_t arena_size, uint32_t nfree)
+uint64_t
+btt_arena_datasize(uint64_t arena_size, uint32_t nfree)
 {
-	return arena_size - 2 * sizeof (struct btt_info) - flog_size(nfree);
+	return arena_size - 2 * sizeof (struct btt_info) - btt_flog_size(nfree);
 }
 
 /*
- * btt_info_set_params --
+ * btt_info_set_params -- (internal) calculate and set BTT Info
+ *	external_lbasize, internal_lbasize, nfree, infosize, external_nlba and
+ *	internal_nlba
  */
 static int
 btt_info_set_params(struct btt_info *info, uint32_t external_lbasize,
@@ -905,7 +908,7 @@ btt_info_set_params(struct btt_info *info, uint32_t external_lbasize,
 	info->nfree = nfree;
 	info->infosize = sizeof (*info);
 
-	uint64_t arena_data_size = arena_datasize(arena_size, nfree);
+	uint64_t arena_data_size = btt_arena_datasize(arena_size, nfree);
 
 	/* allow for map alignment padding */
 	uint64_t internal_nlba = (arena_data_size - BTT_ALIGNMENT) /
@@ -926,15 +929,16 @@ btt_info_set_params(struct btt_info *info, uint32_t external_lbasize,
 	/* external LBA does not include free blocks */
 	info->external_nlba = internal_nlba_u32 - info->nfree;
 
-	ASSERT((arena_data_size - map_size(info->external_nlba)) /
+	ASSERT((arena_data_size - btt_map_size(info->external_nlba)) /
 		internal_lbasize >= internal_nlba);
 
 	return 0;
 }
 
 /*
- * btt_info_set_offs -- calculate offsets for the BTT info block. These are all
- *	relative to the beginning of the arena.
+ * btt_info_set_offs -- (itnernal) calculate and set the BTT Info dataoff,
+ *	nextoff, infooff, flogoff and mapoff. These are all relative to the
+ *	beginning of the arena.
  */
 static int
 btt_info_set_offs(struct btt_info *info, uint64_t arena_size,
@@ -949,11 +953,12 @@ btt_info_set_offs(struct btt_info *info, uint64_t arena_size,
 		info->nextoff = 0;
 
 	info->infooff = arena_size - sizeof (struct btt_info);
-	info->flogoff = info->infooff - flog_size(info->nfree);
-	info->mapoff = info->flogoff - map_size(info->external_nlba);
+	info->flogoff = info->infooff - btt_flog_size(info->nfree);
+	info->mapoff = info->flogoff - btt_map_size(info->external_nlba);
 
-	ASSERTeq(arena_datasize(arena_size, info->nfree) -
-		map_size(info->external_nlba), info->mapoff - info->dataoff);
+	ASSERTeq(btt_arena_datasize(arena_size, info->nfree) -
+		btt_map_size(info->external_nlba), info->mapoff -
+		info->dataoff);
 
 	return 0;
 }
@@ -1071,7 +1076,8 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		if (!write)
 			continue;
 
-		btt_info_set_offs(&info, arena_rawsize, rawsize);
+		if (btt_info_set_offs(&info, arena_rawsize, rawsize))
+			return -1;
 
 		LOG(4, "nextoff 0x%016jx", info.nextoff);
 		LOG(4, "dataoff 0x%016jx", info.dataoff);
@@ -1081,7 +1087,7 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 
 		/* zero map if ns is not zero-initialized */
 		if (!bttp->ns_cbp->ns_is_zeroed) {
-			uint64_t mapsize = map_size(info.external_nlba);
+			uint64_t mapsize = btt_map_size(info.external_nlba);
 			if ((*bttp->ns_cbp->nszero)(bttp->ns, lane, mapsize,
 				info.mapoff) < 0)
 				return -1;

@@ -148,10 +148,10 @@ check_step_inc(struct check_data *data)
 }
 
 /*
- * check_step_location_get -- return pointer to structure describing step status
+ * check_step_location -- return pointer to structure describing step status
  */
 struct check_instep *
-check_step_location_get(struct check_data *data)
+check_step_location(struct check_data *data)
 {
 	return &data->location;
 }
@@ -164,7 +164,6 @@ check_step_location_get(struct check_data *data)
 inline void
 check_end(struct check_data *data)
 {
-	// ASSERT(data->step != CHECK_END);
 	data->step = CHECK_END;
 }
 
@@ -250,7 +249,7 @@ status_msg_prepare(const char *msg)
 /*
  * check_status_create -- create single status, push it to proper queue
  *	MSG_SEPARATOR character in fmt is treated as message separator. If
- *	creating question but ppc arguments do not allow to make any changes
+ *	creating question but check arguments do not allow to make any changes
  *	(asking any question is pointless) it takes part of message before
  *	MSG_SEPARATOR character and use it to create error message. Character
  *	just before separator must be a MSG_PLACE_OF_SEPARATION character.
@@ -272,7 +271,7 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 		int p = vsnprintf(st->msg, MAX_MSG_STR_SIZE, fmt, ap);
 		va_end(ap);
 
-		/* concat possible strerror at the end of the message */
+		/* append possible strerror at the end of the message */
 		if (type != PMEMPOOL_CHECK_MSG_TYPE_QUESTION && errno &&
 			p > 0) {
 			snprintf(st->msg + p, MAX_MSG_STR_SIZE - (size_t)p,
@@ -379,7 +378,7 @@ check_pop_question(struct check_data *data)
 }
 
 /*
- * check_pop_info -- pop single info from infos queue
+ * check_pop_info -- pop single info from informations queue
  */
 struct check_status *
 check_pop_info(struct check_data *data)
@@ -437,6 +436,7 @@ check_push_answer(PMEMpoolcheck *ppc)
 	if (ppc->data->check_status_cache == NULL)
 		return 0;
 
+	/* check if answer is "yes" or "no" */
 	struct pmempool_check_status *status =
 		&ppc->data->check_status_cache->status;
 	if (status->str.answer != NULL) {
@@ -448,12 +448,14 @@ check_push_answer(PMEMpoolcheck *ppc)
 	}
 
 	if (status->answer == PMEMPOOL_CHECK_ANSWER_EMPTY) {
+		/* invalid answer provided */
 		status_push(ppc->data, ppc->data->check_status_cache);
 		ppc->data->check_status_cache = NULL;
 		CHECK_INFO(ppc, "Answer must be either %s or %s",
 			CHECK_ANSWER_YES, CHECK_ANSWER_NO);
 		return 1;
 	} else {
+		/* push answer */
 		TAILQ_INSERT_TAIL(&ppc->data->answers,
 			ppc->data->check_status_cache, next);
 		ppc->data->check_status_cache = NULL;
@@ -513,16 +515,19 @@ check_answer_loop(PMEMpoolcheck *ppc, struct check_instep *loc, void *ctx,
 	struct check_status *answer;
 
 	while ((answer = pop_answer(ppc->data)) != NULL) {
+		/* if answer is "no" we cannot fix an issue */
 		if (answer->status.answer != PMEMPOOL_CHECK_ANSWER_YES) {
 			CHECK_ERR(ppc, "");
 			goto cannot_repair;
 		}
 
+		/* perform fix */
 		if (callback(ppc, loc, answer->status.question, ctx))
 			goto cannot_repair;
 		if (ppc->result == PMEMPOOL_CHECK_RESULT_ERROR)
 			goto error;
 
+		/* fix succeeded */
 		ppc->result = PMEMPOOL_CHECK_RESULT_REPAIRED;
 		check_status_release(ppc, answer);
 	}
@@ -541,7 +546,8 @@ cannot_repair:
 
 /*
  * check_questions_sequence_validate -- check if sequence of questions resulted
- *	in expected result value and returns check
+ *	in expected result value and returns if there are any questions for the
+ *	user
  */
 int
 check_questions_sequence_validate(PMEMpoolcheck *ppc)
@@ -552,7 +558,7 @@ check_questions_sequence_validate(PMEMpoolcheck *ppc)
 		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED);
 	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
 		ASSERT(!TAILQ_EMPTY(&ppc->data->questions));
-		return -1;
+		return 1;
 	} else
 		return 0;
 }
@@ -566,7 +572,7 @@ check_memory(const uint8_t *buff, size_t len, uint8_t val)
 	size_t i;
 	for (i = 0; i < len; i++) {
 		if (buff[i] != val)
-			return -1;
+			return 1;
 	}
 
 	return 0;
