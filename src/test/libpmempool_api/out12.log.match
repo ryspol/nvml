@@ -1,0 +1,34 @@
+libpmempool_api/TEST12: START: libpmempool_api
+ ./libpmempool_api$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
+
+arena 0: regenerating BTT Info header
+
+arena 0: BTT Info header checksum incorrect
+
+status = fatal
+
+libpmempool_api/TEST12: Done
+libpmempool_api/TEST12: START: libpmempool_api
+ ./libpmempool_api$(nW) $(nW) -r 1 -t btt -a 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
+
+arena 0: regenerating BTT Info header
+
+arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info checksum?
+
+arena 1: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 1: checking map and flog
+
+status = repaired
+
+libpmempool_api/TEST12: Done
