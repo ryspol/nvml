@@ -351,7 +351,7 @@ pcheck_rpmem: $(RPMEM_TESTS)
 pcheck_pmempool: TARGET = pcheck
 pcheck_pmempool: $(PMEMPOOL_TESTS)
 	@echo "No failures."
-	
+
 pcheck_libpmempool: TARGET = pcheck
 pcheck_libpmempool: $(LIBPMEMPOOL_TESTS)
 	@echo "No failures."
