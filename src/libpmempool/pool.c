@@ -831,7 +831,14 @@ pool_blk_get_first_valid_arena(struct pool_data *pool, struct arena *arenap)
 	arenap->zeroed = true;
 	uint64_t offset = pool_get_first_valid_btt(pool, &arenap->btt_info,
 		2 * BTT_ALIGNMENT, &arenap->zeroed);
-	return offset != 0;
+
+	if (offset != 0) {
+		arenap->offset = offset;
+		arenap->valid = true;
+		return 1;
+	}
+
+	return 0;
 }
 
 /*
