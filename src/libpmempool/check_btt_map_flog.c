@@ -374,7 +374,7 @@ map_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i)
 	uint32_t entry = arenap->map[i];
 
 	if (!(entry & ~BTT_MAP_ENTRY_LBA_MASK))
-		/* if map record is in initial state (flags == 0b00)*/
+		/* if map record is in initial state (flags == 0b00) */
 		entry = i;
 	else
 		/* read postmap LBA otherwise */
