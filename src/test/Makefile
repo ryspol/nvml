@@ -230,6 +230,7 @@ CPP_EXAMPLE_TESTS = \
 LIBPMEMPOOL_TESTS = \
        libpmempool_api\
        libpmempool_btt\
+       libpmempool_map_flog
 
 TESTS = \
        $(OBJ_TESTS)\
@@ -327,7 +328,7 @@ pcheck_pmem: $(PMEM_TESTS)
 pcheck_pmempool: TARGET = pcheck
 pcheck_pmempool: $(PMEMPOOL_TESTS)
 	@echo "No failures."
-	
+
 pcheck_libpmempool: TARGET = pcheck
 pcheck_libpmempool: $(LIBPMEMPOOL_TESTS)
 	@echo "No failures."
