@@ -93,7 +93,7 @@ static void
 print_usage(char *name)
 {
 	UT_OUT("Usage: %s [-t <pool_type>] [-r <repair>] [-d <dry_run>] "
-			"[-y <always_yes>] [-f <flags>] [-a <aggressive>] "
+			"[-y <always_yes>] [-f <flags>] [-a <advanced>] "
 			"[-b <backup_path>] [-n] <pool_path>\n", name);
 }
 
@@ -129,7 +129,8 @@ main(int argc, char *argv[])
 			} else if (strcmp(optarg, "btt") == 0) {
 				args.pool_type	= PMEMPOOL_POOL_TYPE_BTT_DEV;
 			} else {
-				args.pool_type = (uint32_t)strtoul(optarg, NULL, 0);
+				args.pool_type = (uint32_t)strtoul
+					(optarg, NULL, 0);
 			}
 			break;
 		case 'r':
