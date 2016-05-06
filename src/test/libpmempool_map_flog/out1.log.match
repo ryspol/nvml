@@ -109,6 +109,30 @@ libpmempool_map_flog/TEST1: START: libpmempool_map_flog
  ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
 checking BTT Info headers
 
-TO BE ANALYZED!!!!!!!!!!!!!!!!!!!!!!!!
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 0: invalid map entry at 2
+
+arena 0: map entry 3 duplicated at 6
+
+arena 0: unmapped block 2
+
+arena 0: unmapped block 6
+
+arena 0: number of unmapped blocks: 2
+
+arena 0: number of invalid map entries: 2
+
+Do you want repair invalid map entries?
+
+arena 0: storing 0x40000006 at 6 entry
+
+arena 0: storing 0x40000002 at 2 entry
+
+status = repaired
 
 libpmempool_map_flog/TEST1: Done
