@@ -1,0 +1,160 @@
+Zeroed: bttdevice.arena.btt_map(0)=0x80000000
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = consistent
+
+libpmempool_map_flog/TEST0: Done
+Zeroed: bttdevice.arena.btt_map(0)=0x80000001
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 0: map entry 1 duplicated at 1
+
+arena 0: unmapped block 0
+
+arena 0: number of unmapped blocks: 1
+
+arena 0: number of invalid map entries: 1
+
+Do you want repair invalid map entries?
+
+arena 0: storing 0x40000000 at 1 entry
+
+status = repaired
+
+libpmempool_map_flog/TEST0: Done
+Error: bttdevice.arena.btt_map(0)=0x40000000
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = consistent
+
+libpmempool_map_flog/TEST0: Done
+Error: bttdevice.arena.btt_map(0)=0x40000001
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 0: map entry 1 duplicated at 1
+
+arena 0: unmapped block 0
+
+arena 0: number of unmapped blocks: 1
+
+arena 0: number of invalid map entries: 1
+
+Do you want repair invalid map entries?
+
+arena 0: storing 0x40000000 at 1 entry
+
+status = repaired
+
+libpmempool_map_flog/TEST0: Done
+Initial: bttdevice.arena.btt_map(0)=0x00000000
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = consistent
+
+libpmempool_map_flog/TEST0: Done
+Initial: bttdevice.arena.btt_map(0)=0x00000001
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = consistent
+
+libpmempool_map_flog/TEST0: Done
+Normal: bttdevice.arena.btt_map(0)=0xC0000000
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 0: invalid map entry at 0
+
+arena 0: unmapped block 0
+
+arena 0: number of unmapped blocks: 1
+
+arena 0: number of invalid map entries: 1
+
+Do you want repair invalid map entries?
+
+arena 0: storing 0x40000000 at 0 entry
+
+status = repaired
+
+libpmempool_map_flog/TEST0: Done
+Normal: bttdevice.arena.btt_map(0)=0xC0000001
+libpmempool_map_flog/TEST0: START: libpmempool_map_flog
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+checking BTT Info headers
+
+arena 0: BTT Info header checksum correct
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+arena 0: invalid map entry at 0
+
+arena 0: unmapped block 0
+
+arena 0: number of unmapped blocks: 1
+
+arena 0: number of invalid map entries: 1
+
+Do you want repair invalid map entries?
+
+arena 0: storing 0x40000000 at 0 entry
+
+status = repaired
+
+libpmempool_map_flog/TEST0: Done
