@@ -34,6 +34,8 @@
  * check_util.h -- internal definitions check util
  */
 
+#include <time.h>
+
 #define	CHECK_STEP_COMPLETE	UINT32_MAX
 #define	CHECK_INVALID_QUESTION	UINT32_MAX
 
@@ -41,6 +43,7 @@
 
 /* check control context */
 struct check_data;
+struct arena;
 
 /* queue of check statuses */
 struct check_status;

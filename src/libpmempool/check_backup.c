@@ -34,11 +34,9 @@
  * check_backup.c -- pre-check backup
  */
 
-#include <unistd.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <sys/mman.h>
 
-#include "out.h"
 #include "libpmempool.h"
 #include "pmempool.h"
 #include "pool.h"

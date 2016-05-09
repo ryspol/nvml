@@ -34,9 +34,7 @@
  * check_btt_map_flog.c -- check BTT map and flog
  */
 
-#include <unistd.h>
 #include <stdint.h>
-#include <sys/mman.h>
 #include <sys/param.h>
 
 #include "out.h"

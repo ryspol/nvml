@@ -35,6 +35,7 @@
  */
 
 #include <stdbool.h>
+#include <sys/types.h>
 #include <sys/queue.h>
 
 #include "util.h"

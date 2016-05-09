@@ -35,7 +35,6 @@
  */
 
 #include <stdio.h>
-#include <stdint.h>
 #include <inttypes.h>
 #include <sys/mman.h>
 

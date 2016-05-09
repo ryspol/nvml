@@ -34,7 +34,6 @@
  * check.c -- functions performing checks in proper order
  */
 
-#include <stdio.h>
 #include <stdint.h>
 
 #include "out.h"

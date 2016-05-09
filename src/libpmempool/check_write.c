@@ -34,10 +34,7 @@
  * check_write.c -- write fixed data back
  */
 
-#include <unistd.h>
 #include <stdint.h>
-#include <sys/mman.h>
-#include <sys/param.h>
 
 #include "out.h"
 #include "btt.h"

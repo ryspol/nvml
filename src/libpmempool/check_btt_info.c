@@ -34,9 +34,8 @@
  * check_btt_info.c -- check BTT Info
  */
 
-#include <unistd.h>
+#include <stdlib.h>
 #include <stdint.h>
-#include <sys/mman.h>
 
 #include "out.h"
 #include "btt.h"
