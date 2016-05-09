@@ -212,6 +212,15 @@ struct pool_set {
 	struct pool_replica *replica[];
 };
 
+#define REP(set, r)\
+	((set)->replica[((set)->nreplicas + (r)) % (set)->nreplicas])
+
+#define PART(rep, p)\
+	((rep)->part[((rep)->nparts + (p)) % (rep)->nparts])
+
+#define HDR(rep, p)\
+	((struct pool_hdr *)(PART(rep, p).hdr))
+
 /*
  * Structure for binary version of uuid. From RFC4122,
  * https://tools.ietf.org/html/rfc4122

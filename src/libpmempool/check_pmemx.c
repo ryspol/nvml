@@ -117,34 +117,36 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 	if (ppc->pool->hdr.log.start_offset != d_start_offset) {
 		if (CHECK_ASK(ppc, Q_LOG_START_OFFSET,
-			"invalid pmemlog.start_offset: 0x%" PRIx64 ".|Do you "
-			" want to set pmemlog.start_offset to default 0x%x?",
-			ppc->pool->hdr.log.start_offset, d_start_offset))
+				"invalid pmemlog.start_offset: 0x%" PRIx64 ".|"
+				"Do you want to set pmemlog.start_offset to "
+				"default 0x%x?",
+				ppc->pool->hdr.log.start_offset,
+				d_start_offset))
 			goto error;
 
 	}
 
 	if (ppc->pool->hdr.log.end_offset != ppc->pool->set_file->size) {
 		if (CHECK_ASK(ppc, Q_LOG_END_OFFSET,
-			"invalid pmemlog.end_offset: 0x%" PRIx64 ".|Do you "
-			"want to set pmemlog.end_offset to 0x%x?",
-			ppc->pool->hdr.log.end_offset,
-			ppc->pool->set_file->size))
+				"invalid pmemlog.end_offset: 0x%" PRIx64 ".|Do "
+				"you want to set pmemlog.end_offset to 0x%x?",
+				ppc->pool->hdr.log.end_offset,
+				ppc->pool->set_file->size))
 			goto error;
 	}
 
 	if (ppc->pool->hdr.log.write_offset < d_start_offset ||
 		ppc->pool->hdr.log.write_offset > ppc->pool->set_file->size) {
 		if (CHECK_ASK(ppc, Q_LOG_WRITE_OFFSET,
-			"invalid pmemlog.write_offset: 0x%" PRIx64 ".|Do you "
-			"want to set pmemlog.write_offset to "
-			"pmemlog.end_offset?",
-			ppc->pool->hdr.log.write_offset))
+				"invalid pmemlog.write_offset: 0x%" PRIx64 ".|"
+				"Do you want to set pmemlog.write_offset to "
+				"pmemlog.end_offset?",
+				ppc->pool->hdr.log.write_offset))
 			goto error;
 	}
 
 	if (ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
+			ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
 		CHECK_INFO(ppc, "pmemlog header correct");
 
 	return check_questions_sequence_validate(ppc);
@@ -207,9 +209,8 @@ blk_get_max_bsize(uint64_t fsize)
 
 	/* compute arena size from file size without pmemblk structure */
 	uint64_t arena_size = fsize - sizeof(struct pmemblk);
-	if (arena_size > BTT_MAX_ARENA) {
+	if (arena_size > BTT_MAX_ARENA)
 		arena_size = BTT_MAX_ARENA;
-	}
 	arena_size = btt_arena_datasize(arena_size, nfree);
 
 	/* compute maximum internal LBA size */
@@ -298,15 +299,15 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 		CHECK_INFO(ppc, "no BTT layout");
 	else {
 		if (ppc->pool->hdr.blk.bsize < BTT_MIN_LBA_SIZE ||
-			blk_bsize_valid(ppc->pool->hdr.blk.bsize,
-			ppc->pool->set_file->size)) {
+				blk_bsize_valid(ppc->pool->hdr.blk.bsize,
+				ppc->pool->set_file->size)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "invalid pmemblk.bsize");
 		}
 	}
 
 	if (ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
+			ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
 		CHECK_INFO(ppc, "pmemblk header correct");
 
 	return check_questions_sequence_validate(ppc);
@@ -371,10 +372,10 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- (internal) perform single step according to its parameters
+ * step_exe -- (internal) perform single step according to its parameters
  */
 static inline int
-step(PMEMpoolcheck *ppc, union location *loc)
+step_exe(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
@@ -413,7 +414,7 @@ check_pmemx(PMEMpoolcheck *ppc)
 
 	/* do all checks */
 	while (CHECK_NOT_COMPLETE(loc, steps)) {
-		if (step(ppc, loc))
+		if (step_exe(ppc, loc))
 			break;
 	}
 }

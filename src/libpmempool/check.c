@@ -195,7 +195,7 @@ check_step(PMEMpoolcheck *ppc)
 	/* check if required conditions are met */
 	if (!(step->btt_dev && ppc->pool->params.is_btt_dev)) {
 		if (!(step->type & ppc->pool->params.type) ||
-			(ppc->pool->params.is_part && !step->part)) {
+				(ppc->pool->params.is_part && !step->part)) {
 			/* skip test */
 			check_step_inc(ppc->data);
 			return NULL;
@@ -206,9 +206,8 @@ check_step(PMEMpoolcheck *ppc)
 	step->func(ppc);
 
 	/* move on to next step if no questions was generated */
-	if (ppc->result != PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
+	if (ppc->result != PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
 		check_step_inc(ppc->data);
-	}
 
 	/* get current status and return */
 	return status_get(ppc);

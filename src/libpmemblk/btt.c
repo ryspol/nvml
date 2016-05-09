@@ -975,7 +975,7 @@ btt_info_set(struct btt_info *info, uint32_t external_lbasize,
 
 	/* set params and offsets */
 	if (btt_info_set_params(info, external_lbasize,
-		internal_lba_size, nfree, arena_size))
+			internal_lba_size, nfree, arena_size))
 		return -1;
 
 	btt_info_set_offs(info, arena_size, space_left);
@@ -1146,10 +1146,10 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		util_checksum(&info, sizeof(info), &info.checksum, 1);
 
 		if ((*bttp->ns_cbp->nswrite)(bttp->ns, lane, &info,
-			sizeof(info), arena_off) < 0)
+				sizeof(info), arena_off) < 0)
 			return -1;
 		if ((*bttp->ns_cbp->nswrite)(bttp->ns, lane, &info,
-			sizeof(info), arena_off + info.infooff) < 0)
+				sizeof(info), arena_off + info.infooff) < 0)
 			return -1;
 
 		arena_off += info.nextoff;

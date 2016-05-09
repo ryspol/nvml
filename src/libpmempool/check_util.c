@@ -282,7 +282,7 @@ check_status_create(PMEMpoolcheck *ppc, enum pmempool_check_msg_type type,
 
 		/* append possible strerror at the end of the message */
 		if (type != PMEMPOOL_CHECK_MSG_TYPE_QUESTION && errno &&
-			p > 0) {
+				p > 0) {
 			snprintf(st->msg + p, MAX_MSG_STR_SIZE - (size_t)p,
 				": %s", strerror(errno));
 		}
@@ -416,7 +416,7 @@ check_clear_status_cache(struct check_data *data)
 		enum pmempool_check_msg_type type =
 			data->check_status_cache->status.type;
 		if (type == PMEMPOOL_CHECK_MSG_TYPE_INFO ||
-			type == PMEMPOOL_CHECK_MSG_TYPE_ERROR) {
+				type == PMEMPOOL_CHECK_MSG_TYPE_ERROR) {
 			status_release(data->check_status_cache);
 			data->check_status_cache = NULL;
 		}

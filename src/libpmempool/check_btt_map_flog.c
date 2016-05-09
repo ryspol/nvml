@@ -434,8 +434,8 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 	 * new_map are in internal_nlba range.
 	 */
 	if (flog_cur->lba >= arenap->btt_info.external_nlba ||
-		entry >= arenap->btt_info.internal_nlba ||
-		new_entry >= arenap->btt_info.internal_nlba) {
+			entry >= arenap->btt_info.internal_nlba ||
+			new_entry >= arenap->btt_info.internal_nlba) {
 		CHECK_INFO(ppc, "arena %u: invalid flog entry at %u",
 			arenap->id, i);
 		if (!list_push(loc->list_flog_inval, i))
@@ -562,7 +562,7 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 	 * equal to sum of invalid map and flog entries.
 	 */
 	if (loc->list_unmap->count != (loc->list_inval->count +
-		loc->list_flog_inval->count)) {
+			loc->list_flog_inval->count)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		CHECK_ERR(ppc, "arena %u: cannot repair map and flog",
 			arenap->id);
@@ -682,10 +682,10 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- (internal) perform single step according to its parameters
+ * step_exe -- (internal) perform single step according to its parameters
  */
 static inline int
-step(PMEMpoolcheck *ppc, union location *loc)
+step_exe(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
@@ -716,7 +716,7 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 
 	/* initialize check */
 	if (!loc->arenap && loc->narena == 0 &&
-		ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+			ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
 		CHECK_INFO(ppc, "checking BTT map and flog");
 		loc->arenap = TAILQ_FIRST(&ppc->pool->arenas);
 		loc->narena = 0;
@@ -725,14 +725,14 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 	while (loc->arenap != NULL) {
 		/* add info about checking next arena */
 		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS &&
-			loc->step == 0) {
+				loc->step == 0) {
 			CHECK_INFO(ppc, "arena %u: checking map and flog",
 				loc->narena);
 		}
 
 		/* do all checks */
 		while (CHECK_NOT_COMPLETE(loc, steps)) {
-			if (step(ppc, loc))
+			if (step_exe(ppc, loc))
 				return;
 		}
 

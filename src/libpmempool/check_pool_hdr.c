@@ -93,9 +93,8 @@ enum question {
 static enum pool_type
 pool_hdr_possible_type(PMEMpoolcheck *ppc)
 {
-	if (pool_blk_get_first_valid_arena(ppc->pool, &ppc->pool->bttc)) {
+	if (pool_blk_get_first_valid_arena(ppc->pool, &ppc->pool->bttc))
 		return POOL_TYPE_BLK;
-	}
 
 	return POOL_TYPE_UNKNOWN;
 }
@@ -376,8 +375,8 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc, union location *loc)
 	if (ppc->pool->params.type == POOL_TYPE_BLK &&
 		ppc->pool->bttc.valid) {
 		if (memcmp(hdr.poolset_uuid,
-			ppc->pool->bttc.btt_info.parent_uuid,
-			POOL_HDR_UUID_LEN) == 0) {
+				ppc->pool->bttc.btt_info.parent_uuid,
+				POOL_HDR_UUID_LEN) == 0) {
 			return 0;
 		}
 
@@ -390,7 +389,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc, union location *loc)
 		unsigned rid = 0;
 		unsigned pid = 0;
 		if (pool_get_valid_part(ppc, loc->replica, loc->part,
-			&rid, &pid) != 0) {
+				&rid, &pid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "Can not repair "
 				"pool_hdr.poolset_uuid");
@@ -399,7 +398,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc, union location *loc)
 			ppc->pool->set_file->poolset->replica[rid]->part[pid].
 			hdr;
 		if (memcmp(hdr.poolset_uuid, valid_hdrp->poolset_uuid,
-					POOL_HDR_UUID_LEN) == 0)
+				POOL_HDR_UUID_LEN) == 0)
 			return 0;
 		CHECK_ASK(ppc, Q_UUID_FROM_VALID_PART,
 			"%sinvalid pool_hdr.poolset_uuid.|Do you want to set "
@@ -435,7 +434,7 @@ pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		break;
 	case Q_UUID_FROM_VALID_PART:
 		if (pool_get_valid_part(ppc, loc->replica, loc->part,
-			&rid, &pid) != 0) {
+				&rid, &pid) != 0) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc,
 				"Can not repair pool_hdr.poolset_uuid");
@@ -660,30 +659,21 @@ pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 static int
 pool_hdr_uuids_check(PMEMpoolcheck *ppc, union location *loc)
 {
-	unsigned nreplicas = ppc->pool->set_file->poolset->nreplicas;
-	unsigned nparts =
-		ppc->pool->set_file->poolset->replica[loc->replica]->nparts;
-	if (nreplicas == 1 && nparts == 1)
+	const struct pool_set *poolset = ppc->pool->set_file->poolset;
+	int single_repl = poolset->nreplicas == 1;
+	int single_part = poolset->replica[loc->replica]->nparts == 1;
+
+	if (single_repl && single_part)
 		return 0;
 
-	unsigned nr = (loc->replica + 1) % nreplicas;
-	unsigned pr = (loc->replica - 1) % nreplicas;
-	unsigned np = (loc->part + 1) % nparts;
-	unsigned pp = (loc->part - 1) % nparts;
+	struct pool_replica *rep = REP(poolset, loc->replica);
+	struct pool_replica *next_rep = REP(poolset, loc->replica + 1);
+	struct pool_replica *prev_rep = REP(poolset, loc->replica - 1);
 
-	int single_repl = nr == loc->replica && pr == loc->replica;
-	int single_part = np == loc->part && pp == loc->part;
-
-	const struct pool_set *poolset = ppc->pool->set_file->poolset;
-	struct pool_replica *rep = poolset->replica[loc->replica];
-	struct pool_replica *next_rep = poolset->replica[nr];
-	struct pool_replica *prev_rep = poolset->replica[pr];
-
-	struct pool_hdr *next_part_hdrp = rep->part[np].hdr;
-	struct pool_hdr *prev_part_hdrp = rep->part[pp].hdr;
-
-	struct pool_hdr *next_repl_hdrp = next_rep->part[0].hdr;
-	struct pool_hdr *prev_repl_hdrp = prev_rep->part[0].hdr;
+	struct pool_hdr *next_part_hdrp = HDR(rep, loc->part + 1);
+	struct pool_hdr *prev_part_hdrp = HDR(rep, loc->part - 1);
+	struct pool_hdr *next_repl_hdrp = HDR(next_rep, 0);
+	struct pool_hdr *prev_repl_hdrp = HDR(prev_rep, 0);
 
 	int next_part_cs_valid = pool_hdr_valid(next_part_hdrp);
 	int prev_part_cs_valid = pool_hdr_valid(prev_part_hdrp);
@@ -694,15 +684,14 @@ pool_hdr_uuids_check(PMEMpoolcheck *ppc, union location *loc)
 	pool_hdr_get(ppc, &hdr, NULL, loc);
 	pool_hdr_convert2h(&hdr);
 
-	int next_part_valid = !memcmp(hdr.next_part_uuid,
-			next_part_hdrp->uuid, POOL_HDR_UUID_LEN);
-	int prev_part_valid = !memcmp(hdr.prev_part_uuid,
-			prev_part_hdrp->uuid, POOL_HDR_UUID_LEN);
-
-	int next_repl_valid = !memcmp(hdr.next_repl_uuid,
-			next_repl_hdrp->uuid, POOL_HDR_UUID_LEN);
-	int prev_repl_valid = !memcmp(hdr.prev_repl_uuid,
-			prev_repl_hdrp->uuid, POOL_HDR_UUID_LEN);
+	int next_part_valid = !memcmp(hdr.next_part_uuid, next_part_hdrp->uuid,
+		POOL_HDR_UUID_LEN);
+	int prev_part_valid = !memcmp(hdr.prev_part_uuid, prev_part_hdrp->uuid,
+		POOL_HDR_UUID_LEN);
+	int next_repl_valid = !memcmp(hdr.next_repl_uuid, next_repl_hdrp->uuid,
+		POOL_HDR_UUID_LEN);
+	int prev_repl_valid = !memcmp(hdr.prev_repl_uuid, prev_repl_hdrp->uuid,
+		POOL_HDR_UUID_LEN);
 
 	if ((single_part || next_part_cs_valid) && !next_part_valid) {
 		CHECK_ASK(ppc, Q_SET_NEXT_PART_UUID,
@@ -834,10 +823,10 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- (internal) perform single step according to its parameters
+ * step_exe -- (internal) perform single step according to its parameters
  */
 static int
-step(PMEMpoolcheck *ppc, union location *loc,
+step_exe(PMEMpoolcheck *ppc, union location *loc,
 	struct pool_replica *rep, unsigned nreplicas)
 {
 	const struct step *step = &steps[loc->step++];
@@ -876,7 +865,7 @@ step(PMEMpoolcheck *ppc, union location *loc,
 		}
 
 		if (!check_answer_loop(ppc, (struct check_instep *)loc,
-			&ctx, step->fix)) {
+				&ctx, step->fix)) {
 			pool_hdr_convert2le(&ctx.hdr);
 			memcpy(ctx.hdrp, &ctx.hdr, sizeof(*ctx.hdrp));
 			msync(ctx.hdrp, sizeof(*ctx.hdrp), MS_SYNC);
@@ -914,7 +903,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 		for (; loc->part < rep->nparts; loc->part++) {
 			/* prepare prefix for messages */
 			if (ppc->result !=
-				PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+					PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
 				if (nfiles > 1) {
 					snprintf(loc->prefix, PREFIX_MAX_SIZE,
 						"replica %u part %u: ",
@@ -926,7 +915,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 
 			/* do all checks */
 			while (CHECK_NOT_COMPLETE(loc, steps)) {
-				if (step(ppc, loc, rep, nreplicas))
+				if (step_exe(ppc, loc, rep, nreplicas))
 					goto cleanup;
 			}
 		}

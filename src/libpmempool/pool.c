@@ -193,8 +193,8 @@ pool_set_map(const char *fname, struct pool_set **poolset, int rdonly)
 	 * the values from all headers of poolset files.
 	 */
 	if (util_pool_open(poolset, fname, rdonly, minsize, hdr.signature,
-		hdr.major, hdr.compat_features, hdr.incompat_features,
-		hdr.ro_compat_features)) {
+			hdr.major, hdr.compat_features, hdr.incompat_features,
+			hdr.ro_compat_features)) {
 		ERR("openning poolset failed");
 		return -1;
 	}

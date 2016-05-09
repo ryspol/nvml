@@ -147,8 +147,8 @@ pmempool_check_init(struct pmempool_check_args *args)
 	 * can be set only if repair is set.
 	 */
 	if (!args->repair && (args->dry_run || args->advanced ||
-		args->always_yes)) {
-		ERR("dry run, advanced and alwyas_yes are applicable only if "
+			args->always_yes)) {
+		ERR("dry_run, advanced and always_yes are applicable only if "
 			"repair is set");
 		errno = EINVAL;
 		return NULL;

@@ -51,5 +51,3 @@ include ../Makefile.inc
 pmemblk_priv.o: $(PMEMBLK_PRIV_OBJ)
 	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV_FUNCS))\
 	$< $@
-
-LIBS += -lpmemblk -lpmem

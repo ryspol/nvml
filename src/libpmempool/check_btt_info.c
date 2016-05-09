@@ -89,7 +89,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	/* read the BTT Info header at well known offset */
 	if (pool_read(ppc->pool, &loc->arena->btt_info,
-		sizeof(loc->arena->btt_info), loc->offset)) {
+			sizeof(loc->arena->btt_info), loc->offset)) {
 		CHECK_ERR(ppc, "arena %u: cannot read BTT Info header",
 			loc->arena->id);
 		goto error;
@@ -376,16 +376,16 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- (internal) perform single step according to its parameters
+ * step_exe -- (internal) perform single step according to its parameters
  */
 static inline int
-step(PMEMpoolcheck *ppc, union location *loc)
+step_exe(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
 	if (step->fix != NULL) {
 		if (check_answer_loop(ppc, (struct check_instep *)loc, NULL,
-			step->fix)) {
+				step->fix)) {
 
 			if (!check_has_error(ppc->data))
 				return 1;
@@ -435,7 +435,7 @@ check_btt_info(PMEMpoolcheck *ppc)
 
 		/* do all checks */
 		while (CHECK_NOT_COMPLETE(loc, steps)) {
-			if (step(ppc, loc) || ppc->pool->blk_no_layout == 1)
+			if (step_exe(ppc, loc) || ppc->pool->blk_no_layout == 1)
 				return;
 		}
 

@@ -172,7 +172,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	ppc->pool->hdr.blk.bsize = htole32(ppc->pool->hdr.blk.bsize);
 
 	if (pool_write(ppc->pool, &ppc->pool->hdr.blk,
-		sizeof(ppc->pool->hdr.blk), 0)) {
+			sizeof(ppc->pool->hdr.blk), 0)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemblk structure failed");
@@ -204,7 +204,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 		}
 
 		if (pool_write(ppc->pool, &arenap->btt_info,
-			sizeof(arenap->btt_info), arenap->offset)) {
+				sizeof(arenap->btt_info), arenap->offset)) {
 			CHECK_INFO(ppc, "%s", ppc->path);
 			CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
 				arenap->id);
@@ -212,7 +212,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 		}
 
 		if (pool_write(ppc->pool, &arenap->btt_info,
-			sizeof(arenap->btt_info), arenap->offset +
+				sizeof(arenap->btt_info), arenap->offset +
 				le64toh(arenap->btt_info.infooff))) {
 			CHECK_INFO(ppc, "%s", ppc->path);
 			CHECK_ERR(ppc,
@@ -264,10 +264,10 @@ static const struct step steps[] = {
 };
 
 /*
- * step -- (internal) perform single step according to its parameters
+ * step_exe -- (internal) perform single step according to its parameters
  */
 static inline int
-step(PMEMpoolcheck *ppc, union location *loc)
+step_exe(PMEMpoolcheck *ppc, union location *loc)
 {
 	const struct step *step = &steps[loc->step++];
 
@@ -294,7 +294,7 @@ check_write(PMEMpoolcheck *ppc)
 	while (loc->step != CHECK_STEP_COMPLETE &&
 		steps[loc->step].func != NULL) {
 
-		if (step(ppc, loc))
+		if (step_exe(ppc, loc))
 			return;
 	}
 }
