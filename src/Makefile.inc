@@ -153,8 +153,8 @@ endif
 
 PMEMBLK_PRIV_OBJ=$(LIB_OUTDIR)/libpmemblk/libpmemblk_unscoped.o
 
-ifneq ($(LIBPMEMBLK_PRIV),)
-OBJS += pmemblk_priv.o
+ifneq ($(LIBPMEMBLK_PRIV_FUNCS),)
+OBJS += pmemblk_priv_funcs.o
 endif
 
 all: $(objdir) $(LIB_OUTDIR) $(EXTRA_TARGETS) $(LIB_AR) $(LIB_SO_SONAME) $(LIB_SO_REAL) $(LIB_SO)
