@@ -76,7 +76,7 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 	log->write_offset = htole64(log->write_offset);
 
 
-	if (pool_write(ppc->pool, log, sizeof (*log), 0)) {
+	if (pool_write(ppc->pool, log, sizeof(*log), 0)) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemlog structure failed");
 	}
@@ -114,7 +114,7 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 	for (i = 0; i < arenap->btt_info.nfree; i++) {
 		struct btt_flog *flog_alpha = (struct btt_flog *)ptr;
 		struct btt_flog *flog_beta = (struct btt_flog *)(ptr +
-				sizeof (struct btt_flog));
+				sizeof(struct btt_flog));
 
 		btt_flog_convert2le(flog_alpha);
 		btt_flog_convert2le(flog_beta);
@@ -172,7 +172,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	ppc->pool->hdr.blk.bsize = htole32(ppc->pool->hdr.blk.bsize);
 
 	if (pool_write(ppc->pool, &ppc->pool->hdr.blk,
-		sizeof (ppc->pool->hdr.blk), 0)) {
+		sizeof(ppc->pool->hdr.blk), 0)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
 		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemblk structure failed");
@@ -196,15 +196,15 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 		if (ppc->pool->uuid_op == UUID_REGENERATED) {
 			memcpy(arenap->btt_info.parent_uuid,
 				ppc->pool->hdr.pool.poolset_uuid,
-					sizeof (arenap->btt_info.parent_uuid));
+					sizeof(arenap->btt_info.parent_uuid));
 
 			util_checksum(&arenap->btt_info,
-					sizeof (arenap->btt_info),
+					sizeof(arenap->btt_info),
 					&arenap->btt_info.checksum, 1);
 		}
 
 		if (pool_write(ppc->pool, &arenap->btt_info,
-			sizeof (arenap->btt_info), arenap->offset)) {
+			sizeof(arenap->btt_info), arenap->offset)) {
 			CHECK_INFO(ppc, "%s", ppc->path);
 			CHECK_ERR(ppc, "arena %u: writing BTT Info failed",
 				arenap->id);
@@ -212,7 +212,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 		}
 
 		if (pool_write(ppc->pool, &arenap->btt_info,
-			sizeof (arenap->btt_info), arenap->offset +
+			sizeof(arenap->btt_info), arenap->offset +
 				le64toh(arenap->btt_info.infooff))) {
 			CHECK_INFO(ppc, "%s", ppc->path);
 			CHECK_ERR(ppc,
@@ -285,8 +285,8 @@ step(PMEMpoolcheck *ppc, union location *loc)
 void
 check_write(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep));
+	COMPILE_ERROR_ON(sizeof(union location) !=
+		sizeof(struct check_instep));
 
 	union location *loc = (union location *)check_step_location(ppc->data);
 

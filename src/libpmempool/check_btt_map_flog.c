@@ -104,7 +104,7 @@ flog_read(PMEMpoolcheck *ppc, struct arena *arenap)
 	for (i = 0; i < arenap->btt_info.nfree; i++) {
 		struct btt_flog *flog_alpha = (struct btt_flog *)ptr;
 		struct btt_flog *flog_beta = (struct btt_flog *)(ptr +
-				sizeof (struct btt_flog));
+				sizeof(struct btt_flog));
 
 		flog_convert2h(flog_alpha);
 		flog_convert2h(flog_beta);
@@ -177,7 +177,7 @@ struct list {
 static struct list *
 list_alloc(void)
 {
-	struct list *list = malloc(sizeof (struct list));
+	struct list *list = malloc(sizeof(struct list));
 	if (!list) {
 		ERR("!malloc");
 		return NULL;
@@ -193,7 +193,7 @@ list_alloc(void)
 static struct list_item *
 list_push(struct list *list, uint32_t val)
 {
-	struct list_item *item = malloc(sizeof (*item));
+	struct list_item *item = malloc(sizeof(*item));
 	if (!item) {
 		ERR("!malloc");
 		return NULL;
@@ -412,7 +412,7 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 	/* first and second copy of flog entry */
 	struct btt_flog *flog_alpha = (struct btt_flog *)*ptr;
 	struct btt_flog *flog_beta = (struct btt_flog *)(*ptr +
-		sizeof (struct btt_flog));
+		sizeof(struct btt_flog));
 
 	struct btt_flog *flog_cur = flog_get_valid(flog_alpha, flog_beta);
 
@@ -488,7 +488,7 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 				(entry == loc->arenap->btt_info.external_nlba
 				+ i) &&
 				(!check_memory((const uint8_t *)flog_beta,
-				sizeof (*flog_beta), 0));
+				sizeof(*flog_beta), 0));
 		else
 			flog_valid = (loc->arenap->map[flog_cur->lba] &
 				BTT_MAP_ENTRY_LBA_MASK) == new_entry;
@@ -632,8 +632,8 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 			struct btt_flog *flog_beta = (struct btt_flog *)
 				(loc->arenap->flog +
 				inval * BTT_FLOG_PAIR_ALIGN +
-				sizeof (struct btt_flog));
-			memset(flog_beta, 0, sizeof (*flog_beta));
+				sizeof(struct btt_flog));
+			memset(flog_beta, 0, sizeof(*flog_beta));
 			uint32_t entry = unmap | BTT_MAP_ENTRY_ERROR;
 			flog_alpha->lba = inval;
 			flog_alpha->new_map = entry;
@@ -706,8 +706,8 @@ step(PMEMpoolcheck *ppc, union location *loc)
 void
 check_btt_map_flog(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep));
+	COMPILE_ERROR_ON(sizeof(union location) !=
+		sizeof(struct check_instep));
 
 	union location *loc = (union location *)check_step_location(ppc->data);
 

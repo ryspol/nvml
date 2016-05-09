@@ -106,8 +106,8 @@ pool_hdr_possible_type(PMEMpoolcheck *ppc)
 static int
 pool_hdr_valid(struct pool_hdr *hdrp)
 {
-	return check_memory((void *)hdrp, sizeof (*hdrp), 0) &&
-		util_checksum(hdrp, sizeof (*hdrp), &hdrp->checksum, 0);
+	return check_memory((void *)hdrp, sizeof(*hdrp), 0) &&
+		util_checksum(hdrp, sizeof(*hdrp), &hdrp->checksum, 0);
 }
 
 /*
@@ -137,7 +137,7 @@ pool_hdr_get(PMEMpoolcheck *ppc, struct pool_hdr *hdr, struct pool_hdr **shdr,
 	struct pool_replica *rep =
 		ppc->pool->set_file->poolset->replica[loc->replica];
 	struct pool_hdr *hdrp = rep->part[loc->part].hdr;
-	memcpy(hdr, hdrp, sizeof (*hdr));
+	memcpy(hdr, hdrp, sizeof(*hdr));
 
 	if (shdr != NULL)
 		*shdr = hdrp;
@@ -173,7 +173,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	int cs_valid = pool_hdr_valid(&hdr);
 
-	if (!check_memory((void *)&hdr, sizeof (hdr), 0)) {
+	if (!check_memory((void *)&hdr, sizeof(hdr), 0)) {
 		if (!ppc->args.repair) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 			return CHECK_ERR(ppc, "empty pool hdr");
@@ -280,7 +280,7 @@ pool_hdr_default_check(PMEMpoolcheck *ppc, union location *loc)
 			def_hdr.ro_compat_features);
 	}
 
-	if (check_memory(hdr.unused, sizeof (hdr.unused), 0)) {
+	if (check_memory(hdr.unused, sizeof(hdr.unused), 0)) {
 		CHECK_ASK(ppc, Q_ZERO_UNUSED_AREA,
 			"%sunused area is not filled by zeros.|Do you want to "
 			"fill it up?", loc->prefix);
@@ -328,7 +328,7 @@ pool_hdr_default_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		break;
 	case Q_ZERO_UNUSED_AREA:
 		CHECK_INFO(ppc, "setting pool_hdr.unused to zeros");
-		memset(ctx->hdr.unused, 0, sizeof (ctx->hdr.unused));
+		memset(ctx->hdr.unused, 0, sizeof(ctx->hdr.unused));
 		break;
 	default:
 		ERR("not implemented question id: %u", question);
@@ -514,7 +514,7 @@ pool_hdr_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		pool_hdr_convert2le(&ctx->hdr);
 		break;
 	case Q_CHECKSUM:
-		util_checksum(&ctx->hdr, sizeof (ctx->hdr), &ctx->hdr.checksum,
+		util_checksum(&ctx->hdr, sizeof(ctx->hdr), &ctx->hdr.checksum,
 			1);
 		CHECK_INFO(ppc, "setting pool_hdr.checksum to: 0x%" PRIx64,
 			le32toh(ctx->hdr.checksum));
@@ -878,8 +878,8 @@ step(PMEMpoolcheck *ppc, union location *loc,
 		if (!check_answer_loop(ppc, (struct check_instep *)loc,
 			&ctx, step->fix)) {
 			pool_hdr_convert2le(&ctx.hdr);
-			memcpy(ctx.hdrp, &ctx.hdr, sizeof (*ctx.hdrp));
-			msync(ctx.hdrp, sizeof (*ctx.hdrp), MS_SYNC);
+			memcpy(ctx.hdrp, &ctx.hdr, sizeof(*ctx.hdrp));
+			msync(ctx.hdrp, sizeof(*ctx.hdrp), MS_SYNC);
 			return 0;
 		} else
 			return 1;
@@ -893,12 +893,12 @@ step(PMEMpoolcheck *ppc, union location *loc,
 void
 check_pool_hdr(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep));
+	COMPILE_ERROR_ON(sizeof(union location) !=
+		sizeof(struct check_instep));
 
 	int rdonly = !ppc->args.repair || ppc->args.dry_run;
 	if (pool_set_file_map_headers(ppc->pool->set_file, rdonly,
-			sizeof (struct pool_hdr))) {
+			sizeof(struct pool_hdr))) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 		CHECK_ERR(ppc, "cannot map pool headers");
 		return;
@@ -934,7 +934,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 
 	memcpy(&ppc->pool->hdr.pool,
 		ppc->pool->set_file->poolset->replica[0]->part[0].hdr,
-		sizeof (struct pool_hdr));
+		sizeof(struct pool_hdr));
 cleanup:
 	pool_set_file_unmap_headers(ppc->pool->set_file);
 }

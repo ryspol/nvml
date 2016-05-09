@@ -870,7 +870,7 @@ internal_lbasize(uint32_t external_lbasize)
 uint64_t
 btt_flog_size(uint32_t nfree)
 {
-	uint64_t flog_size = nfree * roundup(2 * sizeof (struct btt_flog),
+	uint64_t flog_size = nfree * roundup(2 * sizeof(struct btt_flog),
 		BTT_FLOG_PAIR_ALIGN);
 	return roundup(flog_size, BTT_ALIGNMENT);
 }
@@ -891,7 +891,7 @@ btt_map_size(uint32_t external_nlba)
 uint64_t
 btt_arena_datasize(uint64_t arena_size, uint32_t nfree)
 {
-	return arena_size - 2 * sizeof (struct btt_info) - btt_flog_size(nfree);
+	return arena_size - 2 * sizeof(struct btt_info) - btt_flog_size(nfree);
 }
 
 /*
@@ -906,7 +906,7 @@ btt_info_set_params(struct btt_info *info, uint32_t external_lbasize,
 	info->external_lbasize = external_lbasize;
 	info->internal_lbasize = internal_lbasize;
 	info->nfree = nfree;
-	info->infosize = sizeof (*info);
+	info->infosize = sizeof(*info);
 
 	uint64_t arena_data_size = btt_arena_datasize(arena_size, nfree);
 
@@ -952,7 +952,7 @@ btt_info_set_offs(struct btt_info *info, uint64_t arena_size,
 	else
 		info->nextoff = 0;
 
-	info->infooff = arena_size - sizeof (struct btt_info);
+	info->infooff = arena_size - sizeof(struct btt_info);
 	info->flogoff = info->infooff - btt_flog_size(info->nfree);
 	info->mapoff = info->flogoff - btt_map_size(info->external_nlba);
 
@@ -1053,7 +1053,7 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		arena_num++;
 
 		struct btt_info info;
-		memset(&info, '\0', sizeof (info));
+		memset(&info, '\0', sizeof(info));
 		if (btt_info_set_params(&info, bttp->lbasize,
 				internal_lba_size, bttp->nfree, arena_rawsize))
 			return -1;
@@ -1146,10 +1146,10 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		util_checksum(&info, sizeof(info), &info.checksum, 1);
 
 		if ((*bttp->ns_cbp->nswrite)(bttp->ns, lane, &info,
-			sizeof (info), arena_off) < 0)
+			sizeof(info), arena_off) < 0)
 			return -1;
 		if ((*bttp->ns_cbp->nswrite)(bttp->ns, lane, &info,
-			sizeof (info), arena_off + info.infooff) < 0)
+			sizeof(info), arena_off + info.infooff) < 0)
 			return -1;
 
 		arena_off += info.nextoff;

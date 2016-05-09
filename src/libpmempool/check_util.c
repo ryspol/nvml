@@ -90,7 +90,7 @@ struct check_data {
 struct check_data *
 check_data_alloc()
 {
-	struct check_data *data = (struct check_data *)malloc(sizeof (*data));
+	struct check_data *data = (struct check_data *)malloc(sizeof(*data));
 	if (data == NULL) {
 		ERR("!malloc");
 		return NULL;
@@ -161,7 +161,7 @@ check_step_inc(struct check_data *data)
 {
 	++data->step;
 	memset(&data->location, 0,
-		sizeof (struct check_instep));
+		sizeof(struct check_instep));
 }
 
 /*
@@ -197,10 +197,10 @@ check_ended(struct check_data *data)
 static inline struct check_status *
 status_alloc()
 {
-	struct check_status *status = malloc(sizeof (*status));
+	struct check_status *status = malloc(sizeof(*status));
 	if (!status)
 		FATAL("!malloc");
-	status->msg = malloc(sizeof (char) * MAX_MSG_STR_SIZE);
+	status->msg = malloc(sizeof(char) * MAX_MSG_STR_SIZE);
 	if (!status->msg) {
 		free(status);
 		FATAL("!malloc");

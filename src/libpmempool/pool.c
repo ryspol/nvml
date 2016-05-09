@@ -165,7 +165,7 @@ pool_set_map(const char *fname, struct pool_set **poolset, int rdonly)
 
 	struct pool_hdr hdr;
 	/* read the pool header from first pool set file */
-	if (pread(fdp, &hdr, sizeof (hdr), 0) != sizeof (hdr)) {
+	if (pread(fdp, &hdr, sizeof(hdr), 0) != sizeof(hdr)) {
 		ERR("cannot read pool header from poolset");
 		ret = -1;
 		goto err_close_part;
@@ -266,12 +266,12 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 
 	if (!btt_dev) {
 		struct pool_hdr hdr;
-		memcpy(&hdr, addr, sizeof (hdr));
+		memcpy(&hdr, addr, sizeof(hdr));
 
 		pool_hdr_convert2h(&hdr);
 
 		memcpy(params->signature, hdr.signature,
-			sizeof (params->signature));
+			sizeof(params->signature));
 
 		/*
 		 * Check if file is a part of pool set by comparing the UUID
@@ -296,11 +296,11 @@ pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
 
 		if (params->type == POOL_TYPE_BLK) {
 			struct pmemblk pbp;
-			memcpy(&pbp, addr, sizeof (pbp));
+			memcpy(&pbp, addr, sizeof(pbp));
 			params->blk.bsize = le32toh(pbp.bsize);
 		} else if (params->type == POOL_TYPE_OBJ) {
 			struct pmemobjpool pop;
-			memcpy(&pop, addr, sizeof (pop));
+			memcpy(&pop, addr, sizeof(pop));
 			memcpy(params->obj.layout, pop.layout,
 				PMEMOBJ_MAX_LAYOUT);
 		}
@@ -326,7 +326,7 @@ out_close:
 static struct pool_set_file *
 pool_set_file_open(const char *fname, struct pool_params *params, int rdonly)
 {
-	struct pool_set_file *file = calloc(1, sizeof (*file));
+	struct pool_set_file *file = calloc(1, sizeof(*file));
 	if (!file)
 		return NULL;
 
@@ -380,7 +380,7 @@ err:
 struct pool_data *
 pool_data_alloc(PMEMpoolcheck *ppc)
 {
-	struct pool_data *pool = malloc(sizeof (*pool));
+	struct pool_data *pool = malloc(sizeof(*pool));
 	if (!pool) {
 		ERR("!malloc");
 		return NULL;
@@ -716,7 +716,7 @@ pool_get_signature(enum pool_type type)
 void
 pool_hdr_default(enum pool_type type, struct pool_hdr *hdrp)
 {
-	memset(hdrp, 0, sizeof (*hdrp));
+	memset(hdrp, 0, sizeof(*hdrp));
 	const char *sig = pool_get_signature(type);
 	ASSERTne(sig, NULL);
 
@@ -816,7 +816,7 @@ int
 pool_btt_info_valid(struct btt_info *infop)
 {
 	if (!memcmp(infop->sig, BTT_INFO_SIG, BTTINFO_SIG_LEN))
-		return util_checksum(infop, sizeof (*infop), &infop->checksum,
+		return util_checksum(infop, sizeof(*infop), &infop->checksum,
 			0);
 	else
 		return 0;
@@ -870,11 +870,11 @@ pool_get_first_valid_btt(struct pool_data *pool, struct btt_info *infop,
 	/* if we have valid arena get BTT Info header from it */
 	if (pool->narenas != 0) {
 		struct arena *arenap = TAILQ_FIRST(&pool->arenas);
-		memcpy(infop, &arenap->btt_info, sizeof (*infop));
+		memcpy(infop, &arenap->btt_info, sizeof(*infop));
 		return arenap->offset;
 	}
 
-	const size_t info_size = sizeof (*infop);
+	const size_t info_size = sizeof(*infop);
 
 	/* theoretical offsets to BTT Info header and backup */
 	uint64_t offsets[2] = {offset, 0};

@@ -172,13 +172,13 @@ pmempool_check_init(struct pmempool_check_args *args)
 		return NULL;
 	}
 
-	PMEMpoolcheck *ppc = malloc(sizeof (*ppc));
+	PMEMpoolcheck *ppc = malloc(sizeof(*ppc));
 	if (ppc == NULL) {
 		ERR("!malloc");
 		return NULL;
 	}
 	pmempool_ppc_set_default(ppc);
-	memcpy(&ppc->args, args, sizeof (ppc->args));
+	memcpy(&ppc->args, args, sizeof(ppc->args));
 	ppc->path = strdup(args->path);
 	if (!ppc->args.path) {
 		ERR("!strdup");

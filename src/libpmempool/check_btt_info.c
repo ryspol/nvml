@@ -79,7 +79,7 @@ location_release(union location *loc)
 static int
 btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 {
-	loc->arena = calloc(1, sizeof (struct arena));
+	loc->arena = calloc(1, sizeof(struct arena));
 	if (!loc->arena) {
 		ERR("!calloc");
 		ppc->result = PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR;
@@ -89,7 +89,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	/* read the BTT Info header at well known offset */
 	if (pool_read(ppc->pool, &loc->arena->btt_info,
-		sizeof (loc->arena->btt_info), loc->offset)) {
+		sizeof(loc->arena->btt_info), loc->offset)) {
 		CHECK_ERR(ppc, "arena %u: cannot read BTT Info header",
 			loc->arena->id);
 		goto error;
@@ -99,7 +99,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	/* BLK is consistent even without BTT Layout */
 	if (!ppc->pool->params.is_btt_dev && !check_memory((const uint8_t *)
-			&loc->arena->btt_info, sizeof (loc->arena->btt_info),
+			&loc->arena->btt_info, sizeof(loc->arena->btt_info),
 			0)) {
 		CHECK_INFO(ppc, "BTT Layout not written");
 		ppc->pool->blk_no_layout = 1;
@@ -140,7 +140,7 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 	ASSERT(ppc->args.repair);
 
 	/* BTT Info header is not consistent, so try get BTT Info backup */
-	const size_t btt_info_size = sizeof (ppc->pool->bttc.btt_info);
+	const size_t btt_info_size = sizeof(ppc->pool->bttc.btt_info);
 	loc->offset2 = pool_next_arena_offset(ppc->pool, loc->offset) -
 		btt_info_size;
 
@@ -185,7 +185,7 @@ btt_info_backup_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 			loc->arena->id);
 
 		memcpy(&loc->arena->btt_info, &ppc->pool->bttc.btt_info,
-			sizeof (loc->arena->btt_info));
+			sizeof(loc->arena->btt_info));
 		loc->step = CHECK_STEP_COMPLETE;
 		break;
 	default:
@@ -330,7 +330,7 @@ btt_info_checksum_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 
 	switch (question) {
 	case Q_REGENERATE_CHECKSUM:
-		util_checksum(&loc->arena->btt_info, sizeof (struct btt_info),
+		util_checksum(&loc->arena->btt_info, sizeof(struct btt_info),
 			&loc->arena->btt_info.checksum, 1);
 		break;
 
@@ -410,8 +410,8 @@ step(PMEMpoolcheck *ppc, union location *loc)
 void
 check_btt_info(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep));
+	COMPILE_ERROR_ON(sizeof(union location) !=
+		sizeof(struct check_instep));
 
 	union location *loc = (union location *)check_step_location(ppc->data);
 

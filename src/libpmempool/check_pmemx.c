@@ -84,11 +84,11 @@ log_read(PMEMpoolcheck *ppc)
 	 * offset of remaining fields.
 	 */
 	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.log;
-	ptr += sizeof (ppc->pool->hdr.log.hdr);
+	ptr += sizeof(ppc->pool->hdr.log.hdr);
 
-	size_t size = sizeof (ppc->pool->hdr.log) -
-		sizeof (ppc->pool->hdr.log.hdr);
-	uint64_t offset = sizeof (ppc->pool->hdr.log.hdr);
+	size_t size = sizeof(ppc->pool->hdr.log) -
+		sizeof(ppc->pool->hdr.log.hdr);
+	uint64_t offset = sizeof(ppc->pool->hdr.log.hdr);
 
 	if (pool_read(ppc->pool, ptr, size, offset))
 		return CHECK_ERR(ppc, "cannot read pmemlog structure");
@@ -113,7 +113,7 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 
 	/* determine constant values for pmemlog */
 	const uint64_t d_start_offset =
-		roundup(sizeof (ppc->pool->hdr.log), LOG_FORMAT_DATA_ALIGN);
+		roundup(sizeof(ppc->pool->hdr.log), LOG_FORMAT_DATA_ALIGN);
 
 	if (ppc->pool->hdr.log.start_offset != d_start_offset) {
 		if (CHECK_ASK(ppc, Q_LOG_START_OFFSET,
@@ -166,7 +166,7 @@ log_hdr_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	switch (question) {
 	case Q_LOG_START_OFFSET:
 		/* determine constant values for pmemlog */
-		d_start_offset = roundup(sizeof (ppc->pool->hdr.log),
+		d_start_offset = roundup(sizeof(ppc->pool->hdr.log),
 			LOG_FORMAT_DATA_ALIGN);
 		CHECK_INFO(ppc, "setting pmemlog.start_offset to 0x%" PRIx64,
 			d_start_offset);
@@ -206,7 +206,7 @@ blk_get_max_bsize(uint64_t fsize)
 	uint32_t internal_nlba = 2 * nfree;
 
 	/* compute arena size from file size without pmemblk structure */
-	uint64_t arena_size = fsize - sizeof (struct pmemblk);
+	uint64_t arena_size = fsize - sizeof(struct pmemblk);
 	if (arena_size > BTT_MAX_ARENA) {
 		arena_size = BTT_MAX_ARENA;
 	}
@@ -240,11 +240,11 @@ blk_read(PMEMpoolcheck *ppc)
 	 * offset of remaining fields.
 	 */
 	uint8_t *ptr = (uint8_t *)&ppc->pool->hdr.blk;
-	ptr += sizeof (ppc->pool->hdr.blk.hdr);
+	ptr += sizeof(ppc->pool->hdr.blk.hdr);
 
-	size_t size = sizeof (ppc->pool->hdr.blk) -
-		sizeof (ppc->pool->hdr.blk.hdr);
-	uint64_t offset = sizeof (ppc->pool->hdr.blk.hdr);
+	size_t size = sizeof(ppc->pool->hdr.blk) -
+		sizeof(ppc->pool->hdr.blk.hdr);
+	uint64_t offset = sizeof(ppc->pool->hdr.blk.hdr);
 
 	if (pool_read(ppc->pool, ptr, size, offset)) {
 		return CHECK_ERR(ppc, "cannot read pmemblk structure");
@@ -406,8 +406,8 @@ step(PMEMpoolcheck *ppc, union location *loc)
 void
 check_pmemx(PMEMpoolcheck *ppc)
 {
-	COMPILE_ERROR_ON(sizeof (union location) !=
-		sizeof (struct check_instep));
+	COMPILE_ERROR_ON(sizeof(union location) !=
+		sizeof(struct check_instep));
 
 	union location *loc = (union location *)check_step_location(ppc->data);
 
