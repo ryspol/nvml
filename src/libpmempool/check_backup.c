@@ -52,7 +52,7 @@ void
 check_backup(PMEMpoolcheck *ppc)
 {
 	if (ppc->args.repair && ppc->backup_path != NULL &&
-		!ppc->args.dry_run) {
+			!ppc->args.dry_run) {
 		CHECK_INFO(ppc, "creating backup file: %s", ppc->backup_path);
 		if (pool_copy(ppc->pool, ppc->backup_path)) {
 			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;

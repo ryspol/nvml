@@ -45,6 +45,23 @@
 #include "pool.h"
 #include "check_util.h"
 
+#define	CHECK_END UINT32_MAX
+
+/* separate info part of message from question part of message */
+#define	MSG_SEPARATOR	'|'
+
+/* error part of message must have '.' at the end */
+#define	MSG_PLACE_OF_SEPARATION	'.'
+#define	MAX_MSG_STR_SIZE 8192
+
+#define	CHECK_ANSWER_YES	"yes"
+#define	CHECK_ANSWER_NO		"no"
+
+#define	STR_MAX 256
+#define	TIME_STR_FMT "%a %b %d %Y %H:%M:%S"
+
+#define	UUID_STR_MAX 37
+
 /* queue of check statuses */
 struct check_status {
 	TAILQ_ENTRY(check_status) next;
@@ -156,8 +173,6 @@ check_step_location(struct check_data *data)
 	return &data->location;
 }
 
-#define	CHECK_END UINT32_MAX
-
 /*
  * check_end -- mark check as ended
  */
@@ -175,12 +190,6 @@ check_ended(struct check_data *data)
 {
 	return data->step == CHECK_END;
 }
-
-/* separate info part of message from question part of message */
-#define	MSG_SEPARATOR	'|'
-/* error part of message must have '.' at the end */
-#define	MSG_PLACE_OF_SEPARATION	'.'
-#define	MAX_MSG_STR_SIZE 8192
 
 /*
  * status_alloc -- (internal) allocate and initialize check_status
@@ -424,9 +433,6 @@ status_push(struct check_data *data, struct check_status *st)
 	TAILQ_INSERT_TAIL(&data->answers, st, next);
 }
 
-#define	CHECK_ANSWER_YES	"yes"
-#define	CHECK_ANSWER_NO		"no"
-
 /*
  * check_push_answer -- process answer and push it to answers queue
  */
@@ -578,9 +584,6 @@ check_memory(const uint8_t *buff, size_t len, uint8_t val)
 	return 0;
 }
 
-#define	STR_MAX 256
-#define	TIME_STR_FMT "%a %b %d %Y %H:%M:%S"
-
 /*
  * check_get_time_str -- returns time in human-readable format
  */
@@ -597,8 +600,6 @@ check_get_time_str(time_t time)
 
 	return str_buff;
 }
-
-#define	UUID_STR_MAX 37
 
 /*
  * check_get_uuid_str -- returns uuid in human readable format

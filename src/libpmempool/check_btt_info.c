@@ -99,7 +99,8 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	/* BLK is consistent even without BTT Layout */
 	if (!ppc->pool->params.is_btt_dev && !check_memory((const uint8_t *)
-		&loc->arena->btt_info, sizeof (loc->arena->btt_info), 0)) {
+			&loc->arena->btt_info, sizeof (loc->arena->btt_info),
+			0)) {
 		CHECK_INFO(ppc, "BTT Layout not written");
 		ppc->pool->blk_no_layout = 1;
 		loc->step = CHECK_STEP_COMPLETE;
@@ -144,7 +145,7 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 		btt_info_size;
 
 	if (pool_read(ppc->pool, &ppc->pool->bttc.btt_info, btt_info_size,
-		loc->offset2)) {
+			loc->offset2)) {
 		CHECK_ERR(ppc, "arena %u: cannot read BTT Info backup",
 			loc->arena->id);
 		goto error;
@@ -262,7 +263,7 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 
 		/* other parameters can be calculated */
 		if (btt_info_set(bttd, btts->external_lbasize, btts->nfree,
-			arena_size, space_left)) {
+				arena_size, space_left)) {
 			CHECK_ERR(ppc, "Can not restore BTT Info");
 			return -1;
 		}

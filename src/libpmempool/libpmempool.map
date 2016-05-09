@@ -32,7 +32,7 @@
 #
 # src/libpmempool.map -- linker map file for libpmempool
 #
-libpmempool.so {
+LIBPMEMPOOL_1.0 {
 	global:
 		pmempool_check_init;
 		pmempool_check;

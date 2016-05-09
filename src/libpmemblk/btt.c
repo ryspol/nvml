@@ -846,7 +846,7 @@ err:
 /*
  * internal_lbasize -- (internal) calculate internal LBA size
  */
-static inline int64_t
+static inline uint32_t
 internal_lbasize(uint32_t external_lbasize)
 {
 	uint32_t internal_lbasize = external_lbasize;
@@ -858,14 +858,14 @@ internal_lbasize(uint32_t external_lbasize)
 	if (internal_lbasize < BTT_INTERNAL_LBA_ALIGNMENT) {
 		errno = EINVAL;
 		ERR("!Invalid lba size after alignment: %u ", internal_lbasize);
-		return -1;
+		return 0;
 	}
 
 	return internal_lbasize;
 }
 
 /*
- * btt_flog_size -- (internal) calculate flog data size
+ * btt_flog_size -- calculate flog data size
  */
 uint64_t
 btt_flog_size(uint32_t nfree)
@@ -876,7 +876,7 @@ btt_flog_size(uint32_t nfree)
 }
 
 /*
- * btt_map_size -- (internal) calculate map data size
+ * btt_map_size -- calculate map data size
  */
 uint64_t
 btt_map_size(uint32_t external_nlba)
@@ -885,8 +885,8 @@ btt_map_size(uint32_t external_nlba)
 }
 
 /*
- * btt_arena_datasize -- (internal) whole arena size without BTT Info header,
- *	backup and flog means size of blocks and map
+ * btt_arena_datasize -- whole arena size without BTT Info header, backup and
+ *	flog means size of blocks and map
  */
 uint64_t
 btt_arena_datasize(uint64_t arena_size, uint32_t nfree)
@@ -940,7 +940,7 @@ btt_info_set_params(struct btt_info *info, uint32_t external_lbasize,
  *	nextoff, infooff, flogoff and mapoff. These are all relative to the
  *	beginning of the arena.
  */
-static int
+static void
 btt_info_set_offs(struct btt_info *info, uint64_t arena_size,
 	uint64_t space_left)
 {
@@ -959,8 +959,6 @@ btt_info_set_offs(struct btt_info *info, uint64_t arena_size,
 	ASSERTeq(btt_arena_datasize(arena_size, info->nfree) -
 		btt_map_size(info->external_nlba), info->mapoff -
 		info->dataoff);
-
-	return 0;
 }
 
 /*
@@ -971,18 +969,16 @@ btt_info_set(struct btt_info *info, uint32_t external_lbasize,
 	uint32_t nfree, uint64_t arena_size, uint64_t space_left)
 {
 	/* calculate internal LBA size */
-	int64_t internal_lba_size = internal_lbasize(external_lbasize);
-	if (internal_lba_size == -1)
+	uint32_t internal_lba_size = internal_lbasize(external_lbasize);
+	if (internal_lba_size == 0)
 		return -1;
-	uint32_t internal_lbasize_u32 = (uint32_t)internal_lba_size;
 
 	/* set params and offsets */
 	if (btt_info_set_params(info, external_lbasize,
-		internal_lbasize_u32, nfree, arena_size))
+		internal_lba_size, nfree, arena_size))
 		return -1;
 
-	if (btt_info_set_offs(info, arena_size, space_left))
-		return -1;
+	btt_info_set_offs(info, arena_size, space_left);
 
 	return 0;
 }
@@ -1033,11 +1029,10 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		bttp->narena++;
 	LOG(4, "narena %u", bttp->narena);
 
-	int64_t internal_lba_size = internal_lbasize(bttp->lbasize);
-	if (internal_lba_size == -1)
+	uint32_t internal_lba_size = internal_lbasize(bttp->lbasize);
+	if (internal_lba_size == 0)
 		return -1;
-	uint32_t internal_lbasize_u32 = (uint32_t)internal_lba_size;
-	LOG(4, "adjusted internal_lbasize %u", internal_lbasize_u32);
+	LOG(4, "adjusted internal_lbasize %u", internal_lba_size);
 
 	uint64_t total_nlba = 0;
 	uint64_t rawsize = bttp->rawsize;
@@ -1060,7 +1055,7 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		struct btt_info info;
 		memset(&info, '\0', sizeof (info));
 		if (btt_info_set_params(&info, bttp->lbasize,
-			internal_lbasize_u32, bttp->nfree, arena_rawsize))
+				internal_lba_size, bttp->nfree, arena_rawsize))
 			return -1;
 
 		LOG(4, "internal_nlba %u external_nlba %u",
@@ -1076,8 +1071,7 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		if (!write)
 			continue;
 
-		if (btt_info_set_offs(&info, arena_rawsize, rawsize))
-			return -1;
+		btt_info_set_offs(&info, arena_rawsize, rawsize);
 
 		LOG(4, "nextoff 0x%016jx", info.nextoff);
 		LOG(4, "dataoff 0x%016jx", info.dataoff);
@@ -1089,7 +1083,7 @@ write_layout(struct btt *bttp, unsigned lane, int write)
 		if (!bttp->ns_cbp->ns_is_zeroed) {
 			uint64_t mapsize = btt_map_size(info.external_nlba);
 			if ((*bttp->ns_cbp->nszero)(bttp->ns, lane, mapsize,
-				info.mapoff) < 0)
+					info.mapoff) < 0)
 				return -1;
 		}
 

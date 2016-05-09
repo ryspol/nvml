@@ -120,7 +120,7 @@ error_data_malloc:
  * status_get -- (internal) get next check_status which should be presented
  *	to the user in assumed order: all info messages, error or question
  */
-static inline struct check_status *
+static struct check_status *
 status_get(PMEMpoolcheck *ppc)
 {
 	struct check_status *status = NULL;

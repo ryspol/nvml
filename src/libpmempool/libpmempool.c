@@ -141,9 +141,9 @@ pmempool_check_init(struct pmempool_check_args *args)
 	}
 
 	/*
-	 * dry run does not allow to made changes possibly performed during
-	 * repair. advanced allow to perform more complex repairs. questions
-	 * are ask only if repairs are made. so dry run, advanced and always_yes
+	 * Dry run does not allow to made changes possibly performed during
+	 * repair. Advanced allow to perform more complex repairs. Questions
+	 * are ask only if repairs are made. So dry run, advanced and always_yes
 	 * can be set only if repair is set.
 	 */
 	if (!args->repair && (args->dry_run || args->advanced ||
