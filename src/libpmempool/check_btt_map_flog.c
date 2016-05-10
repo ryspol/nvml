@@ -567,6 +567,11 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 		return -1;
 	}
 
+	if (!ppc->args->advanced) {
+		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+		return -1;
+	}
+
 	if (loc->list_inval->count > 0) {
 		CHECK_ASK(ppc, Q_REPAIR_MAP, "Do you want repair invalid map "
 			"entries?");
