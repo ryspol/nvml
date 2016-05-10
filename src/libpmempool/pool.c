@@ -110,7 +110,8 @@ btt_write(struct pool_data *pool, const void *src, size_t count)
 }
 
 /*
- * pool_get_min_size -- (internal) return minimum size of pool for specified type
+ * pool_get_min_size -- (internal) return minimum size of pool for specified
+ *	type
  */
 static uint64_t
 pool_get_min_size(enum pool_type type)
