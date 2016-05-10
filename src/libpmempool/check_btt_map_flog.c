@@ -474,6 +474,7 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 			/* Both old_map and new_map are already used in map. */
 			CHECK_INFO(ppc, "arena %u: duplicated flog entry at "
 				"%u\n", arenap->id, i);
+			util_setbit(loc->dup_bitmap, new_entry);
 			if (!list_push(loc->list_flog_inval, i))
 				return 1;
 		} else {
@@ -489,9 +490,7 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 		/*
 		 * Either flog entry is in its initial state:
 		 * - current_btt_flog entry is first one in pair and
-		 * - current_btt_flog.lba == i (index of pair in flog) and
 		 * - current_btt_flog.old_map == current_btt_flog.new_map and
-		 * - current_btt_flog.old_map == external_nlba + i and
 		 * - current_btt_flog.seq == 0b01 and
 		 * - second flog entry in pair is zeroed
 		 * or
@@ -499,10 +498,7 @@ flog_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i,
 		 */
 		if (entry == new_entry)
 			flog_valid = (flog_cur == flog_alpha) &&
-				(flog_cur->lba == i) &&
 				(flog_cur->seq == 1) &&
-				(entry == loc->arenap->btt_info.external_nlba
-				+ i) &&
 				(!check_memory((const uint8_t *)flog_beta,
 				sizeof(*flog_beta), 0));
 		else
@@ -585,7 +581,8 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 		return -1;
 	}
 
-	if (!ppc->args.advanced) {
+	if (!ppc->args.advanced && loc->list_inval->count +
+		loc->list_flog_inval->count > 0) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 		return -1;
 	}
@@ -635,8 +632,12 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 			uint32_t lba = map_get_postmap_lba(arenap, i);
 			if (lba < arenap->btt_info.internal_nlba) {
 				if (util_isset(loc->dup_bitmap, lba)) {
-					arenap->map[i] |= BTT_MAP_ENTRY_ERROR;
+					arenap->map[i] = BTT_MAP_ENTRY_ERROR |
+						lba;
 					util_unsetbit(loc->dup_bitmap, lba);
+					CHECK_INFO(ppc, "arena %u: storing "
+						"0x%x at %u entry", arenap->id,
+						arenap->map[i], i);
 				}
 			}
 		}
