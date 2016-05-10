@@ -1,5 +1,5 @@
-libpmempool_btt/TEST11: START: libpmempool_btt
- ./libpmempool_btt$(nW) $(nW) -r 1
+libpmempool_bttdev/TEST11: START: libpmempool_bttdev
+ ./libpmempool_bttdev$(nW) $(nW) -r 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum correct
@@ -12,4 +12,4 @@ arena 1: BTT Info header checksum incorrect
 
 status = fatal
 
-libpmempool_btt/TEST11: Done
+libpmempool_bttdev/TEST11: Done
