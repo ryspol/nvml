@@ -7,7 +7,7 @@ Zeroed: bttdevice.arena.btt_map(5)=0x80000005
 Zeroed: bttdevice.arena.btt_map(6)=0x80000003
 Zeroed: bttdevice.arena.btt_map(2)=0x8000FFFF
 libpmempool_map_flog/TEST1: START: libpmempool_map_flog
- ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt -a 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum correct
@@ -29,6 +29,8 @@ arena 0: number of unmapped blocks: 2
 arena 0: number of invalid map entries: 2
 
 Do you want repair invalid map entries?
+
+arena 0: storing 0x40000003 at 3 entry
 
 arena 0: storing 0x40000006 at 6 entry
 
@@ -46,7 +48,7 @@ Error: bttdevice.arena.btt_map(5)=0x40000005
 Error: bttdevice.arena.btt_map(6)=0x40000003
 Error: bttdevice.arena.btt_map(2)=0x4000FFFF
 libpmempool_map_flog/TEST1: START: libpmempool_map_flog
- ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt -a 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum correct
@@ -69,6 +71,8 @@ arena 0: number of invalid map entries: 2
 
 Do you want repair invalid map entries?
 
+arena 0: storing 0x40000003 at 3 entry
+
 arena 0: storing 0x40000006 at 6 entry
 
 arena 0: storing 0x40000002 at 2 entry
@@ -85,7 +89,7 @@ Initial: bttdevice.arena.btt_map(5)=0x00000005
 Initial: bttdevice.arena.btt_map(6)=0x00000003
 Initial: bttdevice.arena.btt_map(2)=0x0000FFFF
 libpmempool_map_flog/TEST1: START: libpmempool_map_flog
- ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt -a 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum correct
@@ -106,7 +110,7 @@ Normal: bttdevice.arena.btt_map(5)=0xC0000005
 Normal: bttdevice.arena.btt_map(6)=0xC0000003
 Normal: bttdevice.arena.btt_map(2)=0xC000FFFF
 libpmempool_map_flog/TEST1: START: libpmempool_map_flog
- ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt
+ ./libpmempool_map_flog$(nW) $(nW) -r 1 -t btt -a 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum correct
@@ -128,6 +132,8 @@ arena 0: number of unmapped blocks: 2
 arena 0: number of invalid map entries: 2
 
 Do you want repair invalid map entries?
+
+arena 0: storing 0x40000003 at 3 entry
 
 arena 0: storing 0x40000006 at 6 entry
 
