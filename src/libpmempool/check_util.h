@@ -49,7 +49,7 @@ struct arena;
 struct check_status;
 
 /* container for storing instep location size */
-#define	CHECK_INSTEP_LOCATION_NUM	8
+#define	CHECK_INSTEP_LOCATION_NUM	9
 
 struct check_instep {
 	uint64_t location[CHECK_INSTEP_LOCATION_NUM];

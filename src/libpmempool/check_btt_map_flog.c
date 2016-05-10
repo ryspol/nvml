@@ -50,6 +50,7 @@ union location {
 		struct arena *arenap;
 		uint32_t narena;
 		uint8_t *bitmap;
+		uint8_t *dup_bitmap;
 		uint8_t *fbitmap;
 		struct list *list_inval;
 		struct list *list_flog_inval;
@@ -291,6 +292,8 @@ cleanup(PMEMpoolcheck *ppc, union location *loc)
 		free(loc->fbitmap);
 	if (loc->bitmap)
 		free(loc->bitmap);
+	if (loc->dup_bitmap)
+		free(loc->dup_bitmap);
 
 	return 0;
 }
@@ -320,6 +323,14 @@ prepare(PMEMpoolcheck *ppc, union location *loc)
 	if (!loc->bitmap) {
 		ERR("!calloc");
 		CHECK_ERR(ppc, "Cannot allocate memory for blocks bitmap");
+		goto error;
+	}
+
+	loc->dup_bitmap = calloc(bitmapsize, 1);
+	if (!loc->dup_bitmap) {
+		ERR("!calloc");
+		CHECK_ERR(ppc, "Cannot allocate memory for duplicated blocks "
+			"bitmap");
 		goto error;
 	}
 
@@ -362,6 +373,19 @@ error:
 	return -1;
 }
 
+static inline uint32_t
+map_get_postmap_lba(struct arena *arenap, uint32_t i)
+{
+	uint32_t entry = arenap->map[i];
+
+	if (!(entry & ~BTT_MAP_ENTRY_LBA_MASK))
+		/* if map record is in initial state (flags == 0b00) */
+		return i;
+	else
+		/* read postmap LBA otherwise */
+		return entry & BTT_MAP_ENTRY_LBA_MASK;
+}
+
 /*
  * map_entry_check -- (internal) check single map entry
  */
@@ -369,24 +393,18 @@ static int
 map_entry_check(PMEMpoolcheck *ppc, union location *loc, uint32_t i)
 {
 	struct arena *arenap = loc->arenap;
-	uint32_t entry = arenap->map[i];
-
-	if (!(entry & ~BTT_MAP_ENTRY_LBA_MASK))
-		/* if map record is in initial state (flags == 0b00) */
-		entry = i;
-	else
-		/* read postmap LBA otherwise */
-		entry &= BTT_MAP_ENTRY_LBA_MASK;
+	uint32_t lba = map_get_postmap_lba(arenap, i);
 
 	/* add duplicated and invalid entries to list */
-	if (entry < arenap->btt_info.internal_nlba) {
-		if (util_isset(loc->bitmap, entry)) {
+	if (lba < arenap->btt_info.internal_nlba) {
+		if (util_isset(loc->bitmap, lba)) {
 			CHECK_INFO(ppc, "arena %u: map entry %u duplicated at "
-				"%u", arenap->id, entry, i);
+				"%u", arenap->id, lba, i);
+			util_setbit(loc->dup_bitmap, lba);
 			if (!list_push(loc->list_inval, i))
 				return 1;
 		} else {
-			util_setbit(loc->bitmap, entry);
+			util_setbit(loc->bitmap, lba);
 		}
 	} else {
 		CHECK_INFO(ppc, "arena %u: invalid map entry at %u", arenap->id,
@@ -567,7 +585,7 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 		return -1;
 	}
 
-	if (!ppc->args->advanced) {
+	if (!ppc->args.advanced) {
 		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
 		return -1;
 	}
@@ -602,10 +620,27 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	ASSERTne(location, NULL);
 	union location *loc = (union location *)location;
 
+	struct arena *arenap = loc->arenap;
 	uint32_t inval;
 	uint32_t unmap;
 	switch (question) {
 	case Q_REPAIR_MAP:
+		/*
+		 * Cause first of duplicated map entries seems valid till we
+		 * find second of them we must find all map entries pointing
+		 * to the postmap LBA's we know are duplicated to mark them
+		 * with error flag.
+		 */
+		for (uint32_t i = 0; i < arenap->btt_info.external_nlba; i++) {
+			uint32_t lba = map_get_postmap_lba(arenap, i);
+			if (lba < arenap->btt_info.internal_nlba) {
+				if (util_isset(loc->dup_bitmap, lba)) {
+					arenap->map[i] |= BTT_MAP_ENTRY_ERROR;
+					util_unsetbit(loc->dup_bitmap, lba);
+				}
+			}
+		}
+
 		/*
 		 * repair invalid or duplicated map entries by using unmapped
 		 * blocks
@@ -615,9 +650,9 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
 				return -1;
 			}
-			loc->arenap->map[inval] = unmap | BTT_MAP_ENTRY_ERROR;
+			arenap->map[inval] = unmap | BTT_MAP_ENTRY_ERROR;
 			CHECK_INFO(ppc, "arena %u: storing 0x%x at %u entry",
-				loc->arenap->id, loc->arenap->map[inval],
+				arenap->id, arenap->map[inval],
 				inval);
 		}
 		break;
@@ -630,11 +665,9 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 			}
 
 			struct btt_flog *flog_alpha = (struct btt_flog *)
-				(loc->arenap->flog +
-				inval * BTT_FLOG_PAIR_ALIGN);
+				(arenap->flog + inval * BTT_FLOG_PAIR_ALIGN);
 			struct btt_flog *flog_beta = (struct btt_flog *)
-				(loc->arenap->flog +
-				inval * BTT_FLOG_PAIR_ALIGN +
+				(arenap->flog + inval * BTT_FLOG_PAIR_ALIGN +
 				sizeof(struct btt_flog));
 			memset(flog_beta, 0, sizeof(*flog_beta));
 			uint32_t entry = unmap | BTT_MAP_ENTRY_ERROR;
