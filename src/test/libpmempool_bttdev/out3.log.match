@@ -1,5 +1,5 @@
-libpmempool_btt/TEST3: START: libpmempool_btt
- ./libpmempool_btt$(nW) $(nW) -r 1
+libpmempool_bttdev/TEST3: START: libpmempool_bttdev
+ ./libpmempool_bttdev$(nW) $(nW) -r 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
@@ -18,4 +18,4 @@ arena 1: checking map and flog
 
 status = repaired
 
-libpmempool_btt/TEST3: Done
+libpmempool_bttdev/TEST3: Done
