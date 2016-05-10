@@ -37,14 +37,29 @@
 .\" or
 .\"	groff -man -Tascii libpmempool.3
 .\"
-.TH libpmempool 3 "pmempool API version 0.4.27" "NVM Library"
+.TH libpmempool 3 "pmempool API version 0.0.0" "NVM Library"
 .SH NAME
 libpmempool \- persistent memory health check library
 .SH SYNOPSIS
 .nf
 .B #include <libpmempool.h>
 .sp
-.B cc -std=gnu99 ... -lpmemobj -lpmem
+.B cc -std=gnu99 ... -lpmempool -lpmem
 .sp
-WIP
+.B Health check functions:
+.sp
+.BI "PMEMpoolcheck *pmempool_check_init(struct pmempool_check_args *" args );
+.BI "struct pmempool_check_status * pmempool_check(PMEMpoolcheck *" ppc );
+.BI "enum pmempool_check_result pmempool_check_end(PMEMpoolcheck *" ppc ",
+.BI "    struct pmempool_check_status *" stat );
+.sp
+.B Library API versioning:
+.sp
+.BI "const char *pmempool_check_version("
+.BI "    unsigned " major_required ,
+.BI "    unsigned " minor_required );
+.sp
+.B Error handling:
+.sp
+.BI "const char *pmempool_errormsg(void);
 .fi
