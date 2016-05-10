@@ -31,7 +31,7 @@
  */
 
 /*
- * libpmempool_btt -- Placeholder for testing libpmempool API.
+ * libpmempool_bttdev -- Placeholder for testing libpmempool API.
  *
  */
 
@@ -100,7 +100,7 @@ print_usage(char *name)
 int
 main(int argc, char *argv[])
 {
-	START(argc, argv, "libpmempool_btt");
+	START(argc, argv, "libpmempool_bttdev");
 	int opt;
 	char *backup;
 

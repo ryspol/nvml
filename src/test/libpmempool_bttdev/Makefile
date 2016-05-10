@@ -1,4 +1,3 @@
-#!/bin/bash -e
 #
 # Copyright 2016, Intel Corporation
 #
@@ -30,34 +29,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
 #
-# libpmempool_btt/TEST5 -- test for checking btt
+# src/test/pmempool_api/Makefile -- build pmempool_api test
 #
-export UNITTEST_NAME=libpmempool_btt/TEST5
-export UNITTEST_NUM=5
+TARGET = libpmempool_bttdev
+OBJS = libpmempool_bttdev.o
 
-. ../unittest/unittest.sh
+LIBPMEM=y
+LIBPMEMPOOL=y
 
-require_fs_type pmem non-pmem
-
-setup
-
-POOL=$DIR/file.pool
-LOG=out${UNITTEST_NUM}.log
-rm -rf $LOG && touch $LOG
-
-truncate -s1T $POOL
-expect_normal_exit $BTTCREATE -s 1T -b 512M -t $POOL >> $LOG
-
-$PMEMSPOIL $POOL "bttdevice.arena(0).btt_info.sig=ERROR"\
-	"bttdevice.arena(0).btt_info_backup.sig=ERROR"\
-	"bttdevice.arena(1).btt_info.sig=ERROR"\
-	"bttdevice.arena(1).btt_info_backup.sig=ERROR"
-
-expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1 >> $LOG
-
-check_file $POOL
-
-check
-
-pass
+include ../Makefile.inc

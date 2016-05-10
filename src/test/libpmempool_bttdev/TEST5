@@ -31,10 +31,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# libpmempool_btt/TEST11 -- test for checking btt
+# libpmempool_bttdev/TEST5 -- test for checking btt
 #
-export UNITTEST_NAME=libpmempool_btt/TEST11
-export UNITTEST_NUM=11
+export UNITTEST_NAME=libpmempool_bttdev/TEST5
+export UNITTEST_NUM=5
 
 . ../unittest/unittest.sh
 
@@ -49,11 +49,12 @@ rm -rf $LOG && touch $LOG
 truncate -s1T $POOL
 expect_normal_exit $BTTCREATE -s 1T -b 512M -t $POOL >> $LOG
 
-$PMEMSPOIL $POOL "bttdevice.arena(1).btt_info.checksum=777"\
+$PMEMSPOIL $POOL "bttdevice.arena(0).btt_info.sig=ERROR"\
+	"bttdevice.arena(0).btt_info_backup.sig=ERROR"\
 	"bttdevice.arena(1).btt_info.sig=ERROR"\
-	"bttdevice.arena(1).btt_info_backup.checksum=777"
+	"bttdevice.arena(1).btt_info_backup.sig=ERROR"
 
-expect_normal_exit ./libpmempool_btt$EXESUFFIX $POOL -r 1 >> $LOG
+expect_normal_exit ./libpmempool_bttdev$EXESUFFIX $POOL -r 1 >> $LOG
 
 check_file $POOL
 

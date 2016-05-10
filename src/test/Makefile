@@ -244,7 +244,7 @@ REMOTE_TESTS = \
 
 LIBPMEMPOOL_TESTS = \
        libpmempool_api\
-       libpmempool_btt\
+       libpmempool_bttdev\
        libpmempool_map_flog
 
 TESTS = \

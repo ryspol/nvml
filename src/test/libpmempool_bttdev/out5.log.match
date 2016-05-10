@@ -1,5 +1,5 @@
-libpmempool_btt/TEST10: START: libpmempool_btt
- ./libpmempool_btt$(nW) $(nW) -r 1
+libpmempool_bttdev/TEST5: START: libpmempool_bttdev
+ ./libpmempool_bttdev$(nW) $(nW) -r 1
 checking BTT Info headers
 
 arena 0: BTT Info header checksum incorrect. Do you want to regenerate BTT Info?
@@ -10,4 +10,4 @@ Can not find any valid BTT Info
 
 status = cannot repair
 
-libpmempool_btt/TEST10: Done
+libpmempool_bttdev/TEST5: Done
