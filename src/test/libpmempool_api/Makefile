@@ -37,8 +37,6 @@ TARGET = libpmempool_api
 OBJS = libpmempool_api.o
 
 LIBPMEM=y
-LIBPMEMBLK=y
-LIBPMEMOBJ=y
 LIBPMEMPOOL=y
 
 include ../Makefile.inc

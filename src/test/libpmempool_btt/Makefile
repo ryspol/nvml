@@ -37,8 +37,6 @@ TARGET = libpmempool_btt
 OBJS = libpmempool_btt.o
 
 LIBPMEM=y
-LIBPMEMBLK=y
-LIBPMEMOBJ=y
 LIBPMEMPOOL=y
 
 include ../Makefile.inc

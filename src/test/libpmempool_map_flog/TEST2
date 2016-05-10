@@ -88,7 +88,7 @@ do
 	echo ${field}: $spcmd >> $LOG_TEMP
 	$PMEMSPOIL $POOL $spcmd
 
-	expect_normal_exit ./libpmempool_map_flog$EXESUFFIX $POOL -r 1 -t btt
+	expect_normal_exit ./libpmempool_map_flog$EXESUFFIX $POOL -r 1 -t btt -a 1
 	cat $LOG >> $LOG_TEMP
 	rm -rf POOL
 done
