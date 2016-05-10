@@ -37,8 +37,6 @@ TARGET = libpmempool_map_flog
 OBJS = libpmempool_map_flog.o
 
 LIBPMEM=y
-LIBPMEMBLK=y
-LIBPMEMOBJ=y
 LIBPMEMPOOL=y
 
 include ../Makefile.inc
