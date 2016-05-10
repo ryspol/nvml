@@ -57,7 +57,7 @@
 #include "check_util.h"
 
 /*
- * btt_lseek -- perform lseek in BTT file mode
+ * btt_lseek -- (internal) perform lseek in BTT file mode
  */
 static inline off_t
 btt_lseek(struct pool_data *pool, off_t offset, int whence)
@@ -66,7 +66,7 @@ btt_lseek(struct pool_data *pool, off_t offset, int whence)
 }
 
 /*
- * btt_read -- perform read in BTT file mode
+ * btt_read -- (internal) perform read in BTT file mode
  */
 static inline ssize_t
 btt_read(struct pool_data *pool, void *dst, size_t count)
@@ -88,7 +88,7 @@ btt_read(struct pool_data *pool, void *dst, size_t count)
 }
 
 /*
- * btt_write -- perform write in BTT file mode
+ * btt_write -- (internal) perform write in BTT file mode
  */
 static inline ssize_t
 btt_write(struct pool_data *pool, const void *src, size_t count)
@@ -110,7 +110,7 @@ btt_write(struct pool_data *pool, const void *src, size_t count)
 }
 
 /*
- * pool_get_min_size -- return minimum size of pool for specified type
+ * pool_get_min_size -- (internal) return minimum size of pool for specified type
  */
 static uint64_t
 pool_get_min_size(enum pool_type type)
@@ -130,7 +130,7 @@ pool_get_min_size(enum pool_type type)
 }
 
 /*
- * pool_set_map -- map poolset
+ * pool_set_map -- (internal) map poolset
  */
 static int
 pool_set_map(const char *fname, struct pool_set **poolset, int rdonly)
@@ -210,7 +210,7 @@ err_close:
 }
 
 /*
- * pool_parse_params -- parse pool type, file size and block size
+ * pool_parse_params -- (internal) parse pool type, file size and block size
  */
 static int
 pool_params_parse(const PMEMpoolcheck *ppc, struct pool_params *params,
@@ -320,7 +320,7 @@ out_close:
 }
 
 /*
- * pool_set_file_open -- opens pool set file or regular file
+ * pool_set_file_open -- (internal) opens pool set file or regular file
  */
 static struct pool_set_file *
 pool_set_file_open(const char *fname, struct pool_params *params, int rdonly)
@@ -404,7 +404,7 @@ error:
 }
 
 /*
- * pool_set_file_close -- closes pool set file or regular file
+ * pool_set_file_close -- (internal) closes pool set file or regular file
  */
 static void
 pool_set_file_close(struct pool_set_file *file)
@@ -692,7 +692,7 @@ pool_hdr_convert2le(struct pool_hdr *hdrp)
 }
 
 /*
- * pool_get_signature -- return signature of specified pool type
+ * pool_get_signature -- (internal) return signature of specified pool type
  */
 static const char *
 pool_get_signature(enum pool_type type)

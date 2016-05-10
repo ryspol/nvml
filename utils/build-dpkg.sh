@@ -234,7 +234,7 @@ Description: Development files for libpmemobj
 
 Package: libpmempool
 Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}
+Depends: libpmem (=\${binary:Version}), \${shlibs:Depends}, \${misc:Depends}
 Description: NVML libpmempool library
  NVML library for Persistent Memory support - health check.
 
