@@ -76,12 +76,12 @@ check_pool(struct pmempool_check_args *args)
 			status->str.answer = "yes";
 			break;
 		default:
-			pmempool_check_end(ppc, status);
+			pmempool_check_end(ppc);
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	enum pmempool_check_result ret = pmempool_check_end(ppc, status);
+	enum pmempool_check_result ret = pmempool_check_end(ppc);
 	UT_OUT("status = %s\n", status2str[ret]);
 }
 
