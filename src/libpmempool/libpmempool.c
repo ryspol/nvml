@@ -244,5 +244,9 @@ pmempool_check_end(PMEMpoolcheck *ppc)
 	free(ppc->backup_path);
 	free(ppc);
 
+	if (result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
+		result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS)
+		result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+
 	return result;
 }
