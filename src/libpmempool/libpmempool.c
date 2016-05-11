@@ -235,7 +235,7 @@ pmempool_check(PMEMpoolcheck *ppc)
  * pmempool_check_end -- end check and release check context
  */
 enum pmempool_check_result
-pmempool_check_end(PMEMpoolcheck *ppc, struct pmempool_check_status *stat)
+pmempool_check_end(PMEMpoolcheck *ppc)
 {
 	enum pmempool_check_result result = ppc->result;
 

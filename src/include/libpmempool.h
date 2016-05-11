@@ -110,8 +110,7 @@ PMEMpoolcheck *pmempool_check_init(struct pmempool_check_args *args);
 
 struct pmempool_check_status *pmempool_check(PMEMpoolcheck *ppc);
 
-enum pmempool_check_result pmempool_check_end(PMEMpoolcheck *ppc,
-	struct pmempool_check_status *stat);
+enum pmempool_check_result pmempool_check_end(PMEMpoolcheck *ppc);
 
 /*
  * PMEMPOOL_MAJOR_VERSION and PMEMPOOL_MINOR_VERSION provide the current version
@@ -121,9 +120,8 @@ enum pmempool_check_result pmempool_check_end(PMEMpoolcheck *ppc,
  */
 #define	PMEMPOOL_MAJOR_VERSION 0
 #define	PMEMPOOL_MINOR_VERSION 1
-const char *pmempool_check_version(
-		unsigned major_required,
-		unsigned minor_required);
+const char *pmempool_check_version(unsigned major_required,
+	unsigned minor_required);
 
 const char *pmempool_errormsg(void);
 
