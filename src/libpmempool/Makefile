@@ -42,11 +42,13 @@ INCS += -I$(TOP)/src/libpmemobj
 
 SOURCE = libpmempool.c check.c check_util.c check_backup.c check_pool_hdr.c\
 	check_pmemx.c check_btt_info.c check_btt_map_flog.c check_write.c\
-	pool.c $(COMMON)/out.c $(COMMON)/util.c $(COMMON)/util_linux.c $(COMMON)/set.c $(COMMON)/set_linux.c
+	pool.c $(COMMON)/out.c $(COMMON)/util.c $(COMMON)/util_linux.c\
+	$(COMMON)/set.c $(COMMON)/set_linux.c
 
 LIBPMEMBLK_PRIV_FUNCS=btt_info_set btt_arena_datasize btt_flog_size btt_map_size
 
 include ../Makefile.inc
 
 pmemblk_priv_funcs.o: $(PMEMBLK_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV_FUNCS)) $< $@
+	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV_FUNCS)) \
+	$< $@
