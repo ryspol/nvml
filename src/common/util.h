@@ -297,7 +297,7 @@ static inline void util_setbit(uint8_t *b, uint32_t i)
 }
 static inline void util_unsetbit(uint8_t *b, uint32_t i)
 {
-	b[i / 8] = (uint8_t)(b[i / 8] && (uint8_t)(~(1 << (i % 8))));
+	b[i / 8] = (uint8_t)(b[i / 8] & (uint8_t)(~(1 << (i % 8))));
 }
 #define util_isset(a, i) isset(a, i)
 #define util_isclr(a, i) isclr(a, i)

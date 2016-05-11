@@ -624,9 +624,9 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	case Q_REPAIR_MAP:
 		/*
 		 * Cause first of duplicated map entries seems valid till we
-		 * find second of them we must find all map entries pointing
-		 * to the postmap LBA's we know are duplicated to mark them
-		 * with error flag.
+		 * find second of them we must find all first map entries
+		 * pointing to the postmap LBA's we know are duplicated to mark
+		 * them with error flag.
 		 */
 		for (uint32_t i = 0; i < arenap->btt_info.external_nlba; i++) {
 			uint32_t lba = map_get_postmap_lba(arenap, i);
