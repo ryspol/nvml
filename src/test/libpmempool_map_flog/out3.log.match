@@ -56,6 +56,8 @@ Do you want repair invalid map entries?
 
 arena 0: storing 0x40000002 at 2 entry
 
+arena 0: storing 0x40000003 at 3 entry
+
 arena 0: storing 0x4000000c at 12 entry
 
 arena 0: storing 0x4000000b at 11 entry
@@ -67,8 +69,6 @@ arena 0: storing 0x40000007 at 7 entry
 arena 0: storing 0x40000006 at 6 entry
 
 arena 0: storing 0x40000005 at 5 entry
-
-arena 0: storing 0x40000005 at 3 entry
 
 status = repaired
 
