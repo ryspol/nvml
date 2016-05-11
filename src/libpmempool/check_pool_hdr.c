@@ -808,7 +808,6 @@ static const struct step steps[] = {
 	},
 	{
 		.check	= pool_hdr_checksum_retry,
-
 	},
 	{
 		.check	= pool_hdr_gen,

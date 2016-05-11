@@ -242,7 +242,6 @@ static const struct step steps[] = {
 	{
 		.func		= log_write,
 		.type		= POOL_TYPE_LOG,
-
 	},
 	{
 		.func		= blk_write,
@@ -252,11 +251,9 @@ static const struct step steps[] = {
 		.func		= btt_data_write,
 		.type		= POOL_TYPE_BLK,
 		.btt_dev	= true
-
 	},
 	{
 		.func		= NULL,
-
 	},
 };
 

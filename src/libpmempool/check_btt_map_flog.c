@@ -234,12 +234,13 @@ list_free(struct list *list)
 }
 
 /*
- * flog_seq_check -- (internal) check FLOG sequence number value
+ * flog_seq_check -- (internal) check flog sequence number value. Valid flog
+ *	sequence number must be on from: 0b00, 0b01, 0b10, 0b11.
  */
 static int
 flog_seq_check(uint32_t seq)
 {
-	return seq == 0 || seq == 1 || seq == 2 || seq == 3;
+	return seq < 4;
 }
 
 static const unsigned Nseq[] = { 0, 2, 3, 1 };
@@ -373,6 +374,9 @@ error:
 	return -1;
 }
 
+/*
+ * map_get_postmap_lba -- extract postmap LBA from map entry
+ */
 static inline uint32_t
 map_get_postmap_lba(struct arena *arenap, uint32_t i)
 {
@@ -698,23 +702,18 @@ struct step {
 static const struct step steps[] = {
 	{
 		.check	= prepare,
-
 	},
 	{
 		.check	= arena_map_flog_check,
-
 	},
 	{
 		.fix	= arena_map_flog_fix,
-
 	},
 	{
 		.check	= cleanup,
-
 	},
 	{
 		.check	= NULL,
-
 	},
 };
 

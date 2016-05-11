@@ -48,8 +48,6 @@
 union location {
 	struct {
 		uint64_t offset;
-		uint64_t offset2;
-		uint64_t nextoff;
 		struct arena *arena;
 		uint32_t step;
 	};
@@ -140,11 +138,11 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 
 	/* BTT Info header is not consistent, so try get BTT Info backup */
 	const size_t btt_info_size = sizeof(ppc->pool->bttc.btt_info);
-	loc->offset2 = pool_next_arena_offset(ppc->pool, loc->offset) -
+	uint64_t btt_info_off = pool_next_arena_offset(ppc->pool, loc->offset) -
 		btt_info_size;
 
 	if (pool_read(ppc->pool, &ppc->pool->bttc.btt_info, btt_info_size,
-			loc->offset2)) {
+			btt_info_off)) {
 		CHECK_ERR(ppc, "arena %u: cannot read BTT Info backup",
 			loc->arena->id);
 		goto error;
@@ -218,6 +216,7 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	ASSERTne(location, NULL);
 	union location *loc = (union location *)location;
 
+	uint64_t btt_info_off;
 	switch (question) {
 	case Q_REGENERATE:
 		CHECK_INFO(ppc, "arena %u: regenerating BTT Info header",
@@ -227,11 +226,11 @@ btt_info_gen_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		 * We do not have valid BTT Info backup so we get first valid
 		 * BTT Info and try to calculate BTT Info for current arena
 		 */
-		loc->offset2 = pool_get_first_valid_btt(ppc->pool,
+		btt_info_off = pool_get_first_valid_btt(ppc->pool,
 			&ppc->pool->bttc.btt_info, loc->offset + BTT_MAX_ARENA,
 			NULL);
 
-		if (loc->offset2 == 0) {
+		if (btt_info_off == 0) {
 			/* Without valid BTT Info we can not proceed */
 			CHECK_INFO(ppc, "Can not find any valid BTT Info");
 			return -1;
@@ -349,7 +348,6 @@ struct step {
 static const struct step steps[] = {
 	{
 		.check		= btt_info_checksum,
-
 	},
 	{
 		.check		= btt_info_backup,
@@ -413,6 +411,7 @@ check_btt_info(PMEMpoolcheck *ppc)
 		sizeof(struct check_instep));
 
 	union location *loc = (union location *)check_step_location(ppc->data);
+	uint64_t nextoff = 0;
 
 	/* initialize check */
 	if (!loc->offset) {
@@ -420,15 +419,13 @@ check_btt_info(PMEMpoolcheck *ppc)
 		loc->offset = BTT_ALIGNMENT;
 		if (!ppc->pool->params.is_btt_dev)
 			loc->offset += BTT_ALIGNMENT;
-		loc->nextoff = 0;
 	}
 
 	do {
 		/* jump to next offset */
 		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
-			loc->offset += loc->nextoff;
-			loc->offset2 = 0;
-			loc->nextoff = 0;
+			loc->offset += nextoff;
+			nextoff = 0;
 			loc->step = 0;
 		}
 
@@ -442,7 +439,7 @@ check_btt_info(PMEMpoolcheck *ppc)
 		loc->arena->offset = loc->offset;
 		loc->arena->valid = true;
 		check_insert_arena(ppc, loc->arena);
-		loc->nextoff = le64toh(loc->arena->btt_info.nextoff);
+		nextoff = le64toh(loc->arena->btt_info.nextoff);
 
-	} while (loc->nextoff > 0);
+	} while (nextoff > 0);
 }
