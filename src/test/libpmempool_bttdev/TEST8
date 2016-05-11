@@ -54,7 +54,8 @@ expect_normal_exit $BTTCREATE $POOL >> $LOG
 declare -A btt_info_dic_err=(["sig"]="ERROR" ["uuid"]="01-02"
 	["flags"]="7" ["major"]="7" ["minor"]="7"
 	["nfree"]="7" ["infosize"]="7" ["nextoff"]="7"
-	["dataoff"]="7" ["infooff"]="7" ["unused"]="7")
+	["dataoff"]="7" ["infooff"]="7" ["unused"]="7"
+	["parent_uuid"]="03-04" ["mapoff"]="7" ["flogoff"]="7")
 
 for field in "${!btt_info_dic_err[@]}";
 do

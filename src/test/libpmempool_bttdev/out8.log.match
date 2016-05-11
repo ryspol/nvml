@@ -142,7 +142,55 @@ arena 0: checking map and flog
 status = repaired
 
 libpmempool_bttdev/TEST8: Done
+/$(nW)/test_libpmempool_bttdev8/file.pool: spoil: bttdevice.arena(0).btt_info.mapoff=7
+libpmempool_bttdev/TEST8: START: libpmempool_bttdev
+ ./libpmempool_bttdev$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Restore BTT Info from backup?
+
+arena 0: restoring BTT Info header from backup
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = repaired
+
+libpmempool_bttdev/TEST8: Done
 /$(nW)/test_libpmempool_bttdev8/file.pool: spoil: bttdevice.arena(0).btt_info.uuid=01-02
+libpmempool_bttdev/TEST8: START: libpmempool_bttdev
+ ./libpmempool_bttdev$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Restore BTT Info from backup?
+
+arena 0: restoring BTT Info header from backup
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = repaired
+
+libpmempool_bttdev/TEST8: Done
+/$(nW)/test_libpmempool_bttdev8/file.pool: spoil: bttdevice.arena(0).btt_info.parent_uuid=03-04
+libpmempool_bttdev/TEST8: START: libpmempool_bttdev
+ ./libpmempool_bttdev$(nW) $(nW) -r 1
+checking BTT Info headers
+
+arena 0: BTT Info header checksum incorrect. Restore BTT Info from backup?
+
+arena 0: restoring BTT Info header from backup
+
+checking BTT map and flog
+
+arena 0: checking map and flog
+
+status = repaired
+
+libpmempool_bttdev/TEST8: Done
+/$(nW)/test_libpmempool_bttdev8/file.pool: spoil: bttdevice.arena(0).btt_info.flogoff=7
 libpmempool_bttdev/TEST8: START: libpmempool_bttdev
  ./libpmempool_bttdev$(nW) $(nW) -r 1
 checking BTT Info headers
