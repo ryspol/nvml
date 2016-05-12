@@ -133,7 +133,7 @@ reprocess:
 		return status;
 
 	switch (ppc->result) {
-	case PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS:
+	case CHECK_RESULT_ASK_QUESTIONS:
 		/*
 		 * push answer for previous question. return if answer is not
 		 * valid.
@@ -146,12 +146,12 @@ reprocess:
 			return status;
 		else
 			/* process answers otherwise */
-			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
+			ppc->result = CHECK_RESULT_PROCESS_ANSWERS;
 		break;
-	case PMEMPOOL_CHECK_RESULT_CONSISTENT:
-	case PMEMPOOL_CHECK_RESULT_REPAIRED:
+	case CHECK_RESULT_CONSISTENT:
+	case CHECK_RESULT_REPAIRED:
 		return status;
-	case PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT:
+	case CHECK_RESULT_NOT_CONSISTENT:
 		/*
 		 * don't continue if pool is not consistent and we don't want
 		 * to repair
@@ -160,8 +160,8 @@ reprocess:
 			goto check_end;
 		else
 			return status;
-	case PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR:
-	case PMEMPOOL_CHECK_RESULT_ERROR:
+	case CHECK_RESULT_CANNOT_REPAIR:
+	case CHECK_RESULT_ERROR:
 		goto check_end;
 	default:
 		goto check_end;
@@ -205,7 +205,7 @@ check_step(PMEMpoolcheck *ppc)
 	step->func(ppc);
 
 	/* move on to next step if no questions was generated */
-	if (ppc->result != PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS)
+	if (ppc->result != CHECK_RESULT_ASK_QUESTIONS)
 		check_step_inc(ppc->data);
 
 	/* get current status and return */

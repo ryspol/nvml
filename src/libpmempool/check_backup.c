@@ -53,7 +53,7 @@ check_backup(PMEMpoolcheck *ppc)
 			!ppc->args.dry_run) {
 		CHECK_INFO(ppc, "creating backup file: %s", ppc->backup_path);
 		if (pool_copy(ppc->pool, ppc->backup_path)) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+			ppc->result = CHECK_RESULT_ERROR;
 			CHECK_ERR(ppc, "unable to create backup file");
 		}
 	}

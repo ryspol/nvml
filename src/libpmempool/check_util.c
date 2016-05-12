@@ -324,7 +324,7 @@ reprocess:
 				st = status_alloc();
 			}
 			st->status.question = question;
-			ppc->result = PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS;
+			ppc->result = CHECK_RESULT_PROCESS_ANSWERS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_YES;
 			TAILQ_INSERT_TAIL(&ppc->data->answers, st, next);
 
@@ -337,7 +337,7 @@ reprocess:
 			/* create simple question message */
 			status_msg_prepare(st->msg);
 			st->status.question = question;
-			ppc->result = PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS;
+			ppc->result = CHECK_RESULT_ASK_QUESTIONS;
 			st->status.answer = PMEMPOOL_CHECK_ANSWER_EMPTY;
 			TAILQ_INSERT_TAIL(&ppc->data->questions, st, next);
 		}
@@ -528,11 +528,11 @@ check_answer_loop(PMEMpoolcheck *ppc, struct check_instep *loc, void *ctx,
 		/* perform fix */
 		if (callback(ppc, loc, answer->status.question, ctx))
 			goto cannot_repair;
-		if (ppc->result == PMEMPOOL_CHECK_RESULT_ERROR)
+		if (ppc->result == CHECK_RESULT_ERROR)
 			goto error;
 
 		/* fix succeeded */
-		ppc->result = PMEMPOOL_CHECK_RESULT_REPAIRED;
+		ppc->result = CHECK_RESULT_REPAIRED;
 		check_status_release(ppc, answer);
 	}
 
@@ -544,7 +544,7 @@ error:
 
 cannot_repair:
 	check_status_release(ppc, answer);
-	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+	ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 	return -1;
 }
 
@@ -556,11 +556,11 @@ cannot_repair:
 int
 check_questions_sequence_validate(PMEMpoolcheck *ppc)
 {
-	ASSERT(ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS ||
-		ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED);
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS) {
+	ASSERT(ppc->result == CHECK_RESULT_CONSISTENT ||
+		ppc->result == CHECK_RESULT_ASK_QUESTIONS ||
+		ppc->result == CHECK_RESULT_PROCESS_ANSWERS ||
+		ppc->result == CHECK_RESULT_REPAIRED);
+	if (ppc->result == CHECK_RESULT_ASK_QUESTIONS) {
 		ASSERT(!TAILQ_EMPTY(&ppc->data->questions));
 		return 1;
 	} else

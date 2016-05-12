@@ -40,6 +40,17 @@
 
 extern unsigned long Pagesize;
 
+enum check_result {
+	CHECK_RESULT_CONSISTENT,
+	CHECK_RESULT_NOT_CONSISTENT,
+	CHECK_RESULT_ASK_QUESTIONS,
+	CHECK_RESULT_PROCESS_ANSWERS,
+	CHECK_RESULT_REPAIRED,
+	CHECK_RESULT_CANNOT_REPAIR,
+	CHECK_RESULT_ERROR,
+	CHECK_RESULT_INTERNAL_ERROR
+};
+
 /*
  * pmempool_check -- context and arguments for check command
  */
@@ -50,5 +61,5 @@ struct pmempool_check {
 
 	struct check_data *data;
 	struct pool_data *pool;
-	enum pmempool_check_result result;
+	enum check_result result;
 };

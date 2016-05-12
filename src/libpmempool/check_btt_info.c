@@ -79,7 +79,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 	loc->arena = calloc(1, sizeof(struct arena));
 	if (!loc->arena) {
 		ERR("!calloc");
-		ppc->result = PMEMPOOL_CHECK_RESULT_INTERNAL_ERROR;
+		ppc->result = CHECK_RESULT_INTERNAL_ERROR;
 		CHECK_ERR(ppc, "cannot allocate memory for arena");
 		goto error_cleanup;
 	}
@@ -122,7 +122,7 @@ btt_info_checksum(PMEMpoolcheck *ppc, union location *loc)
 	return 0;
 
 error:
-	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+	ppc->result = CHECK_RESULT_ERROR;
 error_cleanup:
 	location_release(loc);
 	return 1;
@@ -159,7 +159,7 @@ btt_info_backup(PMEMpoolcheck *ppc, union location *loc)
 	return check_questions_sequence_validate(ppc);
 
 error:
-	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+	ppc->result = CHECK_RESULT_ERROR;
 	location_release(loc);
 	return 1;
 }
@@ -310,7 +310,7 @@ btt_info_checksum_retry(PMEMpoolcheck *ppc, union location *loc)
 	return check_questions_sequence_validate(ppc);
 
 error:
-	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+	ppc->result = CHECK_RESULT_ERROR;
 	location_release(loc);
 	return 1;
 }
@@ -423,7 +423,7 @@ check_btt_info(PMEMpoolcheck *ppc)
 
 	do {
 		/* jump to next offset */
-		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+		if (ppc->result != CHECK_RESULT_PROCESS_ANSWERS) {
 			loc->offset += nextoff;
 			nextoff = 0;
 			loc->step = 0;

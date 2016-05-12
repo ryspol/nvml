@@ -173,7 +173,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 
 	if (!check_memory((void *)&hdr, sizeof(hdr), 0)) {
 		if (!ppc->args.repair) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+			ppc->result = CHECK_RESULT_NOT_CONSISTENT;
 			return CHECK_ERR(ppc, "empty pool hdr");
 		}
 	} else {
@@ -182,7 +182,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 			if (type == POOL_TYPE_UNKNOWN) {
 				if (!ppc->args.repair) {
 					ppc->result =
-					PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+						CHECK_RESULT_NOT_CONSISTENT;
 					return CHECK_ERR(ppc,
 						"invalid signature");
 				} else {
@@ -198,8 +198,7 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 			}
 		} else {
 			if (!ppc->args.repair) {
-				ppc->result =
-					PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+				ppc->result = CHECK_RESULT_NOT_CONSISTENT;
 				return CHECK_ERR(ppc,
 					"%sincorrect pool header checksum",
 					loc->prefix);
@@ -216,13 +215,13 @@ pool_hdr_checksum(PMEMpoolcheck *ppc, union location *loc)
 	if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
 		ppc->pool->params.type = pool_hdr_possible_type(ppc);
 		if (ppc->pool->params.type == POOL_TYPE_UNKNOWN) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "cannot determine pool type");
 		}
 	}
 
 	if (!pool_supported(ppc->pool->params.type)) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "unsupported pool type '%s'",
 			pool_type_get_str(ppc->pool->params.type));
 	}
@@ -389,7 +388,7 @@ pool_hdr_poolset_uuid(PMEMpoolcheck *ppc, union location *loc)
 		unsigned pid = 0;
 		if (pool_get_valid_part(ppc, loc->replica, loc->part,
 				&rid, &pid) != 0) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "Can not repair "
 				"pool_hdr.poolset_uuid");
 		}
@@ -434,7 +433,7 @@ pool_hdr_poolset_uuid_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	case Q_UUID_FROM_VALID_PART:
 		if (pool_get_valid_part(ppc, loc->replica, loc->part,
 				&rid, &pid) != 0) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc,
 				"Can not repair pool_hdr.poolset_uuid");
 		}
@@ -631,7 +630,7 @@ pool_hdr_uuids_single_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 	switch (question) {
 	case Q_REGENERATE_UUIDS:
 		if (util_uuid_generate(ctx->hdr.uuid) != 0) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "uuid generation failed");
 		}
 		CHECK_INFO(ppc, "setting UUIDs to: %s",
@@ -886,7 +885,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 	int rdonly = !ppc->args.repair || ppc->args.dry_run;
 	if (pool_set_file_map_headers(ppc->pool->set_file, rdonly,
 			sizeof(struct pool_hdr))) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+		ppc->result = CHECK_RESULT_ERROR;
 		CHECK_ERR(ppc, "cannot map pool headers");
 		return;
 	}
@@ -900,8 +899,7 @@ check_pool_hdr(PMEMpoolcheck *ppc)
 			ppc->pool->set_file->poolset->replica[loc->replica];
 		for (; loc->part < rep->nparts; loc->part++) {
 			/* prepare prefix for messages */
-			if (ppc->result !=
-					PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+			if (ppc->result != CHECK_RESULT_PROCESS_ANSWERS) {
 				if (nfiles > 1) {
 					snprintf(loc->prefix, PREFIX_MAX_SIZE,
 						"replica %u part %u: ",

@@ -369,7 +369,7 @@ prepare(PMEMpoolcheck *ppc, union location *loc)
 	return 0;
 
 error:
-	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+	ppc->result = CHECK_RESULT_ERROR;
 	cleanup(ppc, loc);
 	return -1;
 }
@@ -569,7 +569,7 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 			arenap->id, loc->list_flog_inval->count);
 
 	if (!ppc->args.repair && loc->list_unmap->count > 0) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+		ppc->result = CHECK_RESULT_NOT_CONSISTENT;
 		return 0;
 	}
 
@@ -579,15 +579,15 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 	 */
 	if (loc->list_unmap->count != (loc->list_inval->count +
 			loc->list_flog_inval->count)) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 		CHECK_ERR(ppc, "arena %u: cannot repair map and flog",
 			arenap->id);
 		return -1;
 	}
 
 	if (!ppc->args.advanced && loc->list_inval->count +
-		loc->list_flog_inval->count > 0) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+			loc->list_flog_inval->count > 0) {
+		ppc->result = CHECK_RESULT_NOT_CONSISTENT;
 		return -1;
 	}
 
@@ -605,7 +605,7 @@ arena_map_flog_check(PMEMpoolcheck *ppc, union location *loc)
 
 error_push:
 	CHECK_ERR(ppc, "Cannot allocate momory for list item");
-	ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+	ppc->result = CHECK_RESULT_ERROR;
 	cleanup(ppc, loc);
 	return -1;
 }
@@ -652,7 +652,7 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		 */
 		while (list_pop(loc->list_inval, &inval)) {
 			if (!list_pop(loc->list_unmap, &unmap)) {
-				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+				ppc->result = CHECK_RESULT_ERROR;
 				return -1;
 			}
 			arenap->map[inval] = unmap | BTT_MAP_ENTRY_ERROR;
@@ -665,7 +665,7 @@ arena_map_flog_fix(PMEMpoolcheck *ppc, struct check_instep *location,
 		/* repair invalid flog entries using unmapped blocks */
 		while (list_pop(loc->list_flog_inval, &inval)) {
 			if (!list_pop(loc->list_unmap, &unmap)) {
-				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+				ppc->result = CHECK_RESULT_ERROR;
 				return -1;
 			}
 
@@ -752,7 +752,7 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 
 	/* initialize check */
 	if (!loc->arenap && loc->narena == 0 &&
-			ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS) {
+			ppc->result != CHECK_RESULT_PROCESS_ANSWERS) {
 		CHECK_INFO(ppc, "checking BTT map and flog");
 		loc->arenap = TAILQ_FIRST(&ppc->pool->arenas);
 		loc->narena = 0;
@@ -760,7 +760,7 @@ check_btt_map_flog(PMEMpoolcheck *ppc)
 
 	while (loc->arenap != NULL) {
 		/* add info about checking next arena */
-		if (ppc->result != PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS &&
+		if (ppc->result != CHECK_RESULT_PROCESS_ANSWERS &&
 				loc->step == 0) {
 			CHECK_INFO(ppc, "arena %u: checking map and flog",
 				loc->narena);

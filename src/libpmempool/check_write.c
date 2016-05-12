@@ -74,7 +74,7 @@ log_write(PMEMpoolcheck *ppc, union location *loc)
 
 
 	if (pool_write(ppc->pool, log, sizeof(*log), 0)) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemlog structure failed");
 	}
 
@@ -100,7 +100,7 @@ static int
 blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	if (!arenap->flog) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+		ppc->result = CHECK_RESULT_ERROR;
 		return CHECK_ERR(ppc, "flog is missing");
 	}
 
@@ -121,7 +121,7 @@ blk_write_flog(PMEMpoolcheck *ppc, struct arena *arenap)
 
 	if (pool_write(ppc->pool, arenap->flog, arenap->flogsize, flogoff)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
-		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "arena %u: writing BTT FLOG failed\n",
 			arenap->id);
 	}
@@ -136,7 +136,7 @@ static int
 blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 {
 	if (!arenap->map) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+		ppc->result = CHECK_RESULT_ERROR;
 		return CHECK_ERR(ppc, "map is missing");
 	}
 
@@ -148,7 +148,7 @@ blk_write_map(PMEMpoolcheck *ppc, struct arena *arenap)
 
 	if (pool_write(ppc->pool, arenap->map, arenap->mapsize, mapoff)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
-		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "arena %u: writing BTT map failed\n",
 			arenap->id);
 	}
@@ -171,7 +171,7 @@ blk_write(PMEMpoolcheck *ppc, union location *loc)
 	if (pool_write(ppc->pool, &ppc->pool->hdr.blk,
 			sizeof(ppc->pool->hdr.blk), 0)) {
 		CHECK_INFO(ppc, "%s", ppc->path);
-		ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+		ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 		return CHECK_ERR(ppc, "writing pmemblk structure failed");
 	}
 
@@ -228,7 +228,7 @@ btt_data_write(PMEMpoolcheck *ppc, union location *loc)
 	return 0;
 
 error:
-	ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+	ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 	return -1;
 }
 

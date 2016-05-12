@@ -107,7 +107,7 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 	CHECK_INFO(ppc, "checking pmemlog header");
 
 	if (log_read(ppc)) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+		ppc->result = CHECK_RESULT_ERROR;
 		return 1;
 	}
 
@@ -145,14 +145,14 @@ log_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 			goto error;
 	}
 
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
-			ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
+	if (ppc->result == CHECK_RESULT_CONSISTENT ||
+		ppc->result == CHECK_RESULT_REPAIRED)
 		CHECK_INFO(ppc, "pmemlog header correct");
 
 	return check_questions_sequence_validate(ppc);
 
 error:
-	ppc->result = PMEMPOOL_CHECK_RESULT_NOT_CONSISTENT;
+	ppc->result = CHECK_RESULT_NOT_CONSISTENT;
 	return 1;
 }
 
@@ -277,7 +277,7 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 	CHECK_INFO(ppc, "checking pmemblk header");
 
 	if (blk_read(ppc)) {
-		ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+		ppc->result = CHECK_RESULT_ERROR;
 		return -1;
 	}
 
@@ -301,13 +301,13 @@ blk_hdr_check(PMEMpoolcheck *ppc, union location *loc)
 		if (ppc->pool->hdr.blk.bsize < BTT_MIN_LBA_SIZE ||
 				blk_bsize_valid(ppc->pool->hdr.blk.bsize,
 				ppc->pool->set_file->size)) {
-			ppc->result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+			ppc->result = CHECK_RESULT_CANNOT_REPAIR;
 			return CHECK_ERR(ppc, "invalid pmemblk.bsize");
 		}
 	}
 
-	if (ppc->result == PMEMPOOL_CHECK_RESULT_CONSISTENT ||
-			ppc->result == PMEMPOOL_CHECK_RESULT_REPAIRED)
+	if (ppc->result == CHECK_RESULT_CONSISTENT ||
+			ppc->result == CHECK_RESULT_REPAIRED)
 		CHECK_INFO(ppc, "pmemblk header correct");
 
 	return check_questions_sequence_validate(ppc);
@@ -385,12 +385,12 @@ step_exe(PMEMpoolcheck *ppc, union location *loc)
 	if (step->fix != NULL) {
 		if (step->type == POOL_TYPE_LOG) {
 			if (log_read(ppc)) {
-				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+				ppc->result = CHECK_RESULT_ERROR;
 				return -1;
 			}
 		} else if (step->type == POOL_TYPE_BLK) {
 			if (blk_read(ppc)) {
-				ppc->result = PMEMPOOL_CHECK_RESULT_ERROR;
+				ppc->result = CHECK_RESULT_ERROR;
 				return -1;
 			}
 		}

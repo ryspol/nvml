@@ -116,7 +116,7 @@ pmempool_ppc_set_default(PMEMpoolcheck *ppc)
 	const PMEMpoolcheck ppc_default = {
 		.path		= NULL,
 		.backup_path	= NULL,
-		.result		= PMEMPOOL_CHECK_RESULT_CONSISTENT,
+		.result		= CHECK_RESULT_CONSISTENT,
 	};
 	*ppc = ppc_default;
 }
@@ -237,16 +237,27 @@ pmempool_check(PMEMpoolcheck *ppc)
 enum pmempool_check_result
 pmempool_check_end(PMEMpoolcheck *ppc)
 {
-	enum pmempool_check_result result = ppc->result;
+	enum check_result result = ppc->result;
 
 	check_fini(ppc);
 	free(ppc->path);
 	free(ppc->backup_path);
 	free(ppc);
 
-	if (result == PMEMPOOL_CHECK_RESULT_ASK_QUESTIONS ||
-		result == PMEMPOOL_CHECK_RESULT_PROCESS_ANSWERS)
-		result = PMEMPOOL_CHECK_RESULT_CANNOT_REPAIR;
+	switch (result) {
+		case CHECK_RESULT_CONSISTENT:
+			return PMEMPOOL_CHECK_RESULT_CONSISTENT;
 
-	return result;
+		case CHECK_RESULT_NOT_CONSISTENT:
+			return PMEMPOOL_CHECK_RESULT_CONSISTENT;
+
+		case CHECK_RESULT_REPAIRED:
+			return PMEMPOOL_CHECK_RESULT_REPAIRED;
+
+		case CHECK_RESULT_CANNOT_REPAIR:
+			return PMEMPOOL_CHECK_RESULT_CONSISTENT;
+
+		default:
+			return PMEMPOOL_CHECK_RESULT_ERROR;
+	}
 }
