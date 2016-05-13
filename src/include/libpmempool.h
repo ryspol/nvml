@@ -44,6 +44,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stdint.h>
 
 /*
  * pmempool_pool_type -- pool types
