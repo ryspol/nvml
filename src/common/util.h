@@ -265,6 +265,16 @@ int util_uuid_from_string(const char uuid[POOL_HDR_UUID_STR_LEN],
 	struct uuid *ud);
 int util_uuid_generate(uuid_t uuid);
 
+int util_replica_create(struct pool_set *set, unsigned repidx, int flags,
+	const char *sig, uint32_t major, uint32_t compat, uint32_t incompat,
+	uint32_t ro_compat, unsigned char *prev_repl_uuid,
+	unsigned char *next_repl_uuid);
+int util_replica_open(struct pool_set *set, unsigned repidx, int flags);
+int util_replica_close(struct pool_set *set, unsigned repidx);
+int util_poolset_file(struct pool_set_part *part, size_t minsize, int create);
+int util_map_hdr(struct pool_set_part *part, int flags);
+int util_unmap_hdr(struct pool_set_part *part);
+
 int util_pool_create(struct pool_set **setp, const char *path, size_t poolsize,
 	size_t minsize, const char *sig,
 	uint32_t major, uint32_t compat, uint32_t incompat, uint32_t ro_compat);
