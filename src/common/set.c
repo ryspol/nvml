@@ -96,9 +96,9 @@ struct suff {
 };
 
 /*
- * util_map_part -- (internal) map a header of a pool set
+ * util_map_part -- map a header of a pool set
  */
-static int
+int
 util_map_hdr(struct pool_set_part *part, int flags)
 {
 	LOG(3, "part %p flags %d", part, flags);
@@ -126,7 +126,7 @@ util_map_hdr(struct pool_set_part *part, int flags)
 /*
  * util_unmap_hdr -- unmap pool set part header
  */
-static int
+int
 util_unmap_hdr(struct pool_set_part *part)
 {
 	if (part->hdr != NULL && part->hdrsize != 0) {
@@ -146,7 +146,7 @@ util_unmap_hdr(struct pool_set_part *part)
 /*
  * util_map_part -- (internal) map a part of a pool set
  */
-static int
+int
 util_map_part(struct pool_set_part *part, void *addr, size_t size,
 	size_t offset, int flags)
 {
@@ -187,7 +187,7 @@ util_map_part(struct pool_set_part *part, void *addr, size_t size,
 /*
  * util_unmap_part -- (internal) unmap a part of a pool set
  */
-static int
+int
 util_unmap_part(struct pool_set_part *part)
 {
 	LOG(3, "part %p", part);
@@ -644,9 +644,9 @@ util_poolset_single(const char *path, size_t filesize, int fd, int create)
 }
 
 /*
- * util_poolset_file -- (internal) open or create a single part file
+ * util_poolset_file -- open or create a single part file
  */
-static int
+int
 util_poolset_file(struct pool_set_part *part, size_t minsize, int create)
 {
 	LOG(3, "part %p minsize %zu create %d", part, minsize, create);
@@ -1174,6 +1174,87 @@ util_header_check_remote(struct pool_replica *rep, unsigned partidx)
 }
 
 /*
+ * util_parts_repl_map_create_hdr -- map and create headers of specific parts
+ */
+int
+util_parts_repl_map_create_hdr(struct pool_set *set, unsigned repidx, int flags,
+		const char *sig, uint32_t major, uint32_t compat,
+		uint32_t incompat, uint32_t ro_compat,
+		unsigned char *prev_repl_uuid, unsigned char *next_repl_uuid,
+		unsigned pstart, unsigned pend, size_t msize, size_t fp_off)
+{
+	struct pool_replica *rep = set->replica[repidx];
+
+	/* determine a hint address for mmap() */
+	void *addr = util_map_hint(msize, 0);
+	if (addr == MAP_FAILED) {
+		ERR("cannot find a contiguous region of given size");
+		return -1;
+	}
+
+	/* map the first part and reserve space for remaining parts */
+	if (util_map_part(&rep->part[pstart], addr, msize,
+			fp_off, flags) != 0) {
+		LOG(2, "pool mapping failed - part #0");
+		return -1;
+	}
+
+	VALGRIND_REGISTER_PMEM_MAPPING(rep->part[0].addr, rep->part[0].size);
+	VALGRIND_REGISTER_PMEM_FILE(rep->part[0].fd,
+				rep->part[0].addr, rep->part[0].size, 0);
+
+	/* map all headers - don't care about the address */
+	for (unsigned p = pstart; p < pend; p++) {
+		if (util_map_hdr(&rep->part[p], flags) != 0) {
+			LOG(2, "header mapping failed - part #%d", p);
+			return -1;
+		}
+	}
+
+	/* create headers, set UUID's */
+	for (unsigned p = pstart; p < pend; p++) {
+		if (util_header_create(set, repidx, p, sig, major,
+				compat, incompat, ro_compat,
+				prev_repl_uuid, next_repl_uuid) != 0) {
+			LOG(2, "header creation failed - part #%d", p);
+			return -1;
+		}
+	}
+
+	/* unmap all headers */
+	for (unsigned p = pstart; p < pend; p++)
+		util_unmap_hdr(&rep->part[p]);
+	set->zeroed &= rep->part[0].created;
+
+	size_t mapsize = (rep->part[0].filesize & ~(Pagesize - 1)) - fp_off;
+	addr = (char *)rep->part[0].addr + mapsize;
+
+	/*
+	 * map the remaining parts of the usable pool space (4K-aligned)
+	 */
+	for (unsigned p = pstart + 1; p < pend; p++) {
+		/* map data part */
+		if (util_map_part(&rep->part[p], addr, 0, POOL_HDR_SIZE,
+				flags | MAP_FIXED) != 0) {
+			LOG(2, "usable space mapping failed - part #%d", p);
+			return -1;
+		}
+
+		VALGRIND_REGISTER_PMEM_FILE(rep->part[p].fd,
+			rep->part[p].addr, rep->part[p].size, POOL_HDR_SIZE);
+
+		mapsize += rep->part[p].size;
+		set->zeroed &= rep->part[p].created;
+		addr = (char *)addr + rep->part[p].size;
+	}
+	if (msize)
+		ASSERTeq(mapsize, msize);
+	else
+		ASSERTeq(mapsize, rep->repsize - fp_off);
+
+	return 0;
+}
+/*
  * util_replica_create -- (internal) create a new memory pool replica
  */
 static int
@@ -1190,76 +1271,15 @@ util_replica_create(struct pool_set *set, unsigned repidx, int flags,
 		prev_repl_uuid, next_repl_uuid);
 
 	struct pool_replica *rep = set->replica[repidx];
-
-	/* determine a hint address for mmap() */
-	void *addr = util_map_hint(rep->repsize, 0);
-	if (addr == MAP_FAILED) {
-		ERR("cannot find a contiguous region of given size");
-		return -1;
-	}
-
-	/* map the first part and reserve space for remaining parts */
-	if (util_map_part(&rep->part[0], addr, rep->repsize, 0, flags) != 0) {
-		LOG(2, "pool mapping failed - part #0");
-		return -1;
-	}
-
-	VALGRIND_REGISTER_PMEM_MAPPING(rep->part[0].addr, rep->part[0].size);
-	VALGRIND_REGISTER_PMEM_FILE(rep->part[0].fd,
-				rep->part[0].addr, rep->part[0].size, 0);
-
-	/* map all headers - don't care about the address */
-	for (unsigned p = 0; p < rep->nparts; p++) {
-		if (util_map_hdr(&rep->part[p], flags) != 0) {
-			LOG(2, "header mapping failed - part #%d", p);
-			goto err;
-		}
-	}
-
-	/* create headers, set UUID's */
-	for (unsigned p = 0; p < rep->nparts; p++) {
-		if (util_header_create(set, repidx, p, sig, major,
-				compat, incompat, ro_compat,
-				prev_repl_uuid, next_repl_uuid) != 0) {
-			LOG(2, "header creation failed - part #%d", p);
-			goto err;
-		}
-	}
-
-	/* unmap all headers */
-	for (unsigned p = 0; p < rep->nparts; p++)
-		util_unmap_hdr(&rep->part[p]);
-
-	set->zeroed &= rep->part[0].created;
-
-	size_t mapsize = rep->part[0].filesize & ~(Pagesize - 1);
-	addr = (char *)rep->part[0].addr + mapsize;
-
-	/*
-	 * map the remaining parts of the usable pool space (4K-aligned)
-	 */
-	for (unsigned p = 1; p < rep->nparts; p++) {
-		/* map data part */
-		if (util_map_part(&rep->part[p], addr, 0, POOL_HDR_SIZE,
-				flags | MAP_FIXED) != 0) {
-			LOG(2, "usable space mapping failed - part #%d", p);
-			goto err;
-		}
-
-		VALGRIND_REGISTER_PMEM_FILE(rep->part[p].fd,
-			rep->part[p].addr, rep->part[p].size, POOL_HDR_SIZE);
-
-		mapsize += rep->part[p].size;
-		set->zeroed &= rep->part[p].created;
-		addr = (char *)addr + rep->part[p].size;
-	}
+	if (util_parts_repl_map_create_hdr(set, repidx, flags,
+			sig, major, compat, incompat,
+			ro_compat, prev_repl_uuid,
+			next_repl_uuid, 0, rep->nparts,
+			rep->repsize, 0))
+		goto err;
 
 	rep->is_pmem = pmem_is_pmem(rep->part[0].addr, rep->part[0].size);
-
-	ASSERTeq(mapsize, rep->repsize);
-
 	LOG(3, "replica addr %p", rep->part[0].addr);
-
 	return 0;
 
 err:
@@ -1273,11 +1293,11 @@ err:
 }
 
 /*
- * util_replica_close -- (internal) close a memory pool replica
+ * util_replica_close -- close a memory pool replica
  *
  * This function unmaps all mapped memory regions.
  */
-static int
+int
 util_replica_close(struct pool_set *set, unsigned repidx)
 {
 	LOG(3, "set %p repidx %u\n", set, repidx);
@@ -1483,7 +1503,7 @@ util_pool_create(struct pool_set **setp, const char *path, size_t poolsize,
 }
 
 /*
- * util_replica_open -- (internal) open a memory pool replica
+ * util_replica_open -- open a memory pool replica
  */
 static int
 util_replica_open(struct pool_set *set, unsigned repidx, int flags)
