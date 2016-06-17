@@ -1,3 +1,4 @@
+#
 # Copyright 2016, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,39 +28,28 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#
-# src/libpmempool/Makefile -- Makefile for libpmempool
 #
 
-LIBRARY_NAME = pmempool
-LIBRARY_SO_VERSION = 1
-LIBRARY_VERSION = 0.0
+#
+# src/test/libpmempool_repl_sync/Makefile -- build pmempool_api test
+#
+TARGET = libpmempool_repl_sync
+OBJS = libpmempool_repl_sync.o
 
-INCS += -I$(TOP)/src/libpmemlog
-INCS += -I$(TOP)/src/libpmemblk
-INCS += -I$(TOP)/src/libpmemobj
+LIBPMEM=y
+LIBPMEMPOOL=y
+LIBPMEMOBJ=y
 
-SOURCE = libpmempool.c check.c check_util.c check_backup.c check_pool_hdr.c\
-	check_log_blk.c check_btt_info.c check_btt_map_flog.c check_write.c\
-	libpmempool_replica.c replica_sync.c\
-	pool.c $(COMMON)/out.c $(COMMON)/util.c $(COMMON)/util_linux.c\
-	$(COMMON)/set.c $(COMMON)/set_linux.c
-
-LIBPMEMBLK_PRIV_FUNCS=btt_info_set btt_arena_datasize btt_flog_size\
-	btt_map_size btt_flog_get_valid map_entry_is_initial btt_info_convert2h\
-	btt_info_convert2le btt_flog_convert2h btt_flog_convert2le
-
-LIBPMEMLOG_PRIV_FUNCS=pmemlog_convert2h pmemlog_convert2le
 
 include ../Makefile.inc
 
-LIBS += -lpmem
+libpmempool_repl_sync_mod: libpmempool_repl_sync_mod.o
+	$(LINKER) -o $@ $(LDFLAGS) libpmempool_repl_sync_mod.o \
+	$(STATIC_DEBUG_LIBS) $(LIBS)
 
-pmemblk_priv_funcs.o: $(PMEMBLK_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMBLK_PRIV_FUNCS)) \
-	$< $@
+all: libpmempool_repl_sync_mod
 
-pmemlog_priv_funcs.o: $(PMEMLOG_PRIV_OBJ)
-	$(OBJCOPY) --localize-hidden $(addprefix -G, $(LIBPMEMLOG_PRIV_FUNCS)) \
-	$< $@
+clobber_local:
+	$(RM) libpmempool_repl_sync_mod
+
+clobber: clobber_local

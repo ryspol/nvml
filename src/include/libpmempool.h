@@ -159,6 +159,68 @@ const char *pmempool_check_version(unsigned major_required,
  */
 const char *pmempool_errormsg(void);
 
+
+/*
+ * LIBPMEMPOOL REPLICA
+ */
+
+/*
+ * pmempool_replica_opts - flags field
+ */
+/* do not apply changes, only check correctness of conversion */
+#define PMEMPOOL_REPLICA_VERIFY (1 << 0)
+/*
+ * when replica is renamed or localization is changed keep the original
+ * location
+ */
+#define PMEMPOOL_REPLICA_KEEPORIG (1 << 1)
+
+/*
+ * result codes
+ */
+enum pmempool_replica_result {
+	REPLICA_RES_INTERNAL_ERR,	/* internal error */
+	REPLICA_RES_INVALID_ARG,		/* invalid argument */
+	REPLICA_RES_INVALID_REPL_NUM,	/* no such replica number in poolset */
+	REPLICA_RES_PART_FILE_DEL_ERR,	/* cannot remove part file */
+	REPLICA_RES_PART_FILE_OPEN_ERR,	/* cannot open/create part file */
+	REPLICA_RES_REP_CREATE_ERR,	/* cannot create replica */
+	REPLICA_RES_REP_MAP_ERR,	/* cannot map parts in replica */
+	REPLICA_RES_INSUF_TARGET_MEM,	/* not enough memory to copy replica */
+	REPLICA_RES_CANNOT_UUIDS_UPDATE, /* cannot update uuids */
+	REPLICA_RES_COPY_SUCCESSFUL,	/* replica copied successful */
+
+	REPLICA_RES_IN_POOLSET_ERR,	/* input poolset is not correct */
+	REPLICA_RES_OUT_POOLSET_ERR,	/* output poolset is not correct */
+	REPLICA_RES_CONVERT_ERR,	/* conversion of poolset failed */
+	REPLICA_RES_CONVERT_OK	/* conversion of poolset succeeded */
+};
+
+/*
+ * Options for synchronizing replicas
+ */
+struct pmempool_replica_opts {
+	unsigned replfrom;
+	int partfrom;
+	unsigned replto;
+	int partto;
+
+	unsigned flags;
+};
+
+/*
+ * Synchronize replicas
+ */
+enum pmempool_replica_result pmempool_sync(const char *poolset_path,
+		struct pmempool_replica_opts *opts);
+
+/*
+ * Convert structure of pool set
+ */
+enum pmempool_replica_result pmempool_convert(const char *poolset_in_path,
+		const char *poolset_out_path, unsigned flags);
+
+
 #ifdef __cplusplus
 }
 #endif
