@@ -29,16 +29,27 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
 #
-# src/libpmempool.map -- linker map file for libpmempool
+# src/test/libpmempool_repl/Makefile -- build pmempool_api test
 #
-LIBPMEMPOOL_1.0 {
-	global:
-		pmempool_check_init;
-		pmempool_check;
-		pmempool_check_end;
-		pmempool_convert;
-		pmempool_sync;
-	local:
-		*;
-};
+TARGET = libpmempool_repl
+OBJS = libpmempool_repl.o
+
+LIBPMEM=y
+LIBPMEMPOOL=y
+LIBPMEMOBJ=y
+
+
+include ../Makefile.inc
+
+libpmempool_repl_mod: libpmempool_repl_mod.o
+	#$(LINKER) -o $@ $(LDFLAGS) libpmempool_repl_mod.o $(STATIC_DEBUG_LIBS) $(LIBS)
+	$(LINKER) -o $@ $(LDFLAGS) libpmempool_repl_mod.o $(DYNAMIC_LIBS) $(LIBS)
+
+all: libpmempool_repl_mod
+
+clobber_local:
+	$(RM) libpmempool_repl_mod
+
+clobber: clobber_local
