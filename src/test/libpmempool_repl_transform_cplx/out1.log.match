@@ -1,0 +1,174 @@
+libpmempool_replica_transform_cplx/TEST1: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestOK111 -o 104857600 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST1: Done
+libpmempool_replica_transform_cplx/TEST1: START: libpmempool_repl_transform
+ ../libpmempool_repl_transform/libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set $(nW)/poolset_in.set
+Result: 0
+
+libpmempool_replica_transform_cplx/TEST1: Done
+libpmempool_replica_transform_cplx/TEST1: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 104857600 $(nW)/poolset_out.set
+TestOK111
+libpmempool_replica_transform_cplx/TEST1: Done
+POOL Header:
+Signature                : PMEMOBJ
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+
+PMEM OBJ Header:
+Layout                   : OBJ_LAYOUT
+Lanes offset             : $(XX)
+Number of lanes          : $(N)
+Heap offset              : $(XX)
+Heap size                : $(N)
+Checksum                 : $(XX) [OK]
+Root offset              : $(XX)
+POOL Header:
+Signature                : PMEMOBJ
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+
+PMEM OBJ Header:
+Layout                   : OBJ_LAYOUT
+Lanes offset             : $(XX)
+Number of lanes          : $(N)
+Heap offset              : $(XX)
+Heap size                : $(N)
+Checksum                 : $(XX) [OK]
+Root offset              : $(XX)
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]

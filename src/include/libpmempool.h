@@ -200,12 +200,12 @@ struct pmempool_replica_opts {
 
 /*
  * Synchronize replicas basing on parameters given by user.
- * The direction of data transfer is set by 'replfrom' and 'replto' parameters.
+ * The direction of data transfer is set by 'src_rep' and 'dst_rep' parameters.
  * Replicas are numbered starting from 0 for primary replica. Part number
  * may be specified when transfer to/from specific part is required. In this
- * case part number has to be given either for 'partfrom' or 'partto'
+ * case part number has to be given either for 'src_part' or 'dst_part'
  * parameter. The other part parameter must be set to -1. When both
- * 'partfrom' and 'partto' equal to -1 whole replica is copied.
+ * 'src_part' and 'dst_part' equal to -1 whole replica is copied.
  */
 int pmempool_sync(const char *poolset,
 		struct pmempool_replica_opts *opts);

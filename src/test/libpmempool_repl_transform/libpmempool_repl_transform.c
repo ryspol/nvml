@@ -31,20 +31,65 @@
  */
 
 /*
- * sync.h -- module for synchronizing poolset
+ * libpmempool_repl_transfrom -- Placeholder for testing libpmempool replica.
+ *
  */
-#include "libpmempool.h"
-#include "pool.h"
 
-#define ALLOC_TAB_SIZE 4
+#include <stddef.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "unittest.h"
 
 /*
- * Keeps the table of already allocated replicas
+ * print_usage -- print usage of program
  */
-struct replica_alloc {
-	/* keeps numbers of allocated replicas */
-	unsigned repltab[ALLOC_TAB_SIZE];
-	unsigned count;	/* number of already allocated replicas */
-};
+static void
+print_usage(char *name)
+{
+	UT_OUT("Usage: %s [-f <flags>]"
+			"[-i <poolset_out>] <poolset_in>\n", name);
+}
 
-int sync_replica(struct pool_set *set_in, struct pmempool_replica_opts *opts);
+int
+main(int argc, char *argv[])
+{
+	int res;
+	START(argc, argv, "libpmempool_repl_transform");
+	int opt;
+
+	char *pool_set_in = NULL;
+	char *pool_set_out = NULL;
+
+	unsigned flag = 0;
+
+	while ((opt = getopt(argc, argv, "f:o:")) != -1) {
+		switch (opt) {
+		case 'f':
+			flag = (unsigned)strtoul(optarg, NULL, 0);
+			break;
+		case 'o':
+			pool_set_out = malloc(strlen(optarg));
+			strcpy(pool_set_out, optarg);
+			break;
+		default:
+			print_usage(argv[0]);
+			return -1;
+		}
+	}
+	if (optind < argc)
+		pool_set_in = argv[optind];
+	else
+		print_usage(argv[0]);
+
+	res = pmempool_transform(pool_set_in, pool_set_out, flag);
+
+	UT_OUT("Result: %d\n", res);
+	if (res)
+		UT_OUT("%s\n", strerror(errno));
+
+	free(pool_set_out);
+	pool_set_out = NULL;
+	DONE(NULL);
+}

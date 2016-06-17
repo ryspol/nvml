@@ -1,0 +1,273 @@
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off0 -o 5242880 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off1 -o 26214400 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off2 -o 47185920 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off3 -o 78643200 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off4 -o 110100480 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off5 -o 141557760 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off6 -o 162529280 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off7 -o 193986560 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off8 -o 214958080 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off9 -o 235929600 $(nW)/poolset_in.set
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform
+ ../libpmempool_repl_transform/libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set $(nW)/poolset_in.set
+Result: 0
+
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 5242880 $(nW)/poolset_out.set
+TestDataa_off0
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 26214400 $(nW)/poolset_out.set
+TestDataa_off1
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 47185920 $(nW)/poolset_out.set
+TestDataa_off2
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 78643200 $(nW)/poolset_out.set
+TestDataa_off3
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 110100480 $(nW)/poolset_out.set
+TestDataa_off4
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 141557760 $(nW)/poolset_out.set
+TestDataa_off5
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 162529280 $(nW)/poolset_out.set
+TestDataa_off6
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 193986560 $(nW)/poolset_out.set
+TestDataa_off7
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 214958080 $(nW)/poolset_out.set
+TestDataa_off8
+libpmempool_replica_transform_cplx/TEST0: Done
+libpmempool_replica_transform_cplx/TEST0: START: libpmempool_repl_transform_cplx_mod
+ ./libpmempool_repl_transform_cplx_mod -l OBJ_LAYOUT -s 16 -o 235929600 $(nW)/poolset_out.set
+TestDataa_off9
+libpmempool_replica_transform_cplx/TEST0: Done
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]

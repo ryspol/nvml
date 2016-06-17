@@ -258,6 +258,12 @@ LIBPMEMPOOL_TESTS = \
 	libpmempool_bttdev\
 	libpmempool_map_flog
 
+LIBPMEMPOOL_REPL_DEPS = libpmempool_repl_transform
+LIBPMEMPOOL_REPL_TESTS = \
+	libpmempool_repl_transform\
+	libpmempool_repl_transform_cplx
+
+
 TESTS = \
 	$(OBJ_TESTS)\
 	$(BLK_TESTS)\
@@ -269,7 +275,8 @@ TESTS = \
 	$(VMEM_TESTS)\
 	$(VMMALLOC_TESTS)\
 	$(EXAMPLES_TESTS)\
-	$(LIBPMEMPOOL_TESTS)
+	$(LIBPMEMPOOL_TESTS)\
+	$(LIBPMEMPOOL_REPL_TESTS)
 
 ifeq ($(filter n,$(call check_cxx_flags, -std=c++11) $(call check_clang_template_bug)),)
 TESTS += $(OBJ_CPP_TESTS)
@@ -323,6 +330,7 @@ $(TESTS) $(OBJ_DEPS) $(LIBPMEMPOOL_DEPS): $(TEST_DEPS)
 
 $(OBJ_TESTS): $(OBJ_DEPS)
 $(LIBPMEMPOOL_TESTS): $(LIBPMEMPOOL_DEPS)
+$(LIBPMEMPOOL_REPL_TESTS): $(LIBPMEMPOOL_REPL_DEPS)
 
 $(TESTS_BUILD):
 	$(MAKE) -C $@ $(TARGET)

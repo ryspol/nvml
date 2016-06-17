@@ -502,18 +502,8 @@ util_poolset_fdclose(struct pool_set *set)
 {
 	LOG(3, "set %p", set);
 
-	for (unsigned r = 0; r < set->nreplicas; r++) {
-		struct pool_replica *rep = set->replica[r];
-
-		for (unsigned p = 0; p < rep->nparts; p++) {
-			struct pool_set_part *part = &rep->part[p];
-
-			if (part->fd != -1) {
-				close(part->fd);
-				part->fd = -1;
-			}
-		}
-	}
+	for (unsigned r = 0; r < set->nreplicas; r++)
+		util_replica_fdclose(set->replica[r]);
 }
 
 /*
@@ -2469,7 +2459,7 @@ err_close:
  * part_fdclose -- close all parts of given replica
  */
 void
-util_part_fdclose(struct pool_replica *rep)
+util_replica_fdclose(struct pool_replica *rep)
 {
 	for (unsigned p = 0; p < rep->nparts; p++) {
 		struct pool_set_part *part = &rep->part[p];
@@ -2477,4 +2467,24 @@ util_part_fdclose(struct pool_replica *rep)
 		if (part->fd != -1)
 			close(part->fd);
 	}
+}
+
+/*
+ * util_replica_close_part -- close a memory pool replica
+ *
+ * This function unmaps all mapped memory regions. All parts are checked
+ * separately.
+ */
+int
+util_replica_close_part(struct pool_set *set, unsigned repidx)
+{
+	LOG(3, "set %p repidx %u", set, repidx);
+	struct pool_replica *rep = set->replica[repidx];
+
+	for (unsigned p = 0; p < rep->nparts; p++) {
+		util_unmap_hdr(&rep->part[p]);
+		util_unmap_part(&rep->part[p]);
+	}
+
+	return 0;
 }

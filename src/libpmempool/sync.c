@@ -41,7 +41,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "sync.h"
+#include "replica.h"
 #include "out.h"
 #include "libpmemobj.h"
 #include "lane.h"
@@ -81,21 +81,7 @@ struct part_modify {
 
 #define ADDR_SUM(vp, lp) ((void *)((char *)(vp) + lp))
 #define UNDEF_PART (-1)
-#define PREV_REP_PART_NO(cpart, nparts) ((nparts + cpart - 1) % nparts)
-#define NEXT_REP_PART_NO(cpart, nparts) ((nparts + cpart + 1) % nparts)
-#define NEAR_REPL(r, nrepl) ((unsigned)((nrepl + (r)) % (nrepl)))
 
-#define PAGE_ALIGNED_SIZE(size) (size & ~(Pagesize - 1))
-
-
-/*
- * is_dry_run -- check whether only verification mode is enabled
- */
-static inline bool
-is_dry_run(struct pmempool_replica_opts *opts)
-{
-	return PMEMPOOL_REPLICA_VERIFY & opts->flags;
-}
 
 /*
  * is_part_removed -- check if part was removed
@@ -117,7 +103,8 @@ open_replto(struct pool_set *set_in, struct part_modify *partmodif,
 	int create = 0;
 	struct pool_replica *replica = set_in->replica[opts->dst_rep];
 	for (unsigned i = 0; i < replica->nparts; ++i) {
-		create = is_part_removed(partmodif, i) && !is_dry_run(opts);
+		create = is_part_removed(partmodif, i) &&
+				!is_dry_run(opts->flags);
 
 		if (util_poolset_file(&replica->part[i], 0, create))
 			return -1;
@@ -125,23 +112,6 @@ open_replto(struct pool_set *set_in, struct part_modify *partmodif,
 	return 0;
 }
 
-/*
- * remove_parts -- unlink parts from damaged replica
- */
-static int
-remove_parts(struct pool_set *set_in, unsigned repl, unsigned pstart,
-		unsigned pend)
-{
-	struct pool_replica *replica = set_in->replica[repl];
-
-	for (unsigned i = pstart; i < pend; ++i) {
-		if (unlink(replica->part[i].path)) {
-			if (errno != ENOENT)
-				return -1;
-		}
-	}
-	return 0;
-}
 
 /*
  * open_files -- open files of parts
@@ -193,45 +163,6 @@ open_mmap_headers(struct pool_replica *repl, unsigned pstart,
 }
 
 /*
- * is_replica_alloc -- check if replica is on list of allocated replicas
- */
-static bool
-is_replica_alloc(struct replica_alloc *alocrep, unsigned replno)
-{
-	for (unsigned i = 0; i < alocrep->count; ++i) {
-		if (alocrep->repltab[i] == replno)
-			return true;
-	}
-	return false;
-}
-
-/*
- * add_alloc_replica -- add to list of allocated replicas
- */
-static void
-add_alloc_replica(struct replica_alloc *alocrep, unsigned replno)
-{
-	if (is_replica_alloc(alocrep, replno))
-		return;
-
-	alocrep->repltab[alocrep->count++] = replno;
-}
-
-/*
- * close_replicas -- close all opened replicas
- */
-static void
-close_replicas(struct replica_alloc *alocrep, struct pool_set *setin)
-{
-	for (unsigned i = 0; i < alocrep->count; ++i) {
-		unsigned replno = alocrep->repltab[i];
-		util_replica_close(setin, replno);
-		struct pool_replica *repl = setin->replica[replno];
-		util_part_fdclose(repl);
-	}
-}
-
-/*
  * update_adjacent_repl_uuid -- set next or previous uuid in header
  */
 static int
@@ -277,7 +208,7 @@ static void
 update_uuids(struct pool_set *set_in, struct pmempool_replica_opts *opts,
 		struct part_modify *partmodif)
 {
-	if (is_dry_run(opts))
+	if (is_dry_run(opts->flags))
 		return;
 
 	struct pool_replica *rto = set_in->replica[opts->dst_rep];
@@ -301,57 +232,6 @@ update_uuids(struct pool_set *set_in, struct pmempool_replica_opts *opts,
 		memcpy(hdrp->prev_part_uuid, currpart->uuid, POOL_HDR_UUID_LEN);
 		util_checksum(hdrp, sizeof(*hdrp), &hdrp->checksum, 1);
 	}
-}
-
-/*
- * grant_part_perm -- set RWX permission rights to the part from range
- */
-static void
-grant_part_perm(struct pool_replica *repl, unsigned pstart, unsigned pend)
-{
-	for (unsigned p = pstart; p < pend; p++) {
-		chmod(repl->part[p].path, S_IRWXU | S_IRWXG | S_IRWXO);
-	}
-}
-
-/*
- * get_part_data_len -- get data length for given part
- */
-static size_t
-get_part_data_len(struct pool_set *set_in, unsigned repl, unsigned part)
-{
-	size_t len = 0;
-	len = PAGE_ALIGNED_SIZE(set_in->replica[repl]->part[part].filesize) -
-			POOL_HDR_SIZE;
-	return len;
-}
-
-/*
- * get_part_range_data_len -- get data length in given range
- */
-static size_t
-get_part_range_data_len(struct pool_set *set_in, unsigned repl,
-		unsigned pstart, unsigned pend)
-{
-	size_t len = 0;
-	for (unsigned i = pstart; i < pend; ++i) {
-		len += get_part_data_len(set_in, repl, i);
-	}
-
-	return len;
-}
-
-/*
- * get_part_data_offset -- get data length before given part
- */
-static uint64_t
-get_part_data_offset(struct pool_set *set_in, unsigned repl, unsigned part)
-{
-	uint64_t pdoff = 0;
-	for (unsigned i = 0; i < part; ++i)
-		pdoff += get_part_data_len(set_in, repl, i);
-
-	return pdoff;
 }
 
 /*
@@ -459,59 +339,6 @@ validate_args(struct pool_set *set_in, struct pmempool_replica_opts *opts)
 		return -1;
 	}
 	return 0;
-}
-
-/*
- * map_replfrom -- map parts we copy from
- */
-static int
-map_replfrom(struct pool_set *set, struct part_modify *partmodif,
-		unsigned repl)
-{
-	struct pool_replica *rep = set->replica[repl];
-
-	/* determine a hint address for mmap() */
-	void *addr = util_map_hint(partmodif->part_data_len, 0);
-	if (addr == MAP_FAILED) {
-		ERR("cannot find a contiguous region of given size");
-		return -1;
-	}
-
-	/*
-	 * map the first part we copy from and reserve space for
-	 * remaining parts
-	 */
-	size_t mapfrom_size = get_part_range_data_len(set, repl,
-			partmodif->partfrom_first, partmodif->partfrom_last);
-	if (util_map_part(&rep->part[partmodif->partfrom_first],
-			addr, mapfrom_size, POOL_HDR_SIZE,
-			MAP_SHARED) != 0) {
-		ERR("pool mapping failed");
-		return -1;
-	}
-
-	size_t mapsize = PAGE_ALIGNED_SIZE(
-		rep->part[partmodif->partfrom_first].filesize) - POOL_HDR_SIZE;
-	addr = (char *)rep->part[partmodif->partfrom_first].addr + mapsize;
-
-	/* map the remaining parts of the usable pool space */
-	for (unsigned i = partmodif->partfrom_first + 1;
-			i < partmodif->partfrom_last; ++i) {
-		if (util_map_part(&rep->part[i], addr, 0, POOL_HDR_SIZE,
-				MAP_SHARED | MAP_FIXED) != 0) {
-			ERR("usable space mapping failed - part #%d", i);
-			goto err;
-		}
-
-		mapsize += rep->part[i].size;
-		addr = (char *)addr + rep->part[i].size;
-	}
-
-	ASSERTeq(mapsize, mapfrom_size);
-	return 0;
-err:
-	util_unmap_part(&rep->part[partmodif->partfrom_first]);
-	return -1;
 }
 
 /*
@@ -722,7 +549,7 @@ copy_data(struct pool_set *set_in, struct pmempool_replica_opts *opts,
 		fpoff = POOL_HDR_SIZE;
 
 	/* copy all data */
-	if (!is_dry_run(opts)) {
+	if (!is_dry_run(opts->flags)) {
 		memcpy(ADDR_SUM(first_partto.addr, fpoff), mapped_from_addr,
 			partmodif->part_data_len);
 	}
@@ -743,7 +570,7 @@ map_replto_create_hdr(struct pool_set *set_in,
 	/* update needed fields in set_in structure from part headers */
 	fill_struct_uuids(set_in, partmodif, opts);
 
-	if (!is_dry_run(opts)) {
+	if (!is_dry_run(opts->flags)) {
 		for (unsigned p = partmodif->partto_first;
 				p < partmodif->partto_last; p++) {
 			if (util_header_create(set_in, opts->dst_rep, p,
@@ -784,7 +611,7 @@ sync_replica(struct pool_set *set_in, struct pmempool_replica_opts *opts)
 	find_parts(set_in, opts, &pmodif);
 
 	/* remove parts from damaged replica */
-	if (!is_dry_run(opts)) {
+	if (!is_dry_run(opts->flags)) {
 		if (remove_parts(set_in, opts->dst_rep, pmodif.partto_first,
 				pmodif.partto_last)) {
 			ERR("Cannot remove part");
@@ -823,7 +650,8 @@ sync_replica(struct pool_set *set_in, struct pmempool_replica_opts *opts)
 	}
 
 	/* map parts we copy from */
-	if (map_replfrom(set_in, &pmodif, opts->src_rep) == 0) {
+	if (map_parts_data(set_in, opts->src_rep, pmodif.partfrom_first,
+			pmodif.partfrom_last, pmodif.part_data_len)  == 0) {
 		add_alloc_replica(&alloc_rep, opts->src_rep);
 	} else {
 		ERR("Replica open failed");

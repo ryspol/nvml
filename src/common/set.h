@@ -166,7 +166,8 @@ void util_remote_init_lock(void);
 void util_remote_destroy_lock(void);
 int util_pool_close_remote(RPMEMpool *rpp);
 void util_remote_unload(void);
-void util_part_fdclose(struct pool_replica *rep);
+void util_replica_fdclose(struct pool_replica *rep);
+int util_replica_close_part(struct pool_set *set, unsigned repidx);
 
 extern int (*Rpmem_persist)(RPMEMpool *rpp, size_t offset, size_t length,
 								unsigned lane);
