@@ -173,51 +173,37 @@ const char *pmempool_errormsg(void);
  * when replica is renamed or localization is changed keep the original
  * location
  */
-#define PMEMPOOL_REPLICA_KEEPORIG (1 << 1)
-
-/*
- * result codes
- */
-enum pmempool_replica_result {
-	REPLICA_RES_INTERNAL_ERR,	/* internal error */
-	REPLICA_RES_INVALID_ARG,		/* invalid argument */
-	REPLICA_RES_INVALID_REPL_NUM,	/* no such replica number in poolset */
-	REPLICA_RES_PART_FILE_DEL_ERR,	/* cannot remove part file */
-	REPLICA_RES_PART_FILE_OPEN_ERR,	/* cannot open/create part file */
-	REPLICA_RES_REP_CREATE_ERR,	/* cannot create replica */
-	REPLICA_RES_REP_MAP_ERR,	/* cannot map parts in replica */
-	REPLICA_RES_INSUF_TARGET_MEM,	/* not enough memory to copy replica */
-	REPLICA_RES_CANNOT_UUIDS_UPDATE, /* cannot update uuids */
-	REPLICA_RES_COPY_SUCCESSFUL,	/* replica copied successful */
-
-	REPLICA_RES_IN_POOLSET_ERR,	/* input poolset is not correct */
-	REPLICA_RES_OUT_POOLSET_ERR,	/* output poolset is not correct */
-	REPLICA_RES_CONVERT_ERR,	/* conversion of poolset failed */
-	REPLICA_RES_CONVERT_OK	/* conversion of poolset succeeded */
-};
+#define PMEMPOOL_REPLICA_KEEP_ORIG (1 << 1)
 
 /*
  * Options for synchronizing replicas
  */
 struct pmempool_replica_opts {
-	unsigned replfrom;
-	int partfrom;
-	unsigned replto;
-	int partto;
+	unsigned replfrom;	/* number of replica we copy from */
+	int partfrom;	/* part number we copy from */
+	unsigned replto;	/* number of replica we copy to */
+	int partto;	/* part number we copy to */
 
-	unsigned flags;
+	unsigned flags;	/* operational flags */
 };
 
 /*
- * Synchronize replicas
+ * Synchronize replicas basing on parameters given by user.
+ * The direction of data transfer is set by 'replfrom' and 'replto' parameters.
+ * Replicas are numbered starting from 0 for primary replica. Part number
+ * may be specified when transfer to/from specific part is required. In this
+ * case part number has to be given either for 'partfrom' or 'partto'
+ * parameter. The other part parameter must be set to -1. When both
+ * 'partfrom' and 'partto' equal to -1 whole replica is copied.
  */
-enum pmempool_replica_result pmempool_sync(const char *poolset_path,
+int pmempool_sync(const char *poolset_path,
 		struct pmempool_replica_opts *opts);
 
 /*
- * Convert structure of pool set
+ * Convert structure of pool set. This command allows to change localization
+ * of parts within replicas, rename parts and split or concatenate parts.
  */
-enum pmempool_replica_result pmempool_convert(const char *poolset_in_path,
+int pmempool_transform(const char *poolset_in_path,
 		const char *poolset_out_path, unsigned flags);
 
 

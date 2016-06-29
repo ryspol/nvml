@@ -295,6 +295,7 @@ int util_header_create(struct pool_set *set, unsigned repidx, unsigned partidx,
 	const char *sig, uint32_t major, uint32_t compat, uint32_t incompat,
 	uint32_t ro_compat, const unsigned char *prev_repl_uuid,
 	const unsigned char *next_repl_uuid, const unsigned char *arch_flags);
+void part_fdclose(struct pool_replica *rep);
 
 int util_map_hdr(struct pool_set_part *part, int flags);
 int util_unmap_hdr(struct pool_set_part *part);

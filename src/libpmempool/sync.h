@@ -31,17 +31,20 @@
  */
 
 /*
- * replica_sync.h -- module for synchronizing poolset
+ * sync.h -- module for synchronizing poolset
  */
 #include "libpmempool.h"
 #include "pool.h"
 
 #define ALLOC_TAB_SIZE 4
 
+/*
+ * Keeps the table of already allocated replicas
+ */
 struct replica_alloc {
+	/* keeps numbers of allocated replicas */
 	unsigned repltab[ALLOC_TAB_SIZE];
-	unsigned count;
+	unsigned count;	/* number of already allocated replicas */
 };
 
-enum pmempool_replica_result sync_replica(struct pool_set *set_in,
-	struct pmempool_replica_opts *opts);
+int sync_replica(struct pool_set *set_in, struct pmempool_replica_opts *opts);

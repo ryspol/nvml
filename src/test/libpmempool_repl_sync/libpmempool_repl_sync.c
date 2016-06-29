@@ -48,32 +48,6 @@ enum oper_type
 	LIBPMEMPOOL_CONVERT
 };
 
-/*
- * print_code -- print message referenced to error code
- */
-static const inline char *
-print_code(enum pmempool_replica_result c)
-{
-	static const char *msg[] = {
-		"REPLICA_RES_INTERNAL_ERR",
-		"REPLICA_RES_INVALID_ARG",
-		"REPLICA_RES_INVALID_REPL_NUM",
-		"REPLICA_RES_PART_FILE_DEL_ERR",
-		"REPLICA_RES_PART_FILE_OPEN_ERR",
-		"REPLICA_RES_REP_CREATE_ERR",
-		"REPLICA_RES_REP_MAP_ERR",
-		"REPLICA_RES_INSUF_TARGET_MEM",
-		"REPLICA_RES_CANNOT_UUIDS_UPDATE",
-		"REPLICA_RES_COPY_SUCCESSFUL",
-
-		"REPLICA_RES_IN_POOLSET_ERR",
-		"REPLICA_RES_OUT_POOLSET_ERR",
-		"REPLICA_RES_CONVERT_ERR",
-		"REPLICA_RES_CONVERT_OK",
-		"REPLICA_RES_OK"
-	};
-	return msg[c];
-}
 
 /*
  * print_usage -- print usage of program
@@ -90,7 +64,7 @@ print_usage(char *name)
 int
 main(int argc, char *argv[])
 {
-	enum pmempool_replica_result res;
+	int res;
 	START(argc, argv, "libpmempool_repl_sync");
 	int opt;
 
@@ -149,11 +123,13 @@ main(int argc, char *argv[])
 	};
 
 	if (otype == LIBPMEMPOOL_CONVERT)
-		res = pmempool_convert(pool_set, path_conv_poolset, flag);
+		res = pmempool_transform(pool_set, path_conv_poolset, flag);
 	else
 		res = pmempool_sync(pool_set, &opts);
 
-	UT_OUT("Result: %s\n", print_code(res));
+	UT_OUT("Result: %d\n", res);
+	if (res)
+		UT_OUT("%s\n", strerror(errno));
 
 	free(path_conv_poolset);
 	path_conv_poolset = NULL;

@@ -31,7 +31,7 @@
  */
 
 /*
- * libpmempool_replica.c -- libpmempool_replica_restore entry point
+ * replica.c -- groups all command for replica manipulation
  */
 
 #include <stdio.h>
@@ -51,71 +51,95 @@
 #include "list.h"
 #include "libpmempool.h"
 
-#include "replica_sync.h"
+#include "sync.h"
 
 /*
  * pmempool_sync -- copy one replica to another
  */
-enum pmempool_replica_result
+int
 pmempool_sync(const char *poolset_path, struct pmempool_replica_opts *opts)
 {
-	enum pmempool_replica_result result = REPLICA_RES_INTERNAL_ERR;
+	int result;
 
 	if (poolset_path == NULL) {
 		ERR("poolset paths can not be NULL");
-		return REPLICA_RES_INVALID_ARG;
+		errno = EINVAL;
+		return -1;
 	}
 
 	/* check if poolset has correct signature */
-	if (util_is_poolset(poolset_path) != 1)
-		return REPLICA_RES_IN_POOLSET_ERR;
+	if (util_is_poolset(poolset_path) != 1) {
+		ERR("!util_is_poolset");
+		result = -1;
+		goto err;
+	}
 
 	/* open poolset file */
 	int fd_in = util_file_open(poolset_path, NULL, 0, O_RDONLY);
-	if (fd_in < 0)
-		return REPLICA_RES_IN_POOLSET_ERR;
+	if (fd_in < 0) {
+		ERR("!util_file_open");
+		result = -1;
+		goto err;
+	}
 
-	struct pool_set *set_in = NULL;
 	/* fill up pool_set structure */
+	struct pool_set *set_in = NULL;
 	if (util_poolset_parse(poolset_path, fd_in, &set_in)) {
-		ERR("Parsing input poolset file failed");
-		result = REPLICA_RES_IN_POOLSET_ERR;
+		ERR("Parsing input poolset failed");
+		result = -1;
 		goto err_close;
 	}
 
-	/* copy one replica to another */
+	/* copy data from one replica to another */
 	result = sync_replica(set_in, opts);
 
 err_close:
 	util_poolset_free(set_in);
 	close(fd_in);
+err:
+	if (result != 0 && errno == 0)
+		errno = EINVAL;
 	return result;
 }
 
 /*
- * pmempool_convert -- alter poolset structure
+ * pmempool_poolset_convert -- alter poolset structure
  */
-enum pmempool_replica_result
-pmempool_convert(const char *poolset_in_path, const char *poolset_out_path,
-		unsigned flags)
+int
+pmempool_transform(const char *poolset_in_path,
+		const char *poolset_out_path, unsigned flags)
 {
-	enum pmempool_replica_result result = REPLICA_RES_INTERNAL_ERR;
+	int result;
 
 	if (poolset_in_path == NULL || poolset_out_path == NULL) {
 		ERR("poolset paths can not be NULL");
-		return REPLICA_RES_INVALID_ARG;
+		errno = EINVAL;
+		return -1;
 	}
 
-	if (util_is_poolset(poolset_in_path) != 1)
-		return REPLICA_RES_IN_POOLSET_ERR;
-	if (util_is_poolset(poolset_out_path) != 1)
-		return REPLICA_RES_OUT_POOLSET_ERR;
+	if (util_is_poolset(poolset_in_path) != 1) {
+		ERR("!util_is_poolset - input path");
+		result = -1;
+		goto err;
+	}
+
+	if (util_is_poolset(poolset_out_path) != 1) {
+		ERR("!util_is_poolset - output path");
+		result = -1;
+		goto err;
+	}
+
 	int fd_in = util_file_open(poolset_in_path, NULL, 0, O_RDONLY);
-	if (fd_in < 0)
-		return REPLICA_RES_IN_POOLSET_ERR;
+	if (fd_in < 0) {
+		ERR("!util_file_open - input path");
+		result = -1;
+		goto err;
+	}
+
 	int fd_out = util_file_open(poolset_out_path, NULL, 0, O_RDONLY);
 	if (fd_out < 0) {
-		result = REPLICA_RES_OUT_POOLSET_ERR;
+		ERR("!util_file_open - output path");
+		result = -1;
 		goto err_close_fin;
 	}
 
@@ -124,19 +148,21 @@ pmempool_convert(const char *poolset_in_path, const char *poolset_out_path,
 
 	/* parse input poolset file */
 	if (util_poolset_parse(poolset_in_path, fd_in, &set_in)) {
-		ERR("Parsing input poolset file failed");
-		result = REPLICA_RES_IN_POOLSET_ERR;
+		ERR("!util_poolset_parse - input path");
+		result = -1;
 		goto err_close_finout;
 	}
 
 	/* parse output poolset file */
 	if (util_poolset_parse(poolset_out_path, fd_out, &set_out)) {
-		ERR("Parsing output poolset file failed");
-		result = REPLICA_RES_OUT_POOLSET_ERR;
+		ERR("!util_poolset_parse - output path");
+		result = -1;
 		goto err_close_poolinfree;
 	}
 
-	ERR("Only restore mode is available now");
+	ERR("Function not implemented");
+	errno = ENOSYS;
+	result = -1;
 
 	util_poolset_free(set_out);
 err_close_poolinfree:
@@ -145,5 +171,8 @@ err_close_finout:
 	close(fd_out);
 err_close_fin:
 	close(fd_in);
+err:
+	if (result != 0 && errno == 0)
+		errno = EINVAL;
 	return result;
 }

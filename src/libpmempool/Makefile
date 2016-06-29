@@ -42,7 +42,7 @@ INCS += -I$(TOP)/src/libpmemobj
 
 SOURCE = libpmempool.c check.c check_util.c check_backup.c check_pool_hdr.c\
 	check_log_blk.c check_btt_info.c check_btt_map_flog.c check_write.c\
-	libpmempool_replica.c replica_sync.c\
+	replica.c sync.c\
 	pool.c $(COMMON)/out.c $(COMMON)/util.c $(COMMON)/util_linux.c\
 	$(COMMON)/set.c $(COMMON)/set_linux.c
 

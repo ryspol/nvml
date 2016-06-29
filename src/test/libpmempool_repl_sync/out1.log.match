@@ -3,7 +3,7 @@ libpmempool_replica_sync/TEST1: START: libpmempool_repl_sync_mod
 libpmempool_replica_sync/TEST1: Done
 libpmempool_replica_sync/TEST1: START: libpmempool_repl_sync
  ./libpmempool_repl_sync$(nW) -s -g 0 -w 1 $(nW)/pool0.set
-Result: REPLICA_RES_COPY_SUCCESSFUL
+Result: 0
 
 libpmempool_replica_sync/TEST1: Done
 libpmempool_replica_sync/TEST1: START: libpmempool_repl_sync_mod
@@ -13,7 +13,7 @@ BCDEF
 libpmempool_replica_sync/TEST1: Done
 libpmempool_replica_sync/TEST1: START: libpmempool_repl_sync
  ./libpmempool_repl_sync$(nW) -s -g 1 -w 0 $(nW)/pool0.set
-Result: REPLICA_RES_COPY_SUCCESSFUL
+Result: 0
 
 libpmempool_replica_sync/TEST1: Done
 libpmempool_replica_sync/TEST1: START: libpmempool_repl_sync_mod

@@ -37,6 +37,7 @@ export UNITTEST_NAME=libpmempool_replica_sync/TEST5
 export UNITTEST_NUM=5
 
 . ../unittest/unittest.sh
+. ./common.sh
 
 require_fs_type pmem any
 
@@ -52,37 +53,6 @@ POOLSET=$DIR/pool0.set
 M=$(( 1024 * 1024 ))
 POOL_HEADER_OFFSET=4096
 ADDR_MASK=0xFFFFF000
-
-function corrupt_data {
-	local -n files_arr=$1
-	partno=$2
-	offset_root=$3
-	str=$4
-	str_cnt=$5
-
-	counter=0
-	parts_data_len=0
-
-	root_addr=$($PMEMPOOL info -f obj -o $DIR/${files_arr[$counter]} | grep "Root offset" |\
-	sed 's/^Root offset[ \t]*: 0x\([0-9][0-9]*\)/\1/')
-	root_addr=$((16#$root_addr))
-	offset=$root_addr
-
-	while [ $counter -lt $partno ]; do
-		file_size=$(stat -c%s "$DIR/${files_arr[$counter]}")
-		part_size=$(( ($file_size & $ADDR_MASK) - $offset ))
-		parts_data_len=$(( $parts_data_len + $part_size ))
-		let counter=counter+1
-		offset=$POOL_HEADER_OFFSET
-	done
-
-	let part_off=offset_root-parts_data_len+$offset
-
-	# Corrupt data
-	echo $str | dd count=$str_cnt bs=1 seek=$part_off\
-	of=$DIR/${files_arr[$partno]} conv=notrunc status=none
-}
-
 
 declare FILES_R1=( "testfile1" "testfile2" "testfile3"
 	"testfile4" "testfile5" )
