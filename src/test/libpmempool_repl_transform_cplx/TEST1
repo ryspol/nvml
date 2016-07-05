@@ -1,0 +1,137 @@
+#!/bin/bash -e
+#
+# Copyright 2016, Intel Corporation
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in
+#       the documentation and/or other materials provided with the
+#       distribution.
+#
+#     * Neither the name of the copyright holder nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+# libpmempool_replica_transform_cplx/TEST1 -- test for checking replica
+# transform for complex poolset
+#
+export UNITTEST_NAME=libpmempool_replica_transform_cplx/TEST1
+export UNITTEST_NUM=1
+
+. ../unittest/unittest.sh
+
+require_fs_type pmem any
+
+setup
+
+LOG=out${UNITTEST_NUM}.log
+LOG_TEMP=out${UNITTEST_NUM}_part.log
+rm -rf $LOG && touch $LOG
+rm -rf $LOG_TEMP && touch $LOG_TEMP
+
+TRANS_EXE=../libpmempool_repl_transform/libpmempool_repl_transform
+LAYOUT=OBJ_LAYOUT
+POOLSET_IN=$DIR/poolset_in.set
+POOLSET_OUT=$DIR/poolset_out.set
+M=$(( 1024 * 1024 ))
+file_size_20M_12K=20492K
+
+# Input poolset
+
+declare FIN_R1=( "r1f1" "r1f2" "r1f3" "r1f4" )
+declare FIN_SIZE_R1=( "100M" "100M" "40M" $file_size_20M_12K )
+declare FIN_R2=( "r2f1" )
+declare FIN_SIZE_R2=( "260M" )
+declare FIN_R3=( "r3f1" "r3f2" )
+declare FIN_SIZE_R3=( "130M" "130M" )
+declare FIN_R4=( "r4f1" )
+declare FIN_SIZE_R4=( "260M" )
+
+# Output poolset
+declare FOUT_R1=( "r1f1" )
+declare FOUT_SIZE_R1=( "260M" )
+declare FOUT_R2=( "r2f1" )
+declare FOUT_SIZE_R2=( "260M" )
+declare FOUT_R3=( "r3f1" "r3f2" )
+declare FOUT_SIZE_R3=( "130M" "130M" )
+declare FOUT_R4=( "r4f1" "r4f2" "r4f3" "r4f4" )
+declare FOUT_SIZE_R4=( "100M" "100M" "40M" $file_size_20M_12K )
+
+
+# Create poolset
+create_poolset ${POOLSET_IN}\
+	${FIN_SIZE_R1[0]}:$DIR/${FIN_R1[0]}:z:${FIN_SIZE_R1[0]}:0777\
+	${FIN_SIZE_R1[1]}:$DIR/${FIN_R1[1]}:z:${FIN_SIZE_R1[1]}:0777\
+	${FIN_SIZE_R1[2]}:$DIR/${FIN_R1[2]}:z:${FIN_SIZE_R1[2]}:0777\
+	${FIN_SIZE_R1[3]}:$DIR/${FIN_R1[3]}:z:${FIN_SIZE_R1[3]}:0777\
+	R ${FIN_SIZE_R2[0]}:$DIR/${FIN_R2[0]}:z:${FIN_SIZE_R2[0]}:0777\
+	R ${FIN_SIZE_R3[0]}:$DIR/${FIN_R3[0]}:z:${FIN_SIZE_R3[0]}:0777\
+	${FIN_SIZE_R3[1]}:$DIR/${FIN_R3[1]}:z:${FIN_SIZE_R3[1]}:0777\
+	R ${FIN_SIZE_R4[0]}:$DIR/${FIN_R4[0]}:z:${FIN_SIZE_R4[0]}:0777
+
+
+# Create only poolset file
+echo PMEMPOOLSET >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R1[0]} $DIR/${FOUT_R1[0]} >> $POOLSET_OUT
+echo -e REPLICA >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R2[0]} $DIR/${FOUT_R2[0]} >> $POOLSET_OUT
+echo -e REPLICA >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R3[0]} $DIR/${FOUT_R3[0]} >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R3[1]} $DIR/${FOUT_R3[1]} >> $POOLSET_OUT
+echo -e REPLICA >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R4[0]} $DIR/${FOUT_R4[0]} >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R4[1]} $DIR/${FOUT_R4[1]} >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R4[2]} $DIR/${FOUT_R4[2]} >> $POOLSET_OUT
+echo -e ${FOUT_SIZE_R4[3]} $DIR/${FOUT_R4[3]} >> $POOLSET_OUT
+
+expect_normal_exit $PMEMPOOL$EXESUFFIX create --layout=$LAYOUT\
+	obj $POOLSET_IN
+cat $LOG >> $LOG_TEMP
+
+off1=$((100 * $M))
+expect_normal_exit ./libpmempool_repl_transform_cplx_mod\
+	-w -s 16 -l $LAYOUT -d "TestOK111" -o $off1 $POOLSET_IN
+cat $LOG >> $LOG_TEMP
+
+expect_normal_exit $TRANS_EXE$EXESUFFIX\
+	-o $POOLSET_OUT $POOLSET_IN >> $LOG
+cat $LOG >> $LOG_TEMP
+
+# Check data
+expect_normal_exit ./libpmempool_repl_transform_cplx_mod\
+	-l $LAYOUT -s 16 -o $off1 $POOLSET_OUT
+cat $LOG >> $LOG_TEMP
+
+$PMEMPOOL info $DIR/${FOUT_R1[0]} >> $LOG_TEMP
+$PMEMPOOL info $DIR/${FOUT_R2[0]} >> $LOG_TEMP
+$PMEMPOOL info $DIR/${FOUT_R3[0]} >> $LOG_TEMP
+$PMEMPOOL info $DIR/${FOUT_R3[1]} >> $LOG_TEMP
+# Check metadata by pmempool info
+for NAME in ${FOUT_R4[*]}
+do
+	$PMEMPOOL info $DIR/$NAME >> $LOG_TEMP
+done
+
+mv $LOG_TEMP $LOG
+check
+
+pass

@@ -1,0 +1,55 @@
+libpmempool_repl_transform/TEST4: START: libpmempool_repl_transform_mod
+ ./libpmempool_repl_transform_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off0 -o 5242880 $(nW)/poolset_in.set
+libpmempool_repl_transform/TEST4: Done
+libpmempool_repl_transform/TEST4: START: libpmempool_repl_transform_mod
+ ./libpmempool_repl_transform_mod -w -s 16 -l OBJ_LAYOUT -d TestDataa_off1 -o 78643200 $(nW)/poolset_in.set
+libpmempool_repl_transform/TEST4: Done
+libpmempool_repl_transform/TEST4: START: libpmempool_repl_transform
+ ./libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set $(nW)/poolset_in.set
+Result: 0
+
+libpmempool_repl_transform/TEST4: Done
+libpmempool_repl_transform/TEST4: START: libpmempool_repl_transform_mod
+ ./libpmempool_repl_transform_mod -l OBJ_LAYOUT -s 16 -o 5242880 $(nW)/poolset_out.set
+TestDataa_off0
+libpmempool_repl_transform/TEST4: Done
+libpmempool_repl_transform/TEST4: START: libpmempool_repl_transform_mod
+ ./libpmempool_repl_transform_mod -l OBJ_LAYOUT -s 16 -o 78643200 $(nW)/poolset_out.set
+TestDataa_off1
+libpmempool_repl_transform/TEST4: Done
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]
+POOL Header:
+Signature                : PMEMOBJ [part file]
+Major                    : $(N)
+Mandatory features       : 0x0
+Not mandatory features   : 0x0
+Forced RO                : 0x0
+Pool set UUID            : $(nW)
+UUID                     : $(nW)
+Previous part UUID       : $(nW)
+Next part UUID           : $(nW)
+Previous replica UUID    : $(nW)
+Next replica UUID        : $(nW)
+Creation Time            : $(*)
+Alignment Descriptor     : $(XX) [OK]
+Class                    : ELF64
+Data                     : 2's complement, $(S)
+Machine                  : $(*)
+Checksum                 : $(XX) [OK]

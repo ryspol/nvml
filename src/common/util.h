@@ -288,6 +288,7 @@ int util_pool_create_uuids(struct pool_set **setp, const char *path,
 int util_poolset_file(struct pool_set_part *part, size_t minsize, int create);
 int util_replica_open(struct pool_set *set, unsigned repidx, int flags);
 int util_replica_close(struct pool_set *set, unsigned repidx);
+int util_replica_close_part(struct pool_set *set, unsigned repidx);
 int util_map_part(struct pool_set_part *part, void *addr, size_t size,
 	size_t offset, int flags);
 int util_unmap_part(struct pool_set_part *part);

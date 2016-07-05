@@ -1434,6 +1434,26 @@ util_replica_close(struct pool_set *set, unsigned repidx)
 }
 
 /*
+ * util_replica_close_part -- close a memory pool replica
+ *
+ * This function unmaps all mapped memory regions. All parts are checked
+ * separately.
+ */
+int
+util_replica_close_part(struct pool_set *set, unsigned repidx)
+{
+	LOG(3, "set %p repidx %u", set, repidx);
+	struct pool_replica *rep = set->replica[repidx];
+
+	for (unsigned p = 0; p < rep->nparts; p++) {
+		util_unmap_hdr(&rep->part[p]);
+		util_unmap_part(&rep->part[p]);
+	}
+
+	return 0;
+}
+
+/*
  * part_fdclose -- close all parts of given replica
  */
 void

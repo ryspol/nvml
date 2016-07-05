@@ -1,0 +1,24 @@
+libpmempool_replica_transform_cplx/TEST2: START: libpmempool_repl_transform
+ ../libpmempool_repl_transform/libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set $(nW)/poolset_in.set
+Result: -1
+
+Invalid argument
+
+libpmempool_replica_transform_cplx/TEST2: Done
+libpmempool_replica_transform_cplx/TEST2: START: libpmempool_repl_transform
+ ../libpmempool_repl_transform/libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set -f 3 $(nW)/poolset_in.set
+Result: -1
+
+Invalid argument
+
+libpmempool_replica_transform_cplx/TEST2: Done
+libpmempool_replica_transform_cplx/TEST2: START: libpmempool_repl_transform
+ ../libpmempool_repl_transform/libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set -f 1 $(nW)/poolset_in.set
+Result: 0
+
+libpmempool_replica_transform_cplx/TEST2: Done
+libpmempool_replica_transform_cplx/TEST2: START: libpmempool_repl_transform
+ ../libpmempool_repl_transform/libpmempool_repl_transform$(nW) -o $(nW)/poolset_out.set -f 2 $(nW)/poolset_in.set
+Result: 0
+
+libpmempool_replica_transform_cplx/TEST2: Done

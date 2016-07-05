@@ -203,8 +203,8 @@ int pmempool_sync(const char *poolset_path,
  * Convert structure of pool set. This command allows to change localization
  * of parts within replicas, rename parts and split or concatenate parts.
  */
-int pmempool_transform(const char *poolset_in_path,
-		const char *poolset_out_path, unsigned flags);
+int pmempool_transform(const char *poolset_in,
+		const char *poolset_out, unsigned flags);
 
 
 #ifdef __cplusplus
